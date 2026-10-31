@@ -62,6 +62,28 @@
     try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }
   }
 
+  var AI_DEFAULT = {
+    provider: 'volc', apiKey: '',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    visionModel: 'doubao-seed-2-1-pro-260915',
+    imageModel: 'doubao-seedream-5-0-pro-260628',
+    img2img: true
+  };
+
+  // 旧版本默认的模型已下线，回来自动换新，用户不用手打
+  function fixAi(d) {
+    if (!d || !d.settings) return false;
+    var ai = d.settings.ai;
+    if (!ai) { d.settings.ai = Object.assign({}, AI_DEFAULT); return true; }
+    var changed = false;
+    var vm = String(ai.visionModel || '');
+    var im = String(ai.imageModel || '');
+    if (!vm || /doubao-1\.5-vision/.test(vm)) { ai.visionModel = AI_DEFAULT.visionModel; changed = true; }
+    if (!im || /seedream-4\.5|seedream-4-5/.test(im)) { ai.imageModel = AI_DEFAULT.imageModel; changed = true; }
+    if (!ai.baseUrl) { ai.baseUrl = AI_DEFAULT.baseUrl; changed = true; }
+    return changed;
+  }
+
   function aiConfig() {
     return get('data').then(function (d) {
       var ai = d && d.settings && d.settings.ai;
@@ -95,6 +117,7 @@
       if (p === '/api/data') {
         if (method === 'GET') {
           return get('data').then(function (d) {
+            if (d && fixAi(d)) return set('data', d).then(function () { return json(d); });
             return json(d || {
               rev: 0,
               updatedAt: new Date().toISOString(),
@@ -106,8 +129,8 @@
                 ai: {
                   provider: 'volc', apiKey: '',
                   baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
-                  visionModel: 'doubao-1.5-vision-pro-32k-250115',
-                  imageModel: 'doubao-seedream-4.5-251028',
+                  visionModel: AI_DEFAULT.visionModel,
+                  imageModel: AI_DEFAULT.imageModel,
                   img2img: true
                 }
               }
@@ -144,7 +167,7 @@
               return json({ ok: true, message: 'Key 能用，识别模型正常' });
             });
           }).catch(function (e) {
-            return json({ error: 'AI_NETWORK', message: '浏览器没拿到方舟的返回：请先核对 API Key 和模型 ID 有没有填错；都填对了还这样，告诉我，我换成中转通道。' }, 502);
+            return json({ error: 'AI_NETWORK', message: '连不上火山方舟：' + (e && e.message || '网络错误') }, 502);
           });
         });
       }
@@ -178,7 +201,7 @@
               return json({ ok: true, style: parsed });
             });
           }).catch(function (e) {
-            return json({ error: 'AI_NETWORK', message: '浏览器没拿到方舟的返回：请先核对 API Key 和模型 ID 有没有填错；都填对了还这样，告诉我，我换成中转通道。' }, 502);
+            return json({ error: 'AI_NETWORK', message: '连不上火山方舟：' + (e && e.message || '网络错误') }, 502);
           });
         });
       }
@@ -212,7 +235,7 @@
               return json({ error: 'AI_EMPTY', message: '方舟返回格式看不懂' }, 502);
             });
           }).catch(function (e) {
-            return json({ error: 'AI_NETWORK', message: '浏览器没拿到方舟的返回：请先核对 API Key 和模型 ID 有没有填错；都填对了还这样，告诉我，我换成中转通道。' }, 502);
+            return json({ error: 'AI_NETWORK', message: '连不上火山方舟：' + (e && e.message || '网络错误') }, 502);
           });
         });
       }
