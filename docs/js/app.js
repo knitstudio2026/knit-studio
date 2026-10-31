@@ -57,9 +57,12 @@ const S = {
   rev: 0,
   route: 'dashboard',
   syncState: 'ok',
-  studioImage: null,      // { img, dataUrl, assetUrl }
+  studioImage: null,      // { img, dataUrl, aiUrl, assetUrl }
   studioKit: null,
   studioResultTab: 'titles',
+  studioAiImages: [],     // 方舟生成的模特图（本次会话）
+  aiStatus: '',
+  arkStatus: '',
   studioInput: {
     category: '套头毛衣',
     materials: ['羊毛混纺'],
@@ -1059,7 +1062,38 @@ function renderStudioResult() {
 
   if (tab === 'aimodel') {
     const variants = buildJimengPrompts(S.studioInput);
+    const ai = (S.data.settings && S.data.settings.ai) || {};
+    const hasKey = Boolean(ai.apiKey);
+    const aiImgs = S.studioAiImages || [];
     body = `
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head"><h3>AI 模特图</h3><span class="sub">两种方式，你自己选</span></div>
+        <div class="card-body">
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.9;margin-bottom:14px">
+            <div><strong>方式一 · 免费</strong>：复制下面的即梦提示词，到即梦 AI 网页版上传同款实拍图，粘贴出图。</div>
+            <div><strong>方式二 · 花钱</strong>：点下面按钮在这里直接出图，一张约 0.1~1 元，从火山方舟余额扣。</div>
+            <div style="color:var(--ink-3);margin-top:4px">上传图片后材质、领型、版型、风格会自动识别填好；模特图只在你点按钮时才生成，不会自动扣钱。</div>
+          </div>
+          ${hasKey ? `
+            <div class="row" style="margin-bottom:8px">
+              <button class="btn primary" id="arkGenBtn">用火山方舟生成 1 张模特图（约 0.1~1 元）</button>
+              ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空这次生成的图</button>` : ''}
+            </div>
+            <p style="font-size:12px;color:var(--ink-3);margin:0 0 10px">点一次出 1 张，不满意可以再点，每次单独计费。</p>
+            <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张，点图片看大图，点「下载」保存' : ''))}</div>
+            ${aiImgs.length ? `<div class="canvas-grid" style="margin-bottom:16px">${aiImgs.map((u, i) => `
+              <div class="canvas-card">
+                <a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="模特图 ${i + 1}"></a>
+                <div class="cc-foot"><span>模特图 ${i + 1}</span><span style="margin-left:auto"></span>
+                  <a class="btn sm" href="${u}" download="模特图${i + 1}.png">下载</a></div>
+              </div>`).join('')}</div>` : ''}
+          ` : `
+            <div class="tbl-empty" style="margin-bottom:12px">还没填火山方舟 Key，所以不能直接出图。填好后，上传图片会自动识别材质等属性，模特图由你手动点生成。</div>
+            <button class="btn" id="arkGoSettings">去设置填 Key</button>
+          `}
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-head"><h3>即梦 AI 提示词</h3><span class="sub">免费出真实模特图 · 服装1:1还原</span></div>
         <div class="card-body">
@@ -1067,15 +1101,15 @@ function renderStudioResult() {
             <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px">
               <div class="thumb" style="width:130px"><img src="${S.studioImage.dataUrl}" alt="实拍图"></div>
               <div style="flex:1;min-width:220px">
-                <button class="btn primary" id="aiRecognizeBtn">一键识别并生成提示词</button>
-                <div id="aiStatus" style="font-size:13px;color:var(--ink-2);margin-top:8px;min-height:20px"></div>
+                ${hasKey ? `<button class="btn" id="aiRecognizeBtn">重新识别一次</button>` : `<span style="font-size:12px;color:var(--ink-3)">没配 Key，手动选左边标签即可，提示词会自动更新</span>`}
+                <div id="aiStatus" style="font-size:13px;color:var(--ink-2);margin-top:8px;min-height:20px">${esc(S.aiStatus)}</div>
                 <p style="font-size:12px;color:var(--ink-3);margin-top:6px">配了 Key 会自动识别；没配就手动选左边标签，提示词会自动跟着变。</p>
               </div>
             </div>
           ` : `<div class="tbl-empty" style="margin-bottom:14px">请先在左侧上传一张商品实拍图</div>`}
 
           <div style="background:var(--surface-2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.9">
-            <div style="font-weight:600;margin-bottom:6px">📋 使用步骤（免费出图）</div>
+            <div style="font-weight:600;margin-bottom:6px">📋 即梦免费出图步骤</div>
             <div>1. 复制下面任意一条提示词</div>
             <div>2. 打开 <a href="https://jimeng.jianying.com" target="_blank" style="color:var(--accent)">即梦 AI</a>，选「图生图」</div>
             <div>3. 上传你的商品实拍图作为<strong>参考图</strong></div>
@@ -1148,7 +1182,12 @@ function bindStudio() {
       if (file.size > 10 * 1024 * 1024) { toast('图片太大，请压缩到 10MB 以内'); return; }
       try {
         const { img, dataUrl } = await loadImageFromFile(file);
-        S.studioImage = { img, dataUrl, assetUrl: null };
+        // 给 AI 用的小图：最长边 1280，识别更快更省
+        const aiUrl = shrinkDataUrl(img, 1280);
+        S.studioImage = { img, dataUrl, aiUrl, assetUrl: null };
+        S.studioAiImages = [];
+        S.aiStatus = '';
+        S.arkStatus = '';
         S.studioResultTab = 'aimodel';
         renderRoute();
         bindRoute();
@@ -1246,16 +1285,32 @@ function bindStudio() {
 
   const aiRecog = $('#aiRecognizeBtn');
   if (aiRecog) aiRecog.onclick = () => autoRecognize();
+
+  const arkGen = $('#arkGenBtn');
+  if (arkGen) arkGen.onclick = () => arkGenerate();
+  const arkClear = $('#arkClearBtn');
+  if (arkClear) arkClear.onclick = () => {
+    S.studioAiImages = [];
+    S.arkStatus = '';
+    renderRoute();
+    bindRoute();
+  };
+  const arkGoSettings = $('#arkGoSettings');
+  if (arkGoSettings) arkGoSettings.onclick = () => {
+    S.route = 'settings';
+    renderRoute();
+    registerTabs();
+  };
 }
 
 async function autoRecognize() {
   if (!S.studioImage) return;
   S.studioResultTab = 'aimodel';
-  setAiStatus('正在 AI 识别衣服风格（约 5-15 秒）…');
+  S.aiStatus = '正在 AI 识别材质、领型、版型、风格…（约 5-15 秒）';
   renderRoute();
   bindRoute();
   try {
-    const r = await api('/api/ai/recognize', { method: 'POST', body: JSON.stringify({ imageUrl: S.studioImage.dataUrl }) });
+    const r = await api('/api/ai/recognize', { method: 'POST', body: JSON.stringify({ imageUrl: S.studioImage.aiUrl || S.studioImage.dataUrl }) });
     const s = r.style;
     const map = ['category','materials','crafts','neck','fit','styles','audience','weight','season','colors','sizes','scene'];
     map.forEach((k) => { if (s[k] !== undefined && s[k] !== null) S.studioInput[k] = s[k]; });
@@ -1263,17 +1318,79 @@ async function autoRecognize() {
     if (s.extra) S.studioInput.extra = s.extra;
     S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
     S.studioResultTab = 'aimodel';
+    S.aiStatus = '✅ 已自动识别并填好材质/领型/版型/风格/颜色，下面的提示词已经按这件衣服改好。';
     renderRoute();
     bindRoute();
-    setAiStatus('✅ 识别完成！下方 4 条提示词已生成，选一条复制去即梦 AI 出图。');
-    toast('识别完成，提示词已生成');
+    toast('识别完成，属性已自动填好');
   } catch (e) {
-    setAiStatus('识别失败：' + ((e.body && e.body.message) || e.message) + '。你也可以手动选左边标签，提示词会自动更新。');
+    S.aiStatus = '识别失败：' + ((e.body && e.body.message) || e.message) + '。你也可以手动选左边标签，提示词会自动更新。';
+    setAiStatus(S.aiStatus);
   }
+}
+
+async function arkGenerate() {
+  if (!S.studioImage) { toast('先上传一张商品图'); return; }
+  const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
+  if (!ai.apiKey) {
+    toast('先去「设置」里填火山方舟的 API Key');
+    return;
+  }
+  if (!ai.imageModel) {
+    toast('先去「设置」里填生图模型 ID');
+    return;
+  }
+  if (!confirm('用火山方舟生成 1 张模特图，大约扣 0.1~1 元（从你的方舟余额扣）。继续吗？')) return;
+
+  const btn = $('#arkGenBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '正在生成，一般 20~60 秒…'; }
+  S.arkStatus = '正在生成，请别关页面…';
+  setArkStatus(S.arkStatus);
+  try {
+    const prompt = buildJimengPrompts(S.studioInput)[0].prompt;
+    const r = await api('/api/ai/generate', {
+      method: 'POST',
+      body: JSON.stringify({
+        prompt,
+        imageUrl: S.studioImage.aiUrl || S.studioImage.dataUrl,
+        size: '1024x1024'
+      })
+    });
+    const url = r.dataUrl || r.url;
+    if (!url) throw new Error('方舟没返回图片');
+    S.studioAiImages.unshift(url);
+    S.arkStatus = '生成成功，共 ' + S.studioAiImages.length + ' 张。不满意可以再点一次，每次单独计费。';
+    S.studioResultTab = 'aimodel';
+    renderRoute();
+    bindRoute();
+    toast('模特图已生成');
+  } catch (e) {
+    S.arkStatus = '生成失败：' + ((e.body && e.body.message) || e.message);
+    setArkStatus(S.arkStatus);
+    if (btn) { btn.disabled = false; btn.textContent = '用火山方舟生成 1 张模特图（约 0.1~1 元）'; }
+  }
+}
+
+/* 给 AI 用的压缩图：最长边不超过 max，返回 dataURL */
+function shrinkDataUrl(img, max) {
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const scale = Math.min(1, max / Math.max(w, h));
+  if (scale >= 1) return null;
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * scale);
+  c.height = Math.round(h * scale);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.85);
 }
 
 function setAiStatus(text) {
   const el = $('#aiStatus');
+  if (el) el.textContent = text;
+}
+
+function setArkStatus(text) {
+  const el = $('#arkStatus');
   if (el) el.textContent = text;
 }
 
@@ -1398,34 +1515,36 @@ function viewSettings() {
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>AI 生图配置</h3><span class="sub">识别风格 + 生成 AI 模特图</span></div>
+        <div class="card-head"><h3>AI 生图配置</h3><span class="sub">自动识别属性 + 手动生成模特图</span></div>
         <div class="card-body">
           <div class="seg-row"><div class="sk">服务平台</div>
             <select id="aiProvider">
-              <option value="volc" ${(S.data.settings.ai.provider||'volc')==='volc'?'selected':''}>火山方舟（豆包视觉 + Seedream）</option>
-              <option value="custom" ${(S.data.settings.ai.provider)==='custom'?'selected':''}>自定义（OpenAI 兼容）</option>
+              <option value="volc" ${(S.data.settings.ai.provider||'volc')==='volc'?'selected':''}>火山方舟（豆包识图 + Seedream 出图）</option>
+              <option value="custom" ${(S.data.settings.ai.provider)==='custom'?'selected':''}>自定义（OpenAI 兼容接口）</option>
             </select>
           </div>
-          <div class="seg-row"><div class="sk">API Key</div>
-            <input id="aiApiKey" type="password" style="flex:1" placeholder="粘贴你的 API Key" value="${esc(S.data.settings.ai.apiKey||'')}">
+          <div class="seg-row"><div class="sk">API Key（密钥）</div>
+            <input id="aiApiKey" type="password" style="flex:1" placeholder="粘贴火山方舟的 API Key" value="${esc(S.data.settings.ai.apiKey||'')}">
           </div>
-          <div class="seg-row"><div class="sk">接口地址</div>
+          <div class="seg-row"><div class="sk">接口地址（Base URL）</div>
             <input id="aiBaseUrl" type="text" style="flex:1" value="${esc(S.data.settings.ai.baseUrl||'')}">
           </div>
-          <div class="seg-row"><div class="sk">视觉识别模型</div>
-            <input id="aiVisionModel" type="text" style="flex:1" value="${esc(S.data.settings.ai.visionModel||'')}">
+          <div class="seg-row"><div class="sk">识别模型（豆包视觉）</div>
+            <input id="aiVisionModel" type="text" style="flex:1" placeholder="填豆包视觉模型 ID" value="${esc(S.data.settings.ai.visionModel||'')}">
           </div>
-          <div class="seg-row"><div class="sk">生图模型</div>
-            <input id="aiImageModel" type="text" style="flex:1" value="${esc(S.data.settings.ai.imageModel||'')}">
+          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">只用于识别材质、领型、版型、风格，约 0.001 元一张（基本可以忽略）。上传图片后自动跑，不用你点。</p>
+          <div class="seg-row" style="margin-top:10px"><div class="sk">生图模型（Seedream）</div>
+            <input id="aiImageModel" type="text" style="flex:1" placeholder="填 Seedream 生图模型 ID" value="${esc(S.data.settings.ai.imageModel||'')}">
           </div>
-          <div class="seg-row"><div class="sk">图生图参考</div>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">只用于「生成模特图」，一张约 0.1~1 元。必须你手动点按钮才会生成，不会自动扣钱。</p>
+          <div class="seg-row" style="margin-top:10px"><div class="sk">图生图参考</div>
             <label style="display:flex;align-items:center;gap:6px"><input id="aiImg2img" type="checkbox" ${S.data.settings.ai.img2img!==false?'checked':''}> 上传实拍图作为生成参考（更像你的衣服）</label>
           </div>
           <div class="row" style="margin-top:14px">
             <button class="btn primary" id="aiSaveBtn">保存配置</button>
             <button class="btn" id="aiTestBtn">测试连接</button>
           </div>
-          <p style="font-size:12px;color:var(--ink-3);margin-top:12px"><strong>主流程不需要 Key（免费）</strong>：素材工坊里的「即梦提示词」标签会根据你选的标签自动生成提示词，你拿去即梦 AI 网页版（每天免费积分）出图即可。<br>这里的 API Key 只用于「AI 识别风格」按钮——自动看图填标签，省得手动选。不配也完全不影响出图。</p>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:12px">模型 ID 在火山方舟控制台「开通管理」里复制，形如 doubao-seedream-4-5-xxxx。不填 Key 也能用：素材工坊里手动选标签，即梦提示词照样自动生成，拿去即梦免费出图。<br>方舟余额用完就去控制台充值，工具本身不代收任何费用。</p>
         </div>
       </div>
 
@@ -1444,7 +1563,7 @@ function viewSettings() {
           <div><b>为什么不做自动抓取</b>：插件抓取违反平台协议，有封店风险，且后台一改版就失效，不适合作为长期依赖。</div>
           <div><b>以后可以接</b>：拼多多开放平台的订单/物流/商品接口，需要企业资质与应用审核；届时看板可以直接自动出数。</div>
           <div><b>素材生成</b>：按毛衣类目的关键词规则生成，不联网、不上传你的图到第三方；生成结果按平台规则做过字数控制。</div>
-          <div><b>AI 模特图</b>：不花钱。工具根据你选的标签生成高质量提示词，你复制后到「即梦 AI」网页版（每天免费积分）上传商品图当参考、粘贴提示词出图。提示词已写死"服装花纹颜色100%还原"，生成的模特穿的就是你这件衣服。</div>
+          <div><b>AI 模特图</b>：两条路都保留。免费路线 = 复制即梦提示词去即梦 AI 网页版出图；花钱路线 = 在素材工坊手动点「用火山方舟生成」，一张约 0.1~1 元，从方舟余额扣，不点不扣。上传图片后的材质识别约 0.001 元一张，自动跑。</div>
         </div>
       </div>
 
@@ -1517,8 +1636,8 @@ function bindSettings() {
     aiTest.disabled = true;
     aiTest.textContent = '测试中…';
     try {
-      const r = await api('/api/ai/generate', { method: 'POST', body: JSON.stringify({ prompt: '一只可爱的白色小猫，简单插画', size: '256x256' }) });
-      if (r.ok) toast('连接成功，AI 正常返回图片');
+      const r = await api('/api/ai/test', { method: 'POST', body: '{}' });
+      if (r.ok) toast(r.message || '连接成功，Key 能用');
       else toast('连接失败：' + (r.message || r.error));
     } catch (e) {
       toast('连接失败：' + ((e.body && e.body.message) || e.message));
