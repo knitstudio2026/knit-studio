@@ -37,7 +37,9 @@
   window.fetch = function (input, init) {
     var url = typeof input === 'string' ? input : (input && input.url) || '';
     var p = url.indexOf(location.origin) === 0 ? url.slice(location.origin.length) : url;
-    p = p.split('?')[0].replace(/^\/[^/]+\//, '/');
+    p = p.split('?')[0];
+    var base = location.pathname.replace(/index\.html$/, '');
+    if (base && base !== '/' && p.indexOf(base) === 0) p = p.slice(base.length - 1);
     if (p.indexOf('/api/') !== 0) return orig(input, init);
     var method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
     return Promise.resolve().then(function () {
@@ -47,7 +49,23 @@
       if (p === '/api/data') {
         if (method === 'GET') {
           return get('data').then(function (d) {
-            return json(d || { rev: 0, shops: [], products: [], daily: {}, materials: [], settings: {} });
+            return json(d || {
+              rev: 0,
+              updatedAt: new Date().toISOString(),
+              shops: [], products: [], daily: [], materials: [],
+              settings: {
+                storeName: '我的毛衣工作室',
+                currency: '¥',
+                onboard: false,
+                ai: {
+                  provider: 'volc', apiKey: '',
+                  baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+                  visionModel: 'doubao-1.5-vision-pro-32k-250115',
+                  imageModel: 'doubao-seedream-4.5-251028',
+                  img2img: true
+                }
+              }
+            });
           });
         }
         var body = JSON.parse((init && init.body) || '{}');
