@@ -784,8 +784,8 @@ function viewShops() {
           <div class="name">${esc(shop.name)}</div>
           <div class="meta">${esc(shop.note || '未填写备注')}</div>
           <div class="shop-kv">
-            <div><div class="k">成本率</div><div class="v">${num(Number(shop.costRate) || 0, 1)}%</div></div>
-            <div><div class="k">佣金率</div><div class="v">${num(shop.commission == null ? 0.6 : Number(shop.commission), 2)}%</div></div>
+            <div><div class="k">运营方式</div><div class="v" style="font-size:13px">${esc(shop.opMode || '未设置')}</div></div>
+            <div><div class="k">价位段</div><div class="v" style="font-size:13px">${esc(shop.band || '未设置')}</div></div>
             <div><div class="k">累计净利</div><div class="v" style="color:${st.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(st.net)}</div></div>
             <div><div class="k">商品数</div><div class="v">${S.data.products.filter((p) => p.shopId === shop.id).length}</div></div>
           </div>
@@ -801,10 +801,10 @@ function viewShops() {
     </div>
     ${S.data.shops.length ? `<div class="shop-grid">${cards}</div>` : `<div class="empty"><div class="glyph">◫</div><h4>还没有店铺</h4><p>先把正在经营的店加进来</p><button class="btn primary" data-act="add-shop">＋ 添加店铺</button></div>`}
     <div class="card" style="margin-top:16px">
-      <div class="card-head"><h3>成本率怎么填</h3></div>
+      <div class="card-head"><h3>不用自己算，选一下就行</h3></div>
       <div class="card-body" style="font-size:13px;color:var(--ink-2);line-height:1.9">
-        <div>成本率 = 商品成本 ÷ 售价。比如卖 59.9 元、成本 25 元，成本率约 42%。</div>
-        <div>不同商品成本率不一样，如果店里毛利结构接近，填一个平均值就够用于看板估算；精确到单品的算在「利润」页。</div>
+        <div>添加店铺只需要：店名、运营方式、价位段。系统按价位段自动估算成本率，看板上的毛利是估算值。</div>
+        <div>想算准某一个款：去「利润」页建成本卡，填售价、进货价、运费、每天推广费，系统自动算出毛利率和保本 ROI。</div>
       </div>
     </div>`;
 }
@@ -817,24 +817,43 @@ function bindShops() {
 }
 
 function openShopForm(shop) {
-  const s = shop || { id: uid(), name: '', note: '', costRate: 42, commission: 0.6, color: '#c4562b' };
+  const s = shop || { id: uid(), name: '', note: '', opMode: '自然流量', band: '30-60', costRate: 40, commission: 0.6, color: '#c4562b' };
   const colors = ['#c4562b', '#2f3a30', '#7a6a58', '#3f5b7a', '#8a4b63', '#a8781c'];
+  const MODES = ['自然流量', '付费推广', '直播带货', '活动秒杀', '多店铺货'];
+  const BANDS = ['30元以下', '30-60元', '60-100元', '100元以上'];
+  const BAND_RATE = { '30元以下': 45, '30-60元': 40, '60-100元': 35, '100元以上': 30 };
+  const mode = s.opMode || '自然流量';
+  let band = s.band || '30-60';
   openDrawer(shop ? '编辑店铺' : '添加店铺', `
     <div class="stack">
       <div class="field"><label>店铺名称</label><input class="input" id="sName" value="${esc(s.name)}" placeholder="例如：织间旗舰店"></div>
-      <div class="field"><label>备注</label><input class="input" id="sNote" value="${esc(s.note)}" placeholder="主营类目 / 价位段 / 运营重点"></div>
-      <div class="grid two">
-        <div class="field"><label>平均成本率（%）</label><input class="input" id="sCost" type="number" value="${s.costRate}"></div>
-        <div class="field"><label>平台佣金率（%）</label><input class="input" id="sComm" type="number" step="0.01" value="${s.commission}"></div>
-      </div>
+      <div class="field"><label>主要运营方式</label><div class="chip-group" id="sMode">${MODES.map((m) => `<button class="chip ${m === mode ? 'active' : ''}" data-mode="${m}">${m}</button>`).join('')}</div></div>
+      <div class="field"><label>主流价位段</label><div class="chip-group" id="sBand">${BANDS.map((b) => `<button class="chip ${b === band ? 'active' : ''}" data-band="${b}">${b}</button>`).join('')}</div></div>
+      <div class="field"><label>备注（可选）</label><input class="input" id="sNote" value="${esc(s.note)}" placeholder="主营类目 / 风格 / 其他要点"></div>
       <div class="field"><label>识别色</label><div class="chip-group" id="sColors">${colors.map((c) => `<button class="chip ${c === s.color ? 'active' : ''}" data-color="${c}" style="width:34px;height:34px;padding:0;background:${c};border-color:${c}"></button>`).join('')}</div></div>
+      <div class="hint" style="color:var(--ink-3);font-size:12px">成本率不用你算：系统按价位段自动估算，看板上是估算值；要精确到单品，在「利润」页建成本卡。</div>
     </div>`, `<button class="btn danger" id="sDel">删除</button><button class="btn primary" id="sSave">保存</button>`);
 
   let color = s.color;
+  let modeSel = mode;
   $$('#sColors .chip').forEach((b) => {
     b.onclick = () => {
       color = b.dataset.color;
       $$('#sColors .chip').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+  });
+  $$('#sMode .chip').forEach((b) => {
+    b.onclick = () => {
+      modeSel = b.dataset.mode;
+      $$('#sMode .chip').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+  });
+  $$('#sBand .chip').forEach((b) => {
+    b.onclick = () => {
+      band = b.dataset.band;
+      $$('#sBand .chip').forEach((x) => x.classList.remove('active'));
       b.classList.add('active');
     };
   });
@@ -846,8 +865,10 @@ function openShopForm(shop) {
       id: s.id,
       name,
       note: $('#sNote').value.trim(),
-      costRate: Number($('#sCost').value) || 0,
-      commission: Number($('#sComm').value) || 0,
+      opMode: modeSel,
+      band,
+      costRate: BAND_RATE[band] || 40,
+      commission: Number(s.commission) || 0.6,
       color
     };
     const idx = S.data.shops.findIndex((x) => x.id === rec.id);
@@ -1555,5 +1576,3 @@ boot().catch((err) => {
   console.error(err);
   showAuth(false);
 });
-
-window.__knitLoaded = "yes";
