@@ -1632,7 +1632,7 @@ function bindSettings() {
       imageModel: $('#aiImageModel').value.trim(),
       img2img: $('#aiImg2img').checked
     };
-    await persist();
+    await flush();
     aiTest.disabled = true;
     aiTest.textContent = '测试中…';
     try {
