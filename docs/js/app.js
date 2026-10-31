@@ -1555,3 +1555,5 @@ boot().catch((err) => {
   console.error(err);
   showAuth(false);
 });
+
+window.__knitLoaded = "yes";
