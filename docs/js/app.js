@@ -1062,6 +1062,7 @@ function renderStudioResult() {
 
   if (tab === 'aimodel') {
     const variants = buildJimengPrompts(S.studioInput);
+    const videoVariants = buildJimengVideoPrompts(S.studioInput);
     const ai = (S.data.settings && S.data.settings.ai) || {};
     const hasKey = Boolean(ai.apiKey);
     const aiImgs = S.studioAiImages || [];
@@ -1119,6 +1120,28 @@ function renderStudioResult() {
 
           <div class="copy-list">
             ${variants.map((v, i) => `
+              <div class="copy-block">
+                <div class="cb-head">
+                  <span><strong>${i + 1}. ${esc(v.name)}</strong></span>
+                  <span class="spacer"></span>
+                  <button class="btn sm primary" data-copy="${esc(v.prompt)}">复制提示词</button>
+                </div>
+                <pre>${esc(v.prompt)}</pre>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h3>即梦 AI 视频提示词</h3><span class="sub">拼多多主图小视频 · 5~10 秒</span></div>
+        <div class="card-body">
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.9;margin-bottom:14px">
+            <div><strong>用法</strong>：即梦 AI 选「图生视频」，上传同一张实拍图，粘贴下面的提示词。</div>
+            <div>时长选 <strong>5 秒</strong>（够用又便宜），比例选 <strong>1:1</strong>，清晰度 720P 以上。</div>
+            <div style="color:var(--ink-3);margin-top:4px">视频比图片贵，先用 5 秒版试效果；服装细节要求和图片提示词一样，1:1 还原。</div>
+          </div>
+          <div class="copy-list">
+            ${videoVariants.map((v, i) => `
               <div class="copy-block">
                 <div class="cb-head">
                   <span><strong>${i + 1}. ${esc(v.name)}</strong></span>
@@ -1472,6 +1495,77 @@ function buildJimengPrompts(input) {
   ];
 
   return variants;
+}
+
+// 即梦「图生视频」提示词（拼多多主图小视频，5~10 秒，1:1）
+function buildJimengVideoPrompts(input) {
+  const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
+  const category = input.category || '毛衣';
+  const materials = (input.materials && input.materials.length) ? input.materials.join('、') : '';
+  const crafts = (input.crafts && input.crafts.length) ? input.crafts.join('、') : '';
+  const neck = input.neck || '';
+  const fit = input.fit || '';
+  const styles = (input.styles && input.styles.length) ? input.styles.join('、') : '';
+  const weight = input.weight || '';
+  const season = input.season || '';
+
+  let garment = `${colors}的${category}`;
+  const desc = [];
+  if (materials) desc.push(`材质为${materials}`);
+  if (crafts) desc.push(`${crafts}工艺`);
+  if (neck) desc.push(`${neck}设计`);
+  if (fit) desc.push(`${fit}版型`);
+  if (weight) desc.push(weight);
+  if (season) desc.push(`${season}款`);
+  if (desc.length) garment += '，' + desc.join('，');
+  if (styles) garment += `，${styles}风格`;
+
+  const constraint = '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣和装饰等所有细节与原图100%一致，不得改变服装的款式和设计；只让模特动作和镜头运动，衣服本身不变形不闪烁';
+  const quality = '真实摄影质感，24帧每秒，画面稳定不抖动，光影自然有真实阴影，高清细节，无水印无文字无logo，不要卡通不要插画，电商主图视频质感';
+  const base = (model, action, camera, extra) => `${model}，穿着${garment}。${constraint}。${action}。${camera}${extra ? '。' + extra : ''}。${quality}。`;
+
+  return [
+    {
+      name: '影棚正面展示（5秒 · 1:1）',
+      prompt: base(
+        '一位25岁左右的亚洲女性模特，五官自然，淡妆，长直发，表情温和微笑',
+        '模特正面站立，双手自然下垂，先轻微侧身再回正看向镜头，动作缓慢自然',
+        '镜头固定中景，约腰以上半身，浅灰色渐变背景，柔和均匀布光'
+      )
+    },
+    {
+      name: '原地转身展示（5秒 · 1:1）',
+      prompt: base(
+        '一位25岁左右的亚洲女性模特，身材匀称，淡妆，长直发',
+        '模特原地缓慢转身一圈，依次展示正面、侧面、背面、再回到正面，衣摆随转身自然摆动',
+        '镜头固定中景，浅灰色影棚背景，柔和布光，服装前后细节都清晰'
+      )
+    },
+    {
+      name: '街拍行走（5秒 · 1:1）',
+      prompt: base(
+        '一位25岁左右的亚洲女性模特，气质温柔，淡妆，中长发微卷',
+        '模特朝镜头匀速自然行走，手臂轻摆，衣摆随步伐轻微晃动，表情自然',
+        '城市街景背景虚化，秋季自然日光，镜头缓慢后退跟随，暖色调有电影感'
+      )
+    },
+    {
+      name: '面料细节特写（5秒 · 1:1）',
+      prompt: base(
+        '一位25岁左右的亚洲女性模特，只出现手部和局部身体，淡妆',
+        '模特一只手轻轻抚摸面料，展示柔软质感，手指自然，不遮挡图案',
+        '镜头从领口缓慢下移到袖口再回到胸前纹理，微距特写，浅景深，光线柔和'
+      )
+    },
+    {
+      name: '居家慵懒（8秒 · 1:1）',
+      prompt: base(
+        '一位25岁左右的亚洲女性模特，素颜感淡妆，长发随意，放松表情',
+        '模特坐在沙发上整理衣摆后缓慢起身，转身看向镜头微笑，动作慵懒自然',
+        '居家场景，温暖室内自然光，背景简洁温馨，镜头固定中景'
+      )
+    }
+  ];
 }
 
 
