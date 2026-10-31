@@ -1345,6 +1345,11 @@ async function arkGenerate() {
   if (btn) { btn.disabled = true; btn.textContent = '正在生成，一般 20~60 秒…'; }
   S.arkStatus = '正在生成，请别关页面…';
   setArkStatus(S.arkStatus);
+  const startedAt = Date.now();
+  const timer = setInterval(() => {
+    S.arkStatus = '正在生成，已等 ' + Math.round((Date.now() - startedAt) / 1000) + ' 秒（一般 20~60 秒，别关页面）';
+    setArkStatus(S.arkStatus);
+  }, 1000);
   try {
     const prompt = buildJimengPrompts(S.studioInput)[0].prompt;
     const r = await api('/api/ai/generate', {
@@ -1367,6 +1372,8 @@ async function arkGenerate() {
     S.arkStatus = '生成失败：' + ((e.body && e.body.message) || e.message);
     setArkStatus(S.arkStatus);
     if (btn) { btn.disabled = false; btn.textContent = '用火山方舟生成 1 张模特图（约 0.1~1 元）'; }
+  } finally {
+    clearInterval(timer);
   }
 }
 
@@ -1544,7 +1551,7 @@ function viewSettings() {
             <button class="btn primary" id="aiSaveBtn">保存配置</button>
             <button class="btn" id="aiTestBtn">测试连接</button>
           </div>
-          <p style="font-size:12px;color:var(--ink-3);margin-top:12px">模型 ID 在火山方舟控制台「开通管理」里复制，形如 doubao-seedream-4-5-xxxx。不填 Key 也能用：素材工坊里手动选标签，即梦提示词照样自动生成，拿去即梦免费出图。<br>方舟余额用完就去控制台充值，工具本身不代收任何费用。</p>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:12px">模型 ID 在火山方舟控制台「开通管理」里复制，形如 doubao-seedream-4-5-xxxx。填完先点「测试连接」，显示能用再回素材工坊生成，避免白扣钱。不填 Key 也能用：素材工坊里手动选标签，即梦提示词照样自动生成，拿去即梦免费出图。<br>方舟余额用完就去控制台充值，工具本身不代收任何费用。</p>
         </div>
       </div>
 
@@ -1637,7 +1644,7 @@ function bindSettings() {
     aiTest.textContent = '测试中…';
     try {
       const r = await api('/api/ai/test', { method: 'POST', body: '{}' });
-      if (r.ok) toast(r.message || '连接成功，Key 能用');
+      if (r.ok) toast('Key 能用，浏览器能直连方舟，可以去生成模特图了');
       else toast('连接失败：' + (r.message || r.error));
     } catch (e) {
       toast('连接失败：' + ((e.body && e.body.message) || e.message));

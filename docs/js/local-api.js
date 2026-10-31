@@ -144,7 +144,7 @@
               return json({ ok: true, message: 'Key 能用，识别模型正常' });
             });
           }).catch(function (e) {
-            return json({ error: 'AI_NETWORK', message: '连不上火山方舟：' + (e && e.message || '网络错误') }, 502);
+            return json({ error: 'AI_NETWORK', message: '浏览器没拿到方舟的返回：请先核对 API Key 和模型 ID 有没有填错；都填对了还这样，告诉我，我换成中转通道。' }, 502);
           });
         });
       }
@@ -178,7 +178,7 @@
               return json({ ok: true, style: parsed });
             });
           }).catch(function (e) {
-            return json({ error: 'AI_NETWORK', message: '连不上火山方舟：' + (e && e.message || '网络错误') }, 502);
+            return json({ error: 'AI_NETWORK', message: '浏览器没拿到方舟的返回：请先核对 API Key 和模型 ID 有没有填错；都填对了还这样，告诉我，我换成中转通道。' }, 502);
           });
         });
       }
@@ -212,7 +212,7 @@
               return json({ error: 'AI_EMPTY', message: '方舟返回格式看不懂' }, 502);
             });
           }).catch(function (e) {
-            return json({ error: 'AI_NETWORK', message: '连不上火山方舟：' + (e && e.message || '网络错误') }, 502);
+            return json({ error: 'AI_NETWORK', message: '浏览器没拿到方舟的返回：请先核对 API Key 和模型 ID 有没有填错；都填对了还这样，告诉我，我换成中转通道。' }, 502);
           });
         });
       }
