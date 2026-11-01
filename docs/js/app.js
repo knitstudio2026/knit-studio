@@ -1121,8 +1121,11 @@ function renderStudioResult() {
     const aiImgs = S.studioAiImages || [];
     body = `
       <div class="card">
-        <div class="card-head"><h3>火山方舟生成模特图</h3><span class="sub">手动点，确认后扣费</span></div>
+        <div class="card-head"><h3>火山方舟生成模特图</h3><span class="sub">手动点，确认后扣费</span>
+          <button class="btn sm" id="arkBalanceBtn" style="margin-left:auto">查余额</button>
+        </div>
         <div class="card-body">
+          <div id="arkBalanceBox" style="display:none;font-size:13px;background:#f6ffed;border:1px solid #b7eb8f;border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.7"></div>
           ${hasKey ? `
             <div style="font-size:13px;color:var(--ink-2);margin-bottom:10px">
               识别到的颜色：<strong>${esc((S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.join('、') : '未识别（按 1 个颜色算）'))}</strong>
@@ -1430,6 +1433,8 @@ function bindStudio() {
   if (arkContinue) arkContinue.onclick = () => arkContinueRest();
   const arkRestart = $('#arkRestartBtn');
   if (arkRestart) arkRestart.onclick = () => arkRestartPreview();
+  const arkBalance = $('#arkBalanceBtn');
+  if (arkBalance) arkBalance.onclick = () => arkCheckBalance();
   const arkMainCount = $('#arkMainCount');
   if (arkMainCount) arkMainCount.onchange = () => { S.arkCounts.mainPer = Number(arkMainCount.value); };
   const arkDetailCount = $('#arkDetailCount');
@@ -1699,6 +1704,41 @@ function arkRestartPreview() {
   bindRoute();
 }
 
+async function arkCheckBalance() {
+  const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
+  const box = $('#arkBalanceBox');
+  const btn = $('#arkBalanceBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '查询中…'; }
+  if (box) { box.style.display = 'block'; box.style.background = '#fff7e6'; box.style.borderColor = '#ffd591'; box.textContent = '正在查余额…'; }
+  try {
+    const r = await api('/api/ai/balance', { method: 'POST', body: '{}' });
+    if (!r.ok) {
+      if (box) { box.style.background = '#fff1f0'; box.style.borderColor = '#ffa39e'; box.textContent = '查不了：' + (r.message || r.error) + '。没填 AK/SK 的话去「设置」里填一下。'; }
+    } else {
+      const lines = [];
+      if (r.available !== '' && r.available != null) lines.push('可用余额：<b>¥' + r.available + '</b>');
+      if (r.cash !== '' && r.cash != null) lines.push('现金余额：¥' + r.cash);
+      if (r.frozen !== '' && r.frozen != null) lines.push('冻结金额：¥' + r.frozen);
+      if (!lines.length && r.raw) {
+        // 把原始字段里看起来像金额的列出来
+        for (const k in r.raw) {
+          const v = r.raw[k];
+          if (typeof v === 'string' && /^\d+(\.\d+)?$/.test(v)) lines.push(k + '：¥' + v);
+        }
+      }
+      if (box) {
+        box.style.background = '#f6ffed';
+        box.style.borderColor = '#b7eb8f';
+        box.innerHTML = lines.length ? lines.join('<br>') : ('查询成功，但返回内容看不懂。原始数据：' + JSON.stringify(r.raw).slice(0, 200));
+      }
+    }
+  } catch (e) {
+    if (box) { box.style.background = '#fff1f0'; box.style.borderColor = '#ffa39e'; box.textContent = '查询失败：' + ((e.body && e.body.message) || e.message); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '查余额'; }
+  }
+}
+
 /* 给 AI 用的压缩图：最长边不超过 max，返回 dataURL */
 function shrinkDataUrl(img, max) {
   const w = img.naturalWidth || img.width;
@@ -1918,7 +1958,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1112a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1113a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
@@ -1957,6 +1997,13 @@ function viewSettings() {
             <input id="aiImageModel" type="text" style="flex:1" placeholder="填 Seedream 生图模型 ID" value="${esc(S.data.settings.ai.imageModel||'')}">
           </div>
           <p style="font-size:12px;color:var(--ink-3);margin-top:4px">只用于「生成模特图」，一张约 0.1~1 元。必须你手动点按钮才会生成，不会自动扣钱。</p>
+          <div class="seg-row" style="margin-top:10px"><div class="sk">Access Key ID</div>
+            <input id="aiAkId" type="text" style="flex:1" placeholder="火山引擎 AK ID（可选，仅用于查余额）" value="${esc(S.data.settings.ai.accessKeyId||'')}">
+          </div>
+          <div class="seg-row"><div class="sk">Secret Access Key</div>
+            <input id="aiAkSecret" type="password" style="flex:1" placeholder="火山引擎 SK（可选，仅用于查余额）" value="${esc(S.data.settings.ai.secretAccessKey||'')}">
+          </div>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">填了这两个才能在工具里查方舟余额。只填 API Key 查不了余额（方舟没开放这个接口）。AK/SK 在火山引擎控制台「访问控制 - API 访问密钥」里创建，只存在你自己浏览器里。</p>
           <div class="seg-row" style="margin-top:10px"><div class="sk">图生图参考</div>
             <label style="display:flex;align-items:center;gap:6px"><input id="aiImg2img" type="checkbox" ${S.data.settings.ai.img2img!==false?'checked':''}> 上传实拍图作为生成参考（更像你的衣服）</label>
           </div>
@@ -2036,7 +2083,9 @@ function bindSettings() {
       baseUrl: $('#aiBaseUrl').value.trim(),
       visionModel: $('#aiVisionModel').value.trim(),
       imageModel: $('#aiImageModel').value.trim(),
-      img2img: $('#aiImg2img').checked
+      img2img: $('#aiImg2img').checked,
+      accessKeyId: $('#aiAkId').value.trim(),
+      secretAccessKey: $('#aiAkSecret').value.trim()
     };
     persist();
     toast('AI 配置已保存');
@@ -2050,7 +2099,9 @@ function bindSettings() {
       baseUrl: $('#aiBaseUrl').value.trim(),
       visionModel: $('#aiVisionModel').value.trim(),
       imageModel: $('#aiImageModel').value.trim(),
-      img2img: $('#aiImg2img').checked
+      img2img: $('#aiImg2img').checked,
+      accessKeyId: $('#aiAkId').value.trim(),
+      secretAccessKey: $('#aiAkSecret').value.trim()
     };
     await flush();
     aiTest.disabled = true;

@@ -68,7 +68,9 @@
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
     visionModel: 'doubao-seed-2-1-pro-260915',
     imageModel: 'doubao-seedream-5-0-pro-260628',
-    img2img: true
+    img2img: true,
+    accessKeyId: '',
+    secretAccessKey: ''
   };
 
   // 旧版本默认的模型已下线，回来自动换新，用户不用手打
@@ -82,6 +84,8 @@
     if (!vm || /doubao-1\.5-vision/.test(vm)) { ai.visionModel = AI_DEFAULT.visionModel; changed = true; }
     if (!im || /seedream-4\.5|seedream-4-5/.test(im)) { ai.imageModel = AI_DEFAULT.imageModel; changed = true; }
     if (!ai.baseUrl) { ai.baseUrl = AI_DEFAULT.baseUrl; changed = true; }
+    if (ai.accessKeyId === undefined) { ai.accessKeyId = ''; changed = true; }
+    if (ai.secretAccessKey === undefined) { ai.secretAccessKey = ''; changed = true; }
     return changed;
   }
 
@@ -100,6 +104,53 @@
   function aiFail(j, status) {
     var msg = (j && j.error && (j.error.message || j.error.code)) || ('HTTP ' + status);
     return json({ error: 'AI_FAIL', message: msg }, 502);
+  }
+
+  /* ===== 火山引擎 V4 签名（用于查余额） ===== */
+  function toHex(buf) {
+    var b = new Uint8Array(buf);
+    var s = '';
+    for (var i = 0; i < b.length; i++) {
+      var h = b[i].toString(16);
+      s += h.length < 2 ? '0' + h : h;
+    }
+    return s;
+  }
+  function str2ab(s) { return new TextEncoder().encode(s); }
+  function hmacSha256(keyBuf, dataBuf) {
+    return crypto.subtle.importKey('raw', keyBuf, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+      .then(function (k) { return crypto.subtle.sign('HMAC', k, dataBuf); });
+  }
+  function sha256Hex(buf) {
+    return crypto.subtle.digest('SHA-256', buf).then(toHex);
+  }
+
+  /* 给火山引擎 OpenAPI 生成带签名的 headers。service 如 billing，region 如 cn-beijing */
+  function volcSignHeaders(cfg, service, region, host, queryString) {
+    var now = new Date();
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    var dateStr = now.getUTCFullYear() + pad(now.getUTCMonth() + 1) + pad(now.getUTCDate());
+    var xDate = dateStr + 'T' + pad(now.getUTCHours()) + pad(now.getUTCMinutes()) + pad(now.getUTCSeconds()) + 'Z';
+    var canonicalHeaders = 'host:' + host + '\nx-date:' + xDate + '\n';
+    var signedHeaders = 'host;x-date';
+    var payloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; // 空 body
+    var canonicalRequest = 'GET\n/\n' + queryString + '\n' + canonicalHeaders + '\n' + signedHeaders + '\n' + payloadHash;
+    var credentialScope = dateStr + '/' + region + '/' + service + '/request';
+    return sha256Hex(str2ab(canonicalRequest)).then(function (canonHash) {
+      var stringToSign = 'HMAC-SHA256\n' + xDate + '\n' + credentialScope + '\n' + canonHash;
+      var secret = cfg.secretAccessKey;
+      return hmacSha256(str2ab(secret), str2ab(dateStr))
+        .then(function (kDate) { return hmacSha256(kDate, str2ab(region)); })
+        .then(function (kRegion) { return hmacSha256(kRegion, str2ab(service)); })
+        .then(function (kService) { return hmacSha256(kService, str2ab('request')); })
+        .then(function (kSigning) { return hmacSha256(kSigning, str2ab(stringToSign)); })
+        .then(function (sigBuf) {
+          var signature = toHex(sigBuf);
+          var auth = 'HMAC-SHA256 Credential=' + cfg.accessKeyId + '/' + credentialScope +
+            ', SignedHeaders=' + signedHeaders + ', Signature=' + signature;
+          return { 'Host': host, 'X-Date': xDate, 'Authorization': auth };
+        });
+    });
   }
 
   var orig = window.fetch.bind(window);
@@ -132,7 +183,9 @@
                   baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
                   visionModel: AI_DEFAULT.visionModel,
                   imageModel: AI_DEFAULT.imageModel,
-                  img2img: true
+                  img2img: true,
+                  accessKeyId: '',
+                  secretAccessKey: ''
                 }
               }
             });
@@ -241,6 +294,43 @@
             });
           }).catch(function (e) {
             return json({ error: 'AI_NETWORK', message: '连不上火山方舟：' + (e && e.message || '网络错误') }, 502);
+          });
+        });
+      }
+      if (p === '/api/ai/balance') {
+        return aiConfig().then(function (cfg) {
+          if (!cfg) return json({ error: 'NO_API_KEY', message: '还没填火山方舟的 API Key' }, 400);
+          if (!cfg.accessKeyId || !cfg.secretAccessKey) {
+            return json({ error: 'NO_AK', message: '还没填火山引擎的 Access Key（ID + Secret），只填 API Key 查不了余额' }, 400);
+          }
+          var service = 'billing';
+          var region = 'cn-beijing';
+          var host = 'billing.volcengineapi.com';
+          var queryString = 'Action=QueryBalanceAcct&Version=2022-01-01';
+          return volcSignHeaders(cfg, service, region, host, queryString).then(function (headers) {
+            return orig('https://' + host + '/?' + queryString, {
+              method: 'GET',
+              headers: headers
+            }).then(function (r) {
+              return r.json().then(function (j) {
+                if (!r.ok) {
+                  var msg = (j && j.ResponseMetadata && j.ResponseMetadata.Error && j.ResponseMetadata.Error.Message) ||
+                            (j && j.error && (j.error.message || j.error.code)) || ('HTTP ' + r.status);
+                  return json({ error: 'BALANCE_FAIL', message: msg }, 502);
+                }
+                var res = j && j.Result ? j.Result : {};
+                // 可用余额、现金余额、冻结金额、信控额度等
+                return json({
+                  ok: true,
+                  available: res.AvailableCash || res.AvailableBalance || '',
+                  cash: res.CashBalance || '',
+                  frozen: res.FrozenAmount || '',
+                  raw: res
+                });
+              });
+            }).catch(function (e) {
+              return json({ error: 'BALANCE_NETWORK', message: '连不上火山引擎：' + (e && e.message || '网络错误') }, 502);
+            });
           });
         });
       }
