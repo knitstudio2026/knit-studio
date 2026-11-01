@@ -941,7 +941,9 @@ function viewStudio() {
           <div class="card-body">
             <div style="font-size:13px;line-height:1.9;color:var(--ink-2)">
               ${esc([i.category, (i.materials || []).join('、'), i.neck, i.fit, (i.styles || []).join('、'), i.weight, i.season, (i.colors || []).length ? (i.colors || []).join('、') + '（' + (i.colors || []).length + ' 色）' : ''].filter(Boolean).join(' · '))}
-              <div style="color:var(--ink-3);font-size:12px">${S.aiStatus ? esc(S.aiStatus) : '上传图片后自动识别，不准可以点「修改标签」或重新识别'}</div>
+              ${S.aiStatus
+                ? `<div class="ai-status ${/失败/.test(S.aiStatus) ? 'bad' : (/识别成功/.test(S.aiStatus) ? 'good' : '')}">${esc(S.aiStatus)}</div>`
+                : '<div style="color:var(--ink-3);font-size:12px">上传图片后自动识别，不准可以点「修改标签」或重新识别</div>'}
               ${S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `<button class="btn sm" id="aiRecognizeBtn" style="margin-top:8px">重新识别一次</button>` : ''}
             </div>
             ${S.tagOpen ? `
@@ -1249,8 +1251,8 @@ function bindStudio() {
       if (file.size > 10 * 1024 * 1024) { toast('图片太大，请压缩到 10MB 以内'); return; }
       try {
         const { img, dataUrl } = await loadImageFromFile(file);
-        // 给 AI 用的小图：最长边 1600，拼图多颜色的细节也能看清
-        const aiUrl = shrinkDataUrl(img, 1600);
+        // 给 AI 用的图：统一转成 JPEG，最长边 1500，拼图多颜色也能看清
+        const aiUrl = toAiJpeg(img, 1500);
         S.studioImage = { img, dataUrl, aiUrl, assetUrl: null };
         S.studioAiImages = [];
         S.aiStatus = '';
@@ -1394,11 +1396,22 @@ function bindStudio() {
 async function autoRecognize() {
   if (!S.studioImage) return;
   S.studioResultTab = 'ark';
-  S.aiStatus = '正在 AI 识别材质、领型、版型、风格…（约 5-15 秒）';
+  S.aiStatus = '正在识别材质、领型、版型、风格、颜色…（约 5-15 秒）';
   renderRoute();
   bindRoute();
   try {
-    const r = await api('/api/ai/recognize', { method: 'POST', body: JSON.stringify({ imageUrl: S.studioImage.aiUrl || S.studioImage.dataUrl }) });
+    let r = null;
+    let lastErr = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        r = await api('/api/ai/recognize', { method: 'POST', body: JSON.stringify({ imageUrl: S.studioImage.aiUrl }) });
+        break;
+      } catch (err) {
+        lastErr = err;
+        if ((err.body && err.body.error) !== 'AI_PARSE_FAIL') break;
+      }
+    }
+    if (!r) throw lastErr;
     const s = r.style;
     // 模型偶尔把数组返回成字符串，这里统一整理
     ['materials', 'crafts', 'styles', 'audience', 'colors', 'sizes', 'scene'].forEach((k) => {
@@ -1416,13 +1429,15 @@ async function autoRecognize() {
     if (s.extra) S.studioInput.extra = s.extra;
     S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
     S.studioResultTab = 'ark';
-    S.aiStatus = '✅ 已自动识别并填好材质/领型/版型/风格/颜色，下面的提示词已经按这件衣服改好。';
+    const colN = (S.studioInput.colors || []).length;
+    S.aiStatus = '✅ 识别成功：' + (colN ? `认出 ${colN} 个颜色（${(S.studioInput.colors || []).join('、')}）` : '已填好属性');
     renderRoute();
     bindRoute();
     toast('识别完成，属性已自动填好');
   } catch (e) {
-    S.aiStatus = '识别失败：' + ((e.body && e.body.message) || e.message) + '。你也可以手动选左边标签，提示词会自动更新。';
-    setAiStatus(S.aiStatus);
+    S.aiStatus = '❌ 识别失败：' + ((e.body && e.body.message) || e.message);
+    renderRoute();
+    bindRoute();
   }
 }
 
@@ -1528,6 +1543,20 @@ function shrinkDataUrl(img, max) {
   const ctx = c.getContext('2d');
   ctx.drawImage(img, 0, 0, c.width, c.height);
   return c.toDataURL('image/jpeg', 0.85);
+}
+
+function toAiJpeg(img, max) {
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const scale = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * scale);
+  c.height = Math.round(h * scale);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.86);
 }
 
 function setAiStatus(text) {
@@ -1721,7 +1750,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1106a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1108a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>

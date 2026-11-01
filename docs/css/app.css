@@ -324,6 +324,13 @@ table.tbl tr:hover td { background: #fdfbf7; }
 .no-key b { font-size: 14px; color: #ad6800; }
 .no-key p { font-size: 12px; color: #7a5a1e; margin: 6px 0 10px; line-height: 1.6; }
 
+.ai-status {
+  margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+  font-size: 12px; line-height: 1.6; background: var(--surface-2);
+}
+.ai-status.good { background: #f0fff4; border: 1px solid #b7ebc6; color: #237804; }
+.ai-status.bad { background: #fff1f0; border: 1px solid #ffa39e; color: #a8071a; }
+
 .param-block { margin-top: 14px; }
 .param-block > .plabel {
   font-size: 12px; color: var(--ink-2); font-weight: 600;
