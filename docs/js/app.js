@@ -924,7 +924,12 @@ function viewStudio() {
             ${S.studioImage && S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `
               <div style="margin-top:12px"><button class="btn primary" id="arkGenTop" style="width:100%">用火山方舟生成模特图（收费）</button></div>
               <p style="font-size:12px;color:var(--ink-3);margin:6px 0 0">点了会先显示张数和预估费用，确认后才扣钱。</p>
-            ` : ''}
+            ` : (S.studioImage ? `
+              <div class="no-key">
+                <b>还没填火山方舟 Key</b>
+                <p>所以这张图不会识别颜色，也不会生成模特图。填一次 Key 就能自动识别。</p>
+                <button class="btn primary sm" id="goSettings">去设置填 Key</button>
+              </div>` : '')}
           </div>
         </div>
 
@@ -978,8 +983,12 @@ function viewStudio() {
                 ${chipGroup('season', OPTIONS.season, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>颜色</span><span class="opt">可多选</span></div>
+                <div class="plabel"><span>颜色</span><span class="opt">可多选，漏了就手动加</span></div>
                 ${chipGroup('colors', Array.from(new Set([].concat(OPTIONS.color, (S.studioInput.colors || [])))), true)}
+                <div style="display:flex;gap:8px;margin-top:8px">
+                  <input class="input" id="colorCustom" placeholder="手动补颜色，如：浅紫色">
+                  <button class="btn sm" id="colorAdd" style="white-space:nowrap">添加</button>
+                </div>
               </div>
               <div class="param-block">
                 <div class="plabel"><span>尺码</span><span class="opt">可多选</span></div>
@@ -1023,8 +1032,8 @@ function renderStudioResult() {
     ['titles', '标题'],
     ['points', '卖点'],
     ['skus', 'SKU'],
-    ['images', '主图'],
-    ['ark', '火山生成'],
+    ['images', '本地拼图'],
+    ['ark', '火山模特图'],
     ['jimeng', '即梦提示词'],
     ['detail', '详情页'],
     ['attrs', '属性表']
@@ -1214,6 +1223,25 @@ function bindStudio() {
   const chooseFile = () => fileInput && fileInput.click();
   if (dz) dz.onclick = chooseFile;
   if (reup) reup.onclick = chooseFile;
+
+  const goSet = $('#goSettings');
+  if (goSet) goSet.onclick = () => { S.route = 'settings'; renderRoute(); registerTabs(); };
+
+  const colorAdd = $('#colorAdd');
+  if (colorAdd) {
+    colorAdd.onclick = () => {
+      const inp = $('#colorCustom');
+      const v = (inp && inp.value || '').trim();
+      if (!v) return;
+      const arr = Array.isArray(S.studioInput.colors) ? S.studioInput.colors : [];
+      if (!arr.includes(v)) arr.push(v);
+      S.studioInput.colors = arr;
+      S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
+      renderRoute();
+      bindRoute();
+      toast('已添加颜色：' + v);
+    };
+  }
   if (fileInput) {
     fileInput.onchange = async () => {
       const file = fileInput.files && fileInput.files[0];
