@@ -920,6 +920,10 @@ function viewStudio() {
               ? `<div class="thumb"><img src="${S.studioImage.dataUrl}" alt="商品图"><button class="reup" id="reup">换图</button></div>`
               : `<div class="dropzone" id="dz"><div class="dz-icon">⬆</div><p>点击上传 / 拍照</p><div class="dz-hint">建议白底或干净背景，正方形最好</div></div>`}
             <input type="file" id="fileInput" accept="image/*" hidden>
+            ${S.studioImage && S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `
+              <div style="margin-top:12px"><button class="btn primary" id="arkGenTop" style="width:100%">用火山方舟生成模特图（收费）</button></div>
+              <p style="font-size:12px;color:var(--ink-3);margin:6px 0 0">点了会先显示张数和预估费用，确认后才扣钱。</p>
+            ` : ''}
           </div>
         </div>
 
@@ -964,7 +968,7 @@ function viewStudio() {
             </div>
             <div class="param-block">
               <div class="plabel"><span>颜色</span><span class="opt">可多选</span></div>
-              ${chipGroup('colors', OPTIONS.color, true)}
+              ${chipGroup('colors', Array.from(new Set([].concat(OPTIONS.color, (S.studioInput.colors || [])))), true)}
             </div>
             <div class="param-block">
               <div class="plabel"><span>尺码</span><span class="opt">可多选</span></div>
@@ -1230,13 +1234,15 @@ function bindStudio() {
       if (file.size > 10 * 1024 * 1024) { toast('图片太大，请压缩到 10MB 以内'); return; }
       try {
         const { img, dataUrl } = await loadImageFromFile(file);
-        // 给 AI 用的小图：最长边 1280，识别更快更省
-        const aiUrl = shrinkDataUrl(img, 1280);
+        // 给 AI 用的小图：最长边 1600，拼图多颜色的细节也能看清
+        const aiUrl = shrinkDataUrl(img, 1600);
         S.studioImage = { img, dataUrl, aiUrl, assetUrl: null };
         S.studioAiImages = [];
         S.aiStatus = '';
         S.arkStatus = '';
         S.studioResultTab = 'aimodel';
+        // 先用当前标签生成一版，保证「生成模特图」按钮立刻可见
+        S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
         renderRoute();
         bindRoute();
         // 配了 Key 就自动识别风格，没配就等用户手动选标签
@@ -1336,6 +1342,8 @@ function bindStudio() {
 
   const arkGen = $('#arkGenBtn');
   if (arkGen) arkGen.onclick = () => arkGenerate();
+  const arkGenTop = $('#arkGenTop');
+  if (arkGenTop) arkGenTop.onclick = () => arkGenerate();
   const arkMainCount = $('#arkMainCount');
   if (arkMainCount) arkMainCount.onchange = () => { S.arkCounts.mainPer = Number(arkMainCount.value); };
   const arkDetailCount = $('#arkDetailCount');
@@ -1368,6 +1376,12 @@ async function autoRecognize() {
   try {
     const r = await api('/api/ai/recognize', { method: 'POST', body: JSON.stringify({ imageUrl: S.studioImage.aiUrl || S.studioImage.dataUrl }) });
     const s = r.style;
+    // 模型偶尔把数组返回成字符串，这里统一整理
+    ['materials', 'crafts', 'styles', 'audience', 'colors', 'sizes', 'scene'].forEach((k) => {
+      if (typeof s[k] === 'string') s[k] = s[k].split(/[,，、\/\s]+/).filter(Boolean);
+    });
+    if (Array.isArray(s.colors)) s.colors = Array.from(new Set(s.colors.map((c) => String(c).trim()).filter(Boolean))).slice(0, 12);
+    if (Array.isArray(s.styles) && s.styles.length > 1) s.styles = [s.styles[0]];
     const map = ['category','materials','crafts','neck','fit','styles','audience','weight','season','colors','sizes','scene'];
     map.forEach((k) => { if (s[k] !== undefined && s[k] !== null) S.studioInput[k] = s[k]; });
     if (s.price) S.studioInput.price = String(s.price);
@@ -1540,6 +1554,20 @@ function buildJimengPrompts(input, opts) {
     return `${model}，穿着${garment}。${constraint}。${scene}。${quality}。`;
   };
 
+  // 只出 2 条：影棚正面 + 按识别出的主风格配一张场景图
+  const style0 = (input.styles && input.styles[0]) || '温柔风';
+  const STYLE_SCENE = {
+    慵懒风: ['淡妆，长发随意挽起，放松的表情', '居家场景，温暖室内自然光，坐在浅色沙发上，姿态慵懒自然，背景温馨简洁'],
+    韩版: ['气质清爽，淡妆，中长发', '城市街拍，秋季街景背景虚化，自然日光，侧身行走抓拍，画面干净有韩系氛围'],
+    日系: ['素颜感淡妆，中长发微卷，表情平静', '日系清新街景，绿色植物与浅色墙面，柔和自然光，站姿放松'],
+    复古: ['复古气质，淡妆，微卷长发', '复古室内，木质家具与暖黄灯光，胶片质感，色调偏暖'],
+    法式: ['气质优雅，淡妆，微卷长发', '法式复古室内，雕花墙面与窗边柔光，姿态松弛优雅'],
+    学院风: ['青春感淡妆，长直发，自然微笑', '校园场景，教学楼与绿树背景虚化，明亮自然光'],
+    通勤: ['干练气质，淡妆，利落发型', '写字楼或咖啡厅外景，简洁背景，自然日光，通勤穿搭氛围'],
+    ins风: ['干净气质，淡妆，自然发型', '极简纯色背景，柔和影棚光，构图干净，ins风质感'],
+    温柔风: ['气质温柔，淡妆，中长发微垂', '窗边柔光室内，浅色纱帘与自然光，表情温和']
+  };
+  const st = STYLE_SCENE[style0] || STYLE_SCENE['温柔风'];
   const variants = [
     {
       name: '影棚主图（最像真人）',
@@ -1549,24 +1577,10 @@ function buildJimengPrompts(input, opts) {
       )
     },
     {
-      name: '街拍氛围图',
+      name: `${style0}场景图`,
       prompt: base(
-        '一位25岁左右的亚洲女性模特，气质温柔，淡妆，中长发微卷，自然表情',
-        '城市街拍，秋季街头背景虚化，自然日光，模特侧身行走抓拍，画面有电影感，暖色调'
-      )
-    },
-    {
-      name: '居家慵懒风',
-      prompt: base(
-        '一位25岁左右的亚洲女性模特，素颜感淡妆，长发随意，放松的表情',
-        '居家场景，温暖的室内自然光，模特坐在沙发或地毯上，慵懒随意的姿态，背景温馨简洁'
-      )
-    },
-    {
-      name: '全身穿搭展示',
-      prompt: base(
-        '一位25岁左右的亚洲女性模特，身材匀称，淡妆，长发，自然站立',
-        '室内影棚纯白背景，全身照，双脚可见，搭配简洁下装，正面展示完整穿搭效果'
+        `一位25岁左右的亚洲女性模特，${st[0]}`,
+        st[1]
       )
     }
   ];
@@ -1643,38 +1657,6 @@ function buildJimengVideoPrompts(input) {
         '一位25岁左右的亚洲女性模特，五官自然，淡妆，长直发，表情温和微笑',
         '模特正面站立，双手自然下垂，先轻微侧身再回正看向镜头，动作缓慢自然',
         '镜头固定中景，约腰以上半身，浅灰色渐变背景，柔和均匀布光'
-      )
-    },
-    {
-      name: '原地转身展示（5秒 · 1:1）',
-      prompt: base(
-        '一位25岁左右的亚洲女性模特，身材匀称，淡妆，长直发',
-        '模特原地缓慢转身一圈，依次展示正面、侧面、背面、再回到正面，衣摆随转身自然摆动',
-        '镜头固定中景，浅灰色影棚背景，柔和布光，服装前后细节都清晰'
-      )
-    },
-    {
-      name: '街拍行走（5秒 · 1:1）',
-      prompt: base(
-        '一位25岁左右的亚洲女性模特，气质温柔，淡妆，中长发微卷',
-        '模特朝镜头匀速自然行走，手臂轻摆，衣摆随步伐轻微晃动，表情自然',
-        '城市街景背景虚化，秋季自然日光，镜头缓慢后退跟随，暖色调有电影感'
-      )
-    },
-    {
-      name: '面料细节特写（5秒 · 1:1）',
-      prompt: base(
-        '一位25岁左右的亚洲女性模特，只出现手部和局部身体，淡妆',
-        '模特一只手轻轻抚摸面料，展示柔软质感，手指自然，不遮挡图案',
-        '镜头从领口缓慢下移到袖口再回到胸前纹理，微距特写，浅景深，光线柔和'
-      )
-    },
-    {
-      name: '居家慵懒（8秒 · 1:1）',
-      prompt: base(
-        '一位25岁左右的亚洲女性模特，素颜感淡妆，长发随意，放松表情',
-        '模特坐在沙发上整理衣摆后缓慢起身，转身看向镜头微笑，动作慵懒自然',
-        '居家场景，温暖室内自然光，背景简洁温馨，镜头固定中景'
       )
     }
   ];
