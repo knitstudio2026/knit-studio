@@ -61,6 +61,7 @@ const S = {
   studioKit: null,
   studioResultTab: 'titles',
   studioAiImages: [],     // 方舟生成的模特图（本次会话）
+  arkCounts: { main: 1, detail: 2 },  // 每次生成：主图张数 / 详情图张数
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -1076,17 +1077,30 @@ function renderStudioResult() {
             <div style="color:var(--ink-3);margin-top:4px">上传图片后材质、领型、版型、风格会自动识别填好；模特图只在你点按钮时才生成，不会自动扣钱。</div>
           </div>
           ${hasKey ? `
+            <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+              <label style="font-size:13px;color:var(--ink-2)">主图
+                <select id="arkMainCount" style="margin:0 4px">
+                  ${[1,2,3,4,5].map((n) => `<option value="${n}" ${S.arkCounts.main === n ? 'selected' : ''}>${n}</option>`).join('')}
+                </select>张
+              </label>
+              <label style="font-size:13px;color:var(--ink-2)">详情图
+                <select id="arkDetailCount" style="margin:0 4px">
+                  ${[0,1,2,3,4,5].map((n) => `<option value="${n}" ${S.arkCounts.detail === n ? 'selected' : ''}>${n}</option>`).join('')}
+                </select>张
+              </label>
+              <span style="font-size:12px;color:var(--ink-3)">主图放轮播，详情图放详情页</span>
+            </div>
             <div class="row" style="margin-bottom:8px">
-              <button class="btn primary" id="arkGenBtn">用火山方舟生成 1 张模特图（约 0.1~1 元）</button>
+              <button class="btn primary" id="arkGenBtn">生成模特图（主图 + 详情图）</button>
               ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空这次生成的图</button>` : ''}
             </div>
-            <p style="font-size:12px;color:var(--ink-3);margin:0 0 10px">点一次出 1 张，不满意可以再点，每次单独计费。</p>
+            <p style="font-size:12px;color:var(--ink-3);margin:0 0 10px">按你选的张数一次出完；点之前会显示总张数和预估费用，确认后才扣钱。</p>
             <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张，点图片看大图，点「下载」保存' : ''))}</div>
-            ${aiImgs.length ? `<div class="canvas-grid" style="margin-bottom:16px">${aiImgs.map((u, i) => `
+            ${aiImgs.length ? `<div class="canvas-grid" style="margin-bottom:16px">${aiImgs.map((it, i) => `
               <div class="canvas-card">
-                <a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="模特图 ${i + 1}"></a>
-                <div class="cc-foot"><span>模特图 ${i + 1}</span><span style="margin-left:auto"></span>
-                  <a class="btn sm" href="${u}" download="模特图${i + 1}.png">下载</a></div>
+                <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
+                <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span>
+                  <a class="btn sm" href="${it.url}" download="${esc(it.label)}.png">下载</a></div>
               </div>`).join('')}</div>` : ''}
           ` : `
             <div class="tbl-empty" style="margin-bottom:12px">还没填火山方舟 Key，所以不能直接出图。填好后，上传图片会自动识别材质等属性，模特图由你手动点生成。</div>
@@ -1311,6 +1325,10 @@ function bindStudio() {
 
   const arkGen = $('#arkGenBtn');
   if (arkGen) arkGen.onclick = () => arkGenerate();
+  const arkMainCount = $('#arkMainCount');
+  if (arkMainCount) arkMainCount.onchange = () => { S.arkCounts.main = Number(arkMainCount.value); };
+  const arkDetailCount = $('#arkDetailCount');
+  if (arkDetailCount) arkDetailCount.onchange = () => { S.arkCounts.detail = Number(arkDetailCount.value); };
   const arkClear = $('#arkClearBtn');
   if (arkClear) arkClear.onclick = () => {
     S.studioAiImages = [];
@@ -1362,39 +1380,66 @@ async function arkGenerate() {
     toast('先去「设置」里填生图模型 ID');
     return;
   }
-  if (!confirm('用火山方舟生成 1 张模特图，大约扣 0.1~1 元（从你的方舟余额扣）。继续吗？')) return;
+  const counts = { main: Number(S.arkCounts.main) || 0, detail: Number(S.arkCounts.detail) || 0 };
+  const total = counts.main + counts.detail;
+  if (!total) { toast('主图和详情图都是 0 张，先选张数'); return; }
 
-  const btn = $('#arkGenBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '正在生成，一般 20~60 秒…'; }
-  S.arkStatus = '正在生成，请别关页面…';
-  setArkStatus(S.arkStatus);
+  const low = (total * 0.1).toFixed(1);
+  const msg = `将生成 ${total} 张（主图 ${counts.main} 张、详情图 ${counts.detail} 张），每张约 0.1~1 元，合计约 ${low}~${total} 元，从你的方舟余额扣。继续吗？`;
+  if (!confirm(msg)) return;
+
+  const mainVariants = buildJimengPrompts(S.studioInput);
+  const detailVariants = buildJimengDetailPrompts(S.studioInput);
+  let phase = '准备中';
+  let done = 0;
   const startedAt = Date.now();
+  const lockBtn = () => {
+    const b = $('#arkGenBtn');
+    if (b) { b.disabled = true; b.textContent = `生成中…（${done}/${total}）`; }
+  };
   const timer = setInterval(() => {
-    S.arkStatus = '正在生成，已等 ' + Math.round((Date.now() - startedAt) / 1000) + ' 秒（一般 20~60 秒，别关页面）';
-    setArkStatus(S.arkStatus);
+    setArkStatus(`${phase}，已等 ${Math.round((Date.now() - startedAt) / 1000)} 秒，别关页面`);
   }, 1000);
+
+  S.arkStatus = `共 ${total} 张，正在生成…`;
+  renderRoute();
+  bindRoute();
+  lockBtn();
+
   try {
-    const prompt = buildJimengPrompts(S.studioInput)[0].prompt;
-    const r = await api('/api/ai/generate', {
-      method: 'POST',
-      body: JSON.stringify({
-        prompt,
-        imageUrl: S.studioImage.aiUrl || S.studioImage.dataUrl,
-        size: '1024x1024'
-      })
-    });
-    const url = r.dataUrl || r.url;
-    if (!url) throw new Error('方舟没返回图片');
-    S.studioAiImages.unshift(url);
-    S.arkStatus = '生成成功，共 ' + S.studioAiImages.length + ' 张。不满意可以再点一次，每次单独计费。';
-    S.studioResultTab = 'aimodel';
+    for (let i = 0; i < total; i++) {
+      const isMain = i < counts.main;
+      const idx = isMain ? i : i - counts.main;
+      const v = isMain ? mainVariants[idx % mainVariants.length] : detailVariants[idx % detailVariants.length];
+      const label = (isMain ? '主图 ' : '详情图 ') + (idx + 1);
+      phase = `正在生成第 ${i + 1}/${total} 张（${label}）`;
+      S.arkStatus = phase + '…';
+      setArkStatus(S.arkStatus);
+      const r = await api('/api/ai/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: v.prompt,
+          imageUrl: S.studioImage.aiUrl || S.studioImage.dataUrl,
+          size: '1024x1024'
+        })
+      });
+      const url = r.dataUrl || r.url;
+      if (!url) throw new Error('方舟没返回图片');
+      S.studioAiImages.unshift({ url, label });
+      done += 1;
+      S.arkStatus = `已生成 ${done}/${total} 张…`;
+      renderRoute();
+      bindRoute();
+      lockBtn();
+    }
+    S.arkStatus = `完成：共 ${total} 张（主图 ${counts.main} 张、详情图 ${counts.detail} 张）。点图片看大图，点「下载」保存。`;
     renderRoute();
     bindRoute();
     toast('模特图已生成');
   } catch (e) {
-    S.arkStatus = '生成失败：' + ((e.body && e.body.message) || e.message);
-    setArkStatus(S.arkStatus);
-    if (btn) { btn.disabled = false; btn.textContent = '用火山方舟生成 1 张模特图（约 0.1~1 元）'; }
+    S.arkStatus = `第 ${done + 1} 张失败了：${(e.body && e.body.message) || e.message}。已成功 ${done} 张，没出来的那张不扣钱。`;
+    renderRoute();
+    bindRoute();
   } finally {
     clearInterval(timer);
   }
@@ -1495,6 +1540,41 @@ function buildJimengPrompts(input) {
   ];
 
   return variants;
+}
+
+// 即梦/方舟「详情图」提示词（面料、领口、袖口等局部特写）
+function buildJimengDetailPrompts(input) {
+  const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
+  const category = input.category || '毛衣';
+  const materials = (input.materials && input.materials.length) ? input.materials.join('、') : '';
+  const crafts = (input.crafts && input.crafts.length) ? input.crafts.join('、') : '';
+  const neck = input.neck || '';
+  const fit = input.fit || '';
+  const styles = (input.styles && input.styles.length) ? input.styles.join('、') : '';
+  const weight = input.weight || '';
+  const season = input.season || '';
+
+  let garment = `${colors}的${category}`;
+  const desc = [];
+  if (materials) desc.push(`材质为${materials}`);
+  if (crafts) desc.push(`${crafts}工艺`);
+  if (neck) desc.push(`${neck}设计`);
+  if (fit) desc.push(`${fit}版型`);
+  if (weight) desc.push(weight);
+  if (season) desc.push(`${season}款`);
+  if (desc.length) garment += '，' + desc.join('，');
+  if (styles) garment += `，${styles}风格`;
+
+  const constraint = '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计';
+  const quality = '真实商品摄影，细节清晰锐利，光线柔和有层次，浅灰色或纯白背景，无水印无文字，不要卡通不要插画';
+  const base = (scene) => `局部特写照片，一位模特穿着${garment}。${constraint}。${scene}。${quality}。`;
+
+  return [
+    { name: '领口细节', prompt: base('镜头近景聚焦领口，展示领型、走线、拉链或纽扣和毛绒质感，模特下巴以下入镜') },
+    { name: '面料纹理', prompt: base('镜头极近距离微距拍摄面料表面，展示针织纹理、纱线绒毛和真实质感，浅景深') },
+    { name: '袖口与下摆', prompt: base('镜头近景展示袖口螺纹和下摆收口，模特手部轻拉衣摆，体现弹力和做工') },
+    { name: '侧面版型', prompt: base('模特侧身半身展示，体现肩线、袖型和整体版型，室内影棚柔光') }
+  ];
 }
 
 // 即梦「图生视频」提示词（拼多多主图小视频，5~10 秒，1:1）
