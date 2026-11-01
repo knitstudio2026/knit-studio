@@ -61,7 +61,7 @@ const S = {
   studioKit: null,
   studioResultTab: 'titles',
   studioAiImages: [],     // 方舟生成的模特图（本次会话）
-  arkCounts: { main: 1, detail: 2 },  // 每次生成：主图张数 / 详情图张数
+  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带' },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -1077,24 +1077,35 @@ function renderStudioResult() {
             <div style="color:var(--ink-3);margin-top:4px">上传图片后材质、领型、版型、风格会自动识别填好；模特图只在你点按钮时才生成，不会自动扣钱。</div>
           </div>
           ${hasKey ? `
-            <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
-              <label style="font-size:13px;color:var(--ink-2)">主图
+            <div style="font-size:13px;color:var(--ink-2);margin-bottom:10px">
+              识别到的颜色：<strong>${esc((S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.join('、') : '未识别（按 1 个颜色算）'))}</strong>
+              <span style="color:var(--ink-3)">（${S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.length : 1} 个颜色，主图和详情图会按每个颜色分别出）</span>
+            </div>
+            <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+              <label style="font-size:13px;color:var(--ink-2)">每个颜色主图
                 <select id="arkMainCount" style="margin:0 4px">
-                  ${[1,2,3,4,5].map((n) => `<option value="${n}" ${S.arkCounts.main === n ? 'selected' : ''}>${n}</option>`).join('')}
+                  ${[2,3,4,5].map((n) => `<option value="${n}" ${S.arkCounts.mainPer === n ? 'selected' : ''}>${n}</option>`).join('')}
                 </select>张
               </label>
-              <label style="font-size:13px;color:var(--ink-2)">详情图
+              <label style="font-size:13px;color:var(--ink-2)">每个颜色详情图
                 <select id="arkDetailCount" style="margin:0 4px">
-                  ${[0,1,2,3,4,5].map((n) => `<option value="${n}" ${S.arkCounts.detail === n ? 'selected' : ''}>${n}</option>`).join('')}
+                  ${[0,1,2,3].map((n) => `<option value="${n}" ${S.arkCounts.detailPer === n ? 'selected' : ''}>${n}</option>`).join('')}
                 </select>张
               </label>
-              <span style="font-size:12px;color:var(--ink-3)">主图放轮播，详情图放详情页</span>
+              <span style="font-size:12px;color:var(--ink-3)">每个颜色至少 2 张主图，才够上架轮播</span>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+                <input type="checkbox" id="arkSimpleSku" ${S.arkCounts.simpleSku ? 'checked' : ''}>
+                有简配版（做低价 SKU 引流，额外出 1 张）
+              </label>
+              <input id="arkSimpleNote" type="text" value="${esc(S.arkCounts.simpleNote)}" placeholder="简配差异，例如：不带丝带" style="flex:1;min-width:140px">
             </div>
             <div class="row" style="margin-bottom:8px">
-              <button class="btn primary" id="arkGenBtn">生成模特图（主图 + 详情图）</button>
+              <button class="btn primary" id="arkGenBtn">生成模特图（按颜色分别出）</button>
               ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空这次生成的图</button>` : ''}
             </div>
-            <p style="font-size:12px;color:var(--ink-3);margin:0 0 10px">按你选的张数一次出完；点之前会显示总张数和预估费用，确认后才扣钱。</p>
+            <p style="font-size:12px;color:var(--ink-3);margin:0 0 10px">点之前会弹出总张数和预估费用，确认后才扣钱；简配图就是去掉丝带等装饰的低价引流款。</p>
             <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张，点图片看大图，点「下载」保存' : ''))}</div>
             ${aiImgs.length ? `<div class="canvas-grid" style="margin-bottom:16px">${aiImgs.map((it, i) => `
               <div class="canvas-card">
@@ -1326,9 +1337,13 @@ function bindStudio() {
   const arkGen = $('#arkGenBtn');
   if (arkGen) arkGen.onclick = () => arkGenerate();
   const arkMainCount = $('#arkMainCount');
-  if (arkMainCount) arkMainCount.onchange = () => { S.arkCounts.main = Number(arkMainCount.value); };
+  if (arkMainCount) arkMainCount.onchange = () => { S.arkCounts.mainPer = Number(arkMainCount.value); };
   const arkDetailCount = $('#arkDetailCount');
-  if (arkDetailCount) arkDetailCount.onchange = () => { S.arkCounts.detail = Number(arkDetailCount.value); };
+  if (arkDetailCount) arkDetailCount.onchange = () => { S.arkCounts.detailPer = Number(arkDetailCount.value); };
+  const arkSimpleSku = $('#arkSimpleSku');
+  if (arkSimpleSku) arkSimpleSku.onchange = () => { S.arkCounts.simpleSku = arkSimpleSku.checked; };
+  const arkSimpleNote = $('#arkSimpleNote');
+  if (arkSimpleNote) arkSimpleNote.oninput = () => { S.arkCounts.simpleNote = arkSimpleNote.value; };
   const arkClear = $('#arkClearBtn');
   if (arkClear) arkClear.onclick = () => {
     S.studioAiImages = [];
@@ -1380,16 +1395,33 @@ async function arkGenerate() {
     toast('先去「设置」里填生图模型 ID');
     return;
   }
-  const counts = { main: Number(S.arkCounts.main) || 0, detail: Number(S.arkCounts.detail) || 0 };
-  const total = counts.main + counts.detail;
-  if (!total) { toast('主图和详情图都是 0 张，先选张数'); return; }
+  const colors = (S.studioInput.colors || []).filter(Boolean);
+  const colorList = colors.length ? colors : ['图片所示颜色'];
+  const mainPer = Number(S.arkCounts.mainPer) || 2;
+  const detailPer = Number(S.arkCounts.detailPer) || 0;
+
+  const jobs = [];
+  colorList.forEach((color) => {
+    const ci = Object.assign({}, S.studioInput, { colors: [color] });
+    const mv = buildJimengPrompts(ci);
+    const dv = buildJimengDetailPrompts(ci);
+    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt });
+    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[i % dv.length].prompt });
+  });
+  if (S.arkCounts.simpleSku) {
+    const ci = Object.assign({}, S.studioInput, { colors: [colorList[0]] });
+    const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰' })[0].prompt;
+    jobs.push({ label: '引流图（简配）', prompt: p });
+  }
+
+  const total = jobs.length;
+  if (!total) { toast('张数都是 0，先选一下'); return; }
 
   const low = (total * 0.1).toFixed(1);
-  const msg = `将生成 ${total} 张（主图 ${counts.main} 张、详情图 ${counts.detail} 张），每张约 0.1~1 元，合计约 ${low}~${total} 元，从你的方舟余额扣。继续吗？`;
+  const extraText = S.arkCounts.simpleSku ? '，另含 1 张简配引流图' : '';
+  const msg = `识别到 ${colorList.length} 个颜色，每个颜色主图 ${mainPer} 张、详情图 ${detailPer} 张${extraText}，共 ${total} 张。每张约 0.1~1 元，合计约 ${low}~${total} 元，从你的方舟余额扣。继续吗？`;
   if (!confirm(msg)) return;
 
-  const mainVariants = buildJimengPrompts(S.studioInput);
-  const detailVariants = buildJimengDetailPrompts(S.studioInput);
   let phase = '准备中';
   let done = 0;
   const startedAt = Date.now();
@@ -1408,31 +1440,28 @@ async function arkGenerate() {
 
   try {
     for (let i = 0; i < total; i++) {
-      const isMain = i < counts.main;
-      const idx = isMain ? i : i - counts.main;
-      const v = isMain ? mainVariants[idx % mainVariants.length] : detailVariants[idx % detailVariants.length];
-      const label = (isMain ? '主图 ' : '详情图 ') + (idx + 1);
-      phase = `正在生成第 ${i + 1}/${total} 张（${label}）`;
+      const job = jobs[i];
+      phase = `正在生成第 ${i + 1}/${total} 张（${job.label}）`;
       S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
       const r = await api('/api/ai/generate', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: v.prompt,
+          prompt: job.prompt,
           imageUrl: S.studioImage.aiUrl || S.studioImage.dataUrl,
           size: '1024x1024'
         })
       });
       const url = r.dataUrl || r.url;
       if (!url) throw new Error('方舟没返回图片');
-      S.studioAiImages.unshift({ url, label });
+      S.studioAiImages.unshift({ url, label: job.label });
       done += 1;
       S.arkStatus = `已生成 ${done}/${total} 张…`;
       renderRoute();
       bindRoute();
       lockBtn();
     }
-    S.arkStatus = `完成：共 ${total} 张（主图 ${counts.main} 张、详情图 ${counts.detail} 张）。点图片看大图，点「下载」保存。`;
+    S.arkStatus = `完成：共 ${total} 张（${colorList.length} 个颜色 × 主图 ${mainPer} 张 + 详情图 ${detailPer} 张${extraText}）。点图片看大图，点「下载」保存。`;
     renderRoute();
     bindRoute();
     toast('模特图已生成');
@@ -1475,7 +1504,7 @@ function aiModelPrompt(kit, input) {
 }
 
 // 根据标签生成即梦 AI 专用提示词（图生图，以上传的服装图为参考）
-function buildJimengPrompts(input) {
+function buildJimengPrompts(input, opts) {
   const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
   const category = input.category || '毛衣';
   const materials = (input.materials && input.materials.length) ? input.materials.join('、') : '';
@@ -1498,8 +1527,11 @@ function buildJimengPrompts(input) {
   if (desc.length) garment += '，' + desc.join('，');
   if (styles) garment += `，${styles}风格`;
 
-  // 核心约束：严格参考上传的服装图
-  const constraint = '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计；只改变穿着的人和场景';
+  // 核心约束：严格参考上传的服装图（简配版会去掉指定装饰）
+  const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
+  const constraint = accessory
+    ? `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但要去掉${accessory}，做成简配版；只改变穿着的人和场景`
+    : '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计；只改变穿着的人和场景';
 
   // 画质约束：真实，看不出 AI
   const quality = '真实人像摄影，皮肤质感自然，毛发清晰，光线真实有阴影，8K高清细节，电商服装主图质感，画面干净无水印无文字，不要卡通不要插画不要油画风格';
