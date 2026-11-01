@@ -58,7 +58,7 @@ const S = {
   route: 'dashboard',
   syncState: 'ok',
   studioImage: null,      // { img, dataUrl, aiUrl, assetUrl }
-  swapImage: null,
+  swapImages: [],         // 多张姿势参考图 [{ img, dataUrl, aiUrl }]
   swapStatus: '',
   studioKit: null,
   studioResultTab: 'titles',
@@ -941,16 +941,25 @@ function viewStudio() {
           <div class="card-head"><h3>一键换装（可选）</h3><span class="sub">保留姿势，换成你的衣服</span></div>
           <div class="card-body">
             <p style="font-size:12px;color:#7a5a1e;background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:8px 10px;margin:0 0 10px;line-height:1.7">
-              上传一张模特图做姿势参考。工具会自动换成新面孔，降低肖像权风险；但请只使用你有权使用的图片，不要直接拿同行模特正脸上架。
+              一次可选多张爆款图做姿势参考。工具会自动换成新面孔，降低肖像权风险；但请只使用你有权使用的图片，不要直接拿同行模特正脸上架。
             </p>
-            ${S.swapImage
-              ? `<div class="thumb"><img src="${S.swapImage.dataUrl}" alt="模特参考图"><button class="reup" id="swapReup">换一张</button></div>`
-              : `<div class="dropzone" id="swapDz"><div class="dz-icon">⬆</div><p>上传模特图（姿势参考）</p><div class="dz-hint">全身或半身都可以</div></div>`}
-            <input type="file" id="swapFile" accept="image/*" hidden>
-            <div style="margin-top:10px">
-              <button class="btn primary" id="swapBtn" style="width:100%">换装生成（收费）</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+              ${S.swapImages.map((im, i) => `
+                <div style="position:relative;width:90px">
+                  <img src="${im.dataUrl}" style="width:90px;height:120px;object-fit:cover;border-radius:6px;border:1px solid var(--line)" alt="参考图${i+1}">
+                  <button class="reup" data-swap-del="${i}" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#fff;border:1px solid var(--line);font-size:12px;line-height:1;padding:0">×</button>
+                  <div style="font-size:11px;color:var(--ink-3);text-align:center;margin-top:2px">参考图 ${i+1}</div>
+                </div>`).join('')}
+              <div class="dropzone" id="swapDz" style="width:90px;height:120px;min-height:auto;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <div class="dz-icon" style="font-size:20px">+</div>
+                <div style="font-size:11px;color:var(--ink-3)">添加</div>
+              </div>
             </div>
-            <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || '会先提示费用，确认后才扣钱')}</div>
+            <input type="file" id="swapFile" accept="image/*" multiple hidden>
+            <div style="margin-top:8px">
+              <button class="btn primary" id="swapBtn" style="width:100%">${S.swapImages.length ? '一键全部换装（' + S.swapImages.length + ' 张）' : '换装生成（收费）'}</button>
+            </div>
+            <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || (S.swapImages.length ? '点「一键全部换装」会对每张参考图各出 1 张' : '会先提示费用，确认后才扣钱'))}</div>
             ${S.studioAiImages && S.studioAiImages.some((x) => /换装/.test(x.label)) ? `<div class="canvas-grid" style="margin-top:10px">${S.studioAiImages.filter((x) => /换装/.test(x.label)).map((it) => `
               <div class="canvas-card">
                 <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
@@ -1282,23 +1291,37 @@ function bindStudio() {
   const swapFile = $('#swapFile');
   const chooseSwap = () => swapFile && swapFile.click();
   const swapDz = $('#swapDz');
-  const swapReup = $('#swapReup');
   if (swapDz) swapDz.onclick = chooseSwap;
-  if (swapReup) swapReup.onclick = chooseSwap;
   if (swapFile) {
     swapFile.onchange = async () => {
-      const file = swapFile.files && swapFile.files[0];
-      if (!file) return;
-      if (file.size > 10 * 1024 * 1024) { toast('图片太大，请压到 10MB 以内'); return; }
-      try {
-        const { img, dataUrl } = await loadImageFromFile(file);
-        S.swapImage = { img, dataUrl, aiUrl: toAiJpeg(img, 1500) };
+      const files = swapFile.files;
+      if (!files || !files.length) return;
+      let added = 0;
+      for (let f = 0; f < files.length; f++) {
+        const file = files[f];
+        if (file.size > 10 * 1024 * 1024) { toast(file.name + ' 太大，跳过'); continue; }
+        try {
+          const { img, dataUrl } = await loadImageFromFile(file);
+          S.swapImages.push({ img, dataUrl, aiUrl: toAiJpeg(img, 1500) });
+          added++;
+        } catch (_) { toast(file.name + ' 读取失败，跳过'); }
+      }
+      if (added) {
         S.swapStatus = '';
         renderRoute();
         bindRoute();
-      } catch (_) { toast('图片读取失败，换一张试试'); }
+      }
+      swapFile.value = '';
     };
   }
+  $$('[data-swap-del]').forEach((b) => {
+    b.onclick = () => {
+      const idx = Number(b.dataset.swapDel);
+      S.swapImages.splice(idx, 1);
+      renderRoute();
+      bindRoute();
+    };
+  });
   const swapBtn = $('#swapBtn');
   if (swapBtn) swapBtn.onclick = swapGenerate;
   if (fileInput) {
@@ -1520,34 +1543,62 @@ function arkStyleInfo() {
 
 async function swapGenerate() {
   if (!S.studioImage) { toast('先在上面上传你的衣服实拍图'); return; }
-  if (!S.swapImage) { toast('先上传一张模特姿势图'); return; }
+  if (!S.swapImages.length) { toast('先上传至少一张模特姿势图'); return; }
   const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
   if (!ai.apiKey) { toast('先去「设置」里填火山方舟 Key'); return; }
-  if (!confirm('换装生成 1 张，约 0.1~1 元，从你的方舟余额扣。继续吗？')) return;
-  S.swapStatus = '正在换装…约 10~30 秒，别关页面';
+  const n = S.swapImages.length;
+  const low = (n * 0.1).toFixed(1);
+  if (!confirm(`对 ${n} 张参考图各出 1 张换装图，共 ${n} 张，约 ${low}~${n} 元，从你的方舟余额扣。继续吗？`)) return;
+  const btn = $('#swapBtn');
+  const startedAt = Date.now();
+  const timer = setInterval(() => {
+    const el = $('#swapStatus');
+    if (el) el.textContent = `换装中…已等 ${Math.round((Date.now() - startedAt) / 1000)} 秒，别关页面`;
+  }, 1000);
+  S.swapStatus = `正在换装（1/${n}）…`;
+  if (btn) { btn.disabled = true; btn.textContent = `换装中…（0/${n}）`; }
   renderRoute();
   bindRoute();
-  try {
-    const r = await api('/api/ai/generate', {
-      method: 'POST',
-      body: JSON.stringify({
-        prompt: SWAP_PROMPT + '。' + arkStyleInfo() + '。' + ARK_PHOTO,
-        images: [S.swapImage.aiUrl, S.studioImage.aiUrl],
-        size: '1024x1536'
-      })
-    });
-    const url = r.dataUrl || r.url;
-    if (!url) throw new Error('方舟没返回图片');
-    S.studioAiImages.unshift({ url, label: '换装图' });
-    S.swapStatus = '✅ 换装完成，图在下面';
-    renderRoute();
-    bindRoute();
-    toast('换装完成');
-  } catch (e) {
-    S.swapStatus = '❌ 换装失败：' + ((e.body && e.body.message) || e.message);
-    renderRoute();
-    bindRoute();
+
+  const styleInfo = arkStyleInfo();
+  const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
+  let done = 0;
+  for (let i = 0; i < n; i++) {
+    try {
+      const ref = S.swapImages[i];
+      S.swapStatus = `正在换装第 ${i + 1}/${n} 张…`;
+      const el = $('#swapStatus');
+      if (el) el.textContent = S.swapStatus;
+      const r = await api('/api/ai/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: SWAP_PROMPT + '。' + styleInfo + '。' + ARK_PHOTO,
+          images: [ref.aiUrl, garment],
+          size: '1024x1536'
+        })
+      });
+      const url = r.dataUrl || r.url;
+      if (!url) throw new Error('方舟没返回图片');
+      S.studioAiImages.unshift({ url, label: `换装图（参考图 ${i + 1}）` });
+      done++;
+      if (btn) btn.textContent = `换装中…（${done}/${n}）`;
+      renderRoute();
+      bindRoute();
+    } catch (e) {
+      S.swapStatus = `第 ${i + 1} 张失败：${(e.body && e.body.message) || e.message}。已成功 ${done} 张，失败的不扣钱。`;
+      renderRoute();
+      bindRoute();
+      break;
+    }
   }
+  clearInterval(timer);
+  if (btn) { btn.disabled = false; btn.textContent = S.swapImages.length ? '一键全部换装（' + S.swapImages.length + ' 张）' : '换装生成（收费）'; }
+  if (done === n) {
+    S.swapStatus = `✅ 全部完成，共 ${n} 张，图在下面`;
+    toast('换装完成');
+  }
+  renderRoute();
+  bindRoute();
 }
 
 const ARK_PHOTO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和自然窗光，皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画；全身入镜，头顶留白，构图干净；模特下身搭配深色直筒裤或半裙和简洁鞋子，不裸露；服装颜色、花纹、材质、纽扣、口袋和装饰与参考图完全一致；画面无水印、无文字、无 logo';
@@ -1958,7 +2009,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1113a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1114a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
