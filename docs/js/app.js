@@ -1488,6 +1488,16 @@ async function autoRecognize() {
   }
 }
 
+const FACE_SPEC = '固定模特：26 岁亚洲女性，鹅蛋脸，清秀自然五官，黑棕色微卷长发，裸妆淡妆，身高 168cm，身材匀称；同一个商品的所有颜色图必须是同一位模特、同一张脸';
+
+function arkStyleInfo() {
+  const i = S.studioInput || {};
+  const styles = (i.styles || []).filter(Boolean).join('、') || '简约通勤';
+  const aud = (i.audience || []).filter(Boolean).join('、') || '女士';
+  const scene = (i.scene || []).filter(Boolean).join('、') || '日常';
+  return `整体风格：${styles}；目标人群：${aud}；穿搭场景：${scene}`;
+}
+
 async function swapGenerate() {
   if (!S.studioImage) { toast('先在上面上传你的衣服实拍图'); return; }
   if (!S.swapImage) { toast('先上传一张模特姿势图'); return; }
@@ -1501,7 +1511,7 @@ async function swapGenerate() {
     const r = await api('/api/ai/generate', {
       method: 'POST',
       body: JSON.stringify({
-        prompt: SWAP_PROMPT + '。' + ARK_PHOTO,
+        prompt: SWAP_PROMPT + '。' + arkStyleInfo() + '。' + ARK_PHOTO,
         images: [S.swapImage.aiUrl, S.studioImage.aiUrl],
         size: '1024x1536'
       })
@@ -1578,22 +1588,31 @@ async function arkGenerate() {
   bindRoute();
   lockBtn();
 
+  const styleInfo = arkStyleInfo();
+  const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
+  let faceRef = null;
   try {
     for (let i = 0; i < total; i++) {
       const job = jobs[i];
       phase = `正在生成第 ${i + 1}/${total} 张（${job.label}）`;
       S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
+      let prompt = job.prompt + '。' + styleInfo + '。' + FACE_SPEC + '。' + ARK_PHOTO;
+      const body = { prompt, size: '1024x1536' };
+      if (faceRef) {
+        body.images = [garment, faceRef];
+        prompt += '。服装严格按参考图1；脸部、发型、妆容、体型必须与参考图2完全一致，不要换脸。';
+        body.prompt = prompt;
+      } else {
+        body.imageUrl = garment;
+      }
       const r = await api('/api/ai/generate', {
         method: 'POST',
-        body: JSON.stringify({
-          prompt: job.prompt,
-          imageUrl: S.studioImage.aiUrl || S.studioImage.dataUrl,
-          size: '1024x1536'
-        })
+        body: JSON.stringify(body)
       });
       const url = r.dataUrl || r.url;
       if (!url) throw new Error('方舟没返回图片');
+      if (!faceRef) faceRef = url;
       S.studioAiImages.unshift({ url, label: job.label });
       done += 1;
       S.arkStatus = `已生成 ${done}/${total} 张…`;
