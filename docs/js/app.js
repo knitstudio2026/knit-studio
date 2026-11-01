@@ -60,6 +60,7 @@ const S = {
   studioImage: null,      // { img, dataUrl, aiUrl, assetUrl }
   studioKit: null,
   studioResultTab: 'titles',
+  tagOpen: false,
   studioAiImages: [],     // 方舟生成的模特图（本次会话）
   arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带' },
   aiStatus: '',
@@ -928,66 +929,77 @@ function viewStudio() {
         </div>
 
         <div class="card">
-          <div class="card-head"><h3>2 · 商品标签</h3><span class="sub">点选即可</span></div>
+          <div class="card-head">
+            <h3>2 · 商品标签</h3><span class="sub">自动识别，可改</span>
+            <div style="margin-left:auto"><button class="btn sm" id="tagToggle">${S.tagOpen ? '收起' : '修改标签'}</button></div>
+          </div>
           <div class="card-body">
-            <div class="param-block">
-              <div class="plabel"><span>品类</span></div>
-              ${chipGroup('category', OPTIONS.category, false)}
+            <div style="font-size:13px;line-height:1.9;color:var(--ink-2)">
+              ${esc([i.category, (i.materials || []).join('、'), i.neck, i.fit, (i.styles || []).join('、'), i.weight, i.season, (i.colors || []).length ? (i.colors || []).join('、') + '（' + (i.colors || []).length + ' 色）' : ''].filter(Boolean).join(' · '))}
+              <div style="color:var(--ink-3);font-size:12px">${S.aiStatus ? esc(S.aiStatus) : '上传图片后自动识别，不准可以点「修改标签」或重新识别'}</div>
+              ${S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `<button class="btn sm" id="aiRecognizeBtn" style="margin-top:8px">重新识别一次</button>` : ''}
             </div>
-            <div class="param-block">
-              <div class="plabel"><span>材质</span><span class="opt">可多选</span></div>
-              ${chipGroup('materials', OPTIONS.material, true)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>工艺</span><span class="opt">可多选</span></div>
-              ${chipGroup('crafts', OPTIONS.craft, true)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>领型</span></div>
-              ${chipGroup('neck', OPTIONS.neck, false)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>版型</span></div>
-              ${chipGroup('fit', OPTIONS.fit, false)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>风格</span><span class="opt">可多选</span></div>
-              ${chipGroup('styles', OPTIONS.style, true)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>人群</span><span class="opt">可多选</span></div>
-              ${chipGroup('audience', OPTIONS.audience, true)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>厚薄</span></div>
-              ${chipGroup('weight', OPTIONS.weight, false)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>季节</span></div>
-              ${chipGroup('season', OPTIONS.season, false)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>颜色</span><span class="opt">可多选</span></div>
-              ${chipGroup('colors', Array.from(new Set([].concat(OPTIONS.color, (S.studioInput.colors || [])))), true)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>尺码</span><span class="opt">可多选</span></div>
-              ${chipGroup('sizes', OPTIONS.size, true)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>场景</span><span class="opt">可多选</span></div>
-              ${chipGroup('scene', OPTIONS.scene, true)}
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>售价（元）</span></div>
-              <input class="input" id="stuPrice" type="number" value="${esc(i.price)}">
-            </div>
-            <div class="param-block">
-              <div class="plabel"><span>额外关键词</span><span class="opt">选填，逗号分隔</span></div>
-              <input class="input" id="stuExtra" value="${esc(i.extra)}" placeholder="如：大码、孕妇可穿、可机洗">
-            </div>
+            ${S.tagOpen ? `
+            <div style="margin-top:14px">
+              <div class="param-block">
+                <div class="plabel"><span>品类</span></div>
+                ${chipGroup('category', OPTIONS.category, false)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>材质</span><span class="opt">可多选</span></div>
+                ${chipGroup('materials', OPTIONS.material, true)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>工艺</span><span class="opt">可多选</span></div>
+                ${chipGroup('crafts', OPTIONS.craft, true)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>领型</span></div>
+                ${chipGroup('neck', OPTIONS.neck, false)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>版型</span></div>
+                ${chipGroup('fit', OPTIONS.fit, false)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>风格</span><span class="opt">可多选</span></div>
+                ${chipGroup('styles', OPTIONS.style, true)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>人群</span><span class="opt">可多选</span></div>
+                ${chipGroup('audience', OPTIONS.audience, true)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>厚薄</span></div>
+                ${chipGroup('weight', OPTIONS.weight, false)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>季节</span></div>
+                ${chipGroup('season', OPTIONS.season, false)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>颜色</span><span class="opt">可多选</span></div>
+                ${chipGroup('colors', Array.from(new Set([].concat(OPTIONS.color, (S.studioInput.colors || [])))), true)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>尺码</span><span class="opt">可多选</span></div>
+                ${chipGroup('sizes', OPTIONS.size, true)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>场景</span><span class="opt">可多选</span></div>
+                ${chipGroup('scene', OPTIONS.scene, true)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>售价（元）</span></div>
+                <input class="input" id="stuPrice" type="number" value="${esc(i.price)}">
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>额外关键词</span><span class="opt">选填，逗号分隔</span></div>
+                <input class="input" id="stuExtra" value="${esc(i.extra)}" placeholder="如：大码、孕妇可穿、可机洗">
+              </div>
+            </div>` : ''}
             <div style="margin-top:16px">
-              <button class="btn primary block" id="genBtn">${hasKit ? '重新生成' : '一键生成全部素材'}</button>
+              <button class="btn primary block" id="genBtn">${hasKit ? '重新生成全部素材' : '一键生成全部素材'}</button>
             </div>
           </div>
         </div>
@@ -1012,7 +1024,8 @@ function renderStudioResult() {
     ['points', '卖点'],
     ['skus', 'SKU'],
     ['images', '主图'],
-    ['aimodel', '即梦提示词'],
+    ['ark', '火山生成'],
+    ['jimeng', '即梦提示词'],
     ['detail', '详情页'],
     ['attrs', '属性表']
   ];
@@ -1065,25 +1078,18 @@ function renderStudioResult() {
       <div class="canvas-grid" id="canvasGrid"></div>`;
   }
 
-  if (tab === 'aimodel') {
-    const variants = buildJimengPrompts(S.studioInput);
-    const videoVariants = buildJimengVideoPrompts(S.studioInput);
+  if (tab === 'ark') {
     const ai = (S.data.settings && S.data.settings.ai) || {};
     const hasKey = Boolean(ai.apiKey);
     const aiImgs = S.studioAiImages || [];
     body = `
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head"><h3>AI 模特图</h3><span class="sub">两种方式，你自己选</span></div>
+      <div class="card">
+        <div class="card-head"><h3>火山方舟生成模特图</h3><span class="sub">手动点，确认后扣费</span></div>
         <div class="card-body">
-          <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.9;margin-bottom:14px">
-            <div><strong>方式一 · 免费</strong>：复制下面的即梦提示词，到即梦 AI 网页版上传同款实拍图，粘贴出图。</div>
-            <div><strong>方式二 · 花钱</strong>：点下面按钮在这里直接出图，一张约 0.1~1 元，从火山方舟余额扣。</div>
-            <div style="color:var(--ink-3);margin-top:4px">上传图片后材质、领型、版型、风格会自动识别填好；模特图只在你点按钮时才生成，不会自动扣钱。</div>
-          </div>
           ${hasKey ? `
             <div style="font-size:13px;color:var(--ink-2);margin-bottom:10px">
               识别到的颜色：<strong>${esc((S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.join('、') : '未识别（按 1 个颜色算）'))}</strong>
-              <span style="color:var(--ink-3)">（${S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.length : 1} 个颜色，主图和详情图会按每个颜色分别出）</span>
+              <span style="color:var(--ink-3)">（${S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.length : 1} 个颜色，每个颜色单独出）</span>
             </div>
             <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
               <label style="font-size:13px;color:var(--ink-2)">每个颜色主图
@@ -1096,57 +1102,42 @@ function renderStudioResult() {
                   ${[0,1,2,3].map((n) => `<option value="${n}" ${S.arkCounts.detailPer === n ? 'selected' : ''}>${n}</option>`).join('')}
                 </select>张
               </label>
-              <span style="font-size:12px;color:var(--ink-3)">每个颜色至少 2 张主图，才够上架轮播</span>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
               <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
                 <input type="checkbox" id="arkSimpleSku" ${S.arkCounts.simpleSku ? 'checked' : ''}>
-                有简配版（做低价 SKU 引流，额外出 1 张）
+                有简配版（低价 SKU 引流，多出 1 张）
               </label>
               <input id="arkSimpleNote" type="text" value="${esc(S.arkCounts.simpleNote)}" placeholder="简配差异，例如：不带丝带" style="flex:1;min-width:140px">
             </div>
             <div class="row" style="margin-bottom:8px">
               <button class="btn primary" id="arkGenBtn">生成模特图（按颜色分别出）</button>
-              ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空这次生成的图</button>` : ''}
+              ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空</button>` : ''}
             </div>
-            <p style="font-size:12px;color:var(--ink-3);margin:0 0 10px">点之前会弹出总张数和预估费用，确认后才扣钱；简配图就是去掉丝带等装饰的低价引流款。</p>
-            <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张，点图片看大图，点「下载」保存' : ''))}</div>
-            ${aiImgs.length ? `<div class="canvas-grid" style="margin-bottom:16px">${aiImgs.map((it, i) => `
+            <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张' : '点按钮后会先显示总张数和费用，确认才扣钱'))}</div>
+            ${aiImgs.length ? `<div class="canvas-grid">${aiImgs.map((it) => `
               <div class="canvas-card">
                 <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
                 <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span>
                   <a class="btn sm" href="${it.url}" download="${esc(it.label)}.png">下载</a></div>
               </div>`).join('')}</div>` : ''}
           ` : `
-            <div class="tbl-empty" style="margin-bottom:12px">还没填火山方舟 Key，所以不能直接出图。填好后，上传图片会自动识别材质等属性，模特图由你手动点生成。</div>
+            <div class="tbl-empty" style="margin-bottom:12px">还没填火山方舟 Key，不能直接出图。</div>
             <button class="btn" id="arkGoSettings">去设置填 Key</button>
           `}
         </div>
-      </div>
+      </div>`;
+  }
 
+  if (tab === 'jimeng') {
+    const variants = buildJimengPrompts(S.studioInput);
+    const videoVariants = buildJimengVideoPrompts(S.studioInput);
+    body = `
       <div class="card">
-        <div class="card-head"><h3>即梦 AI 提示词</h3><span class="sub">免费出真实模特图 · 服装1:1还原</span></div>
+        <div class="card-head"><h3>即梦图片提示词</h3><span class="sub">免费，复制的越少越好用</span></div>
         <div class="card-body">
-          ${S.studioImage ? `
-            <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px">
-              <div class="thumb" style="width:130px"><img src="${S.studioImage.dataUrl}" alt="实拍图"></div>
-              <div style="flex:1;min-width:220px">
-                ${hasKey ? `<button class="btn" id="aiRecognizeBtn">重新识别一次</button>` : `<span style="font-size:12px;color:var(--ink-3)">没配 Key，手动选左边标签即可，提示词会自动更新</span>`}
-                <div id="aiStatus" style="font-size:13px;color:var(--ink-2);margin-top:8px;min-height:20px">${esc(S.aiStatus)}</div>
-                <p style="font-size:12px;color:var(--ink-3);margin-top:6px">配了 Key 会自动识别；没配就手动选左边标签，提示词会自动跟着变。</p>
-              </div>
-            </div>
-          ` : `<div class="tbl-empty" style="margin-bottom:14px">请先在左侧上传一张商品实拍图</div>`}
-
-          <div style="background:var(--surface-2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.9">
-            <div style="font-weight:600;margin-bottom:6px">📋 即梦免费出图步骤</div>
-            <div>1. 复制下面任意一条提示词</div>
-            <div>2. 打开 <a href="https://jimeng.jianying.com" target="_blank" style="color:var(--accent)">即梦 AI</a>，选「图生图」</div>
-            <div>3. 上传你的商品实拍图作为<strong>参考图</strong></div>
-            <div>4. 粘贴提示词，点生成 → 免费拿到模特图</div>
-            <div style="color:var(--ink-3);margin-top:6px">💡 提示词里已写死"服装花纹颜色100%还原"，生成的模特穿的就是你这件衣服。</div>
-          </div>
-
+          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生图」，上传同一张实拍图，粘贴下面任意一条即可。</p>
+          ${S.studioImage ? '' : `<div class="tbl-empty" style="margin-bottom:12px">请先上传商品图</div>`}
           <div class="copy-list">
             ${variants.map((v, i) => `
               <div class="copy-block">
@@ -1162,13 +1153,9 @@ function renderStudioResult() {
       </div>
 
       <div class="card" style="margin-top:16px">
-        <div class="card-head"><h3>即梦 AI 视频提示词</h3><span class="sub">拼多多主图小视频 · 5~10 秒</span></div>
+        <div class="card-head"><h3>即梦视频提示词</h3><span class="sub">5 秒 · 1:1</span></div>
         <div class="card-body">
-          <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.9;margin-bottom:14px">
-            <div><strong>用法</strong>：即梦 AI 选「图生视频」，上传同一张实拍图，粘贴下面的提示词。</div>
-            <div>时长选 <strong>5 秒</strong>（够用又便宜），比例选 <strong>1:1</strong>，清晰度 720P 以上。</div>
-            <div style="color:var(--ink-3);margin-top:4px">视频比图片贵，先用 5 秒版试效果；服装细节要求和图片提示词一样，1:1 还原。</div>
-          </div>
+          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生视频」，时长 5 秒、比例 1:1，粘贴下面这条。</p>
           <div class="copy-list">
             ${videoVariants.map((v, i) => `
               <div class="copy-block">
@@ -1240,7 +1227,7 @@ function bindStudio() {
         S.studioAiImages = [];
         S.aiStatus = '';
         S.arkStatus = '';
-        S.studioResultTab = 'aimodel';
+        S.studioResultTab = 'ark';
         // 先用当前标签生成一版，保证「生成模特图」按钮立刻可见
         S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
         renderRoute();
@@ -1285,8 +1272,10 @@ function bindStudio() {
   const genBtn = $('#genBtn');
   if (genBtn) {
     genBtn.onclick = () => {
-      S.studioInput.price = $('#stuPrice').value;
-      S.studioInput.extra = $('#stuExtra').value;
+      const pInp = $('#stuPrice');
+      const eInp = $('#stuExtra');
+      if (pInp) S.studioInput.price = pInp.value;
+      if (eInp) S.studioInput.extra = eInp.value;
       if (!S.studioImage) { toast('先上传一张商品图'); return; }
       S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price));
       S.studioResultTab = 'titles';
@@ -1295,6 +1284,13 @@ function bindStudio() {
       toast('素材已生成');
     };
   }
+
+  const tagToggle = $('#tagToggle');
+  if (tagToggle) tagToggle.onclick = () => {
+    S.tagOpen = !S.tagOpen;
+    renderRoute();
+    bindRoute();
+  };
 
   const priceInput = $('#stuPrice');
   if (priceInput) priceInput.oninput = () => { S.studioInput.price = priceInput.value; };
@@ -1369,7 +1365,7 @@ function bindStudio() {
 
 async function autoRecognize() {
   if (!S.studioImage) return;
-  S.studioResultTab = 'aimodel';
+  S.studioResultTab = 'ark';
   S.aiStatus = '正在 AI 识别材质、领型、版型、风格…（约 5-15 秒）';
   renderRoute();
   bindRoute();
@@ -1381,13 +1377,17 @@ async function autoRecognize() {
       if (typeof s[k] === 'string') s[k] = s[k].split(/[,，、\/\s]+/).filter(Boolean);
     });
     if (Array.isArray(s.colors)) s.colors = Array.from(new Set(s.colors.map((c) => String(c).trim()).filter(Boolean))).slice(0, 12);
+    if (Array.isArray(s.grid) && s.grid.length) {
+      const g = Array.from(new Set(s.grid.map((c) => String(c).trim()).filter(Boolean)));
+      if (g.length > (Array.isArray(s.colors) ? s.colors.length : 0)) s.colors = g.slice(0, 12);
+    }
     if (Array.isArray(s.styles) && s.styles.length > 1) s.styles = [s.styles[0]];
     const map = ['category','materials','crafts','neck','fit','styles','audience','weight','season','colors','sizes','scene'];
     map.forEach((k) => { if (s[k] !== undefined && s[k] !== null) S.studioInput[k] = s[k]; });
     if (s.price) S.studioInput.price = String(s.price);
     if (s.extra) S.studioInput.extra = s.extra;
     S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
-    S.studioResultTab = 'aimodel';
+    S.studioResultTab = 'ark';
     S.aiStatus = '✅ 已自动识别并填好材质/领型/版型/风格/颜色，下面的提示词已经按这件衣服改好。';
     renderRoute();
     bindRoute();
@@ -1693,7 +1693,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1106a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
