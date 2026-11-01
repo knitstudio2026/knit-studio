@@ -64,6 +64,8 @@ const S = {
   studioResultTab: 'titles',
   tagOpen: false,
   studioAiImages: [],     // 方舟生成的模特图（本次会话）
+  arkFaceRef: null,       // 第一张生成图的人脸参考（本会话）
+  arkPendingJobs: null,   // 预览后待生成的剩余 jobs
   arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带' },
   aiStatus: '',
   arkStatus: '',
@@ -924,8 +926,8 @@ function viewStudio() {
               : `<div class="dropzone" id="dz"><div class="dz-icon">⬆</div><p>点击上传 / 拍照</p><div class="dz-hint">建议白底或干净背景，正方形最好</div></div>`}
             <input type="file" id="fileInput" accept="image/*" hidden>
             ${S.studioImage && S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `
-              <div style="margin-top:12px"><button class="btn primary" id="arkGenTop" style="width:100%">用火山方舟生成模特图（收费）</button></div>
-              <p style="font-size:12px;color:var(--ink-3);margin:6px 0 0">点了会先显示张数和预估费用，确认后才扣钱。</p>
+              <div style="margin-top:12px"><button class="btn primary" id="arkGenTop" style="width:100%">用火山方舟生成模特图（先出 1 张预览）</button></div>
+              <p style="font-size:12px;color:var(--ink-3);margin:6px 0 0">先出 1 张预览看人脸和风格，满意了再批量出，不点不扣钱。</p>
             ` : (S.studioImage ? `
               <div class="no-key">
                 <b>还没填火山方舟 Key</b>
@@ -1145,11 +1147,16 @@ function renderStudioResult() {
               </label>
               <input id="arkSimpleNote" type="text" value="${esc(S.arkCounts.simpleNote)}" placeholder="简配差异，例如：不带丝带" style="flex:1;min-width:140px">
             </div>
-            <div class="row" style="margin-bottom:8px">
-              <button class="btn primary" id="arkGenBtn">生成模特图（按颜色分别出）</button>
-              ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空</button>` : ''}
+            <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
+              ${S.arkPendingJobs && S.arkPendingJobs.length ? `
+                <button class="btn primary" id="arkContinueBtn">继续生成剩余 ${S.arkPendingJobs.length} 张</button>
+                <button class="btn sm" id="arkRestartBtn">丢掉预览，重新出</button>
+              ` : `
+                <button class="btn primary" id="arkGenBtn">先生成 1 张预览（约 0.1~1 元）</button>
+                ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空</button>` : ''}
+              `}
             </div>
-            <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张' : '点按钮后会先显示总张数和费用，确认才扣钱'))}</div>
+            <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (S.arkPendingJobs && S.arkPendingJobs.length ? '预览图已出，满意就点「继续生成」，不满意就「丢掉预览，重新出」' : (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张' : '建议先出 1 张看看人脸和风格，满意了再批量出，省得浪费钱')))}</div>
             ${aiImgs.length ? `<div class="canvas-grid">${aiImgs.map((it) => `
               <div class="canvas-card">
                 <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
@@ -1302,6 +1309,8 @@ function bindStudio() {
         const aiUrl = toAiJpeg(img, 1500);
         S.studioImage = { img, dataUrl, aiUrl, assetUrl: null };
         S.studioAiImages = [];
+        S.arkFaceRef = null;
+        S.arkPendingJobs = null;
         S.aiStatus = '';
         S.arkStatus = '';
         S.studioResultTab = 'ark';
@@ -1414,9 +1423,13 @@ function bindStudio() {
   if (aiRecog) aiRecog.onclick = () => autoRecognize();
 
   const arkGen = $('#arkGenBtn');
-  if (arkGen) arkGen.onclick = () => arkGenerate();
+  if (arkGen) arkGen.onclick = () => arkPreviewOne();
   const arkGenTop = $('#arkGenTop');
-  if (arkGenTop) arkGenTop.onclick = () => arkGenerate();
+  if (arkGenTop) arkGenTop.onclick = () => { S.studioResultTab = 'ark'; renderRoute(); bindRoute(); arkPreviewOne(); };
+  const arkContinue = $('#arkContinueBtn');
+  if (arkContinue) arkContinue.onclick = () => arkContinueRest();
+  const arkRestart = $('#arkRestartBtn');
+  if (arkRestart) arkRestart.onclick = () => arkRestartPreview();
   const arkMainCount = $('#arkMainCount');
   if (arkMainCount) arkMainCount.onchange = () => { S.arkCounts.mainPer = Number(arkMainCount.value); };
   const arkDetailCount = $('#arkDetailCount');
@@ -1428,6 +1441,8 @@ function bindStudio() {
   const arkClear = $('#arkClearBtn');
   if (arkClear) arkClear.onclick = () => {
     S.studioAiImages = [];
+    S.arkFaceRef = null;
+    S.arkPendingJobs = null;
     S.arkStatus = '';
     renderRoute();
     bindRoute();
@@ -1534,22 +1549,19 @@ const ARK_PHOTO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，�
 
 const SWAP_PROMPT = '参考图1是模特姿势和构图，参考图2是我要卖的衣服实拍。请生成一张全新照片：完全保留参考图1的姿势、镜头角度、构图和背景氛围；把人物脸换成一位全新的、与参考图1不同的亚洲年轻女性；把身上的衣服换成参考图2这件，颜色、材质纹理、花纹、纽扣、口袋、装饰必须与参考图2完全一致';
 
-async function arkGenerate() {
-  if (!S.studioImage) { toast('先上传一张商品图'); return; }
+function arkCheckReady() {
+  if (!S.studioImage) { toast('先上传一张商品图'); return false; }
   const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
-  if (!ai.apiKey) {
-    toast('先去「设置」里填火山方舟的 API Key');
-    return;
-  }
-  if (!ai.imageModel) {
-    toast('先去「设置」里填生图模型 ID');
-    return;
-  }
+  if (!ai.apiKey) { toast('先去「设置」里填火山方舟的 API Key'); return false; }
+  if (!ai.imageModel) { toast('先去「设置」里填生图模型 ID'); return false; }
+  return true;
+}
+
+function arkBuildJobs() {
   const colors = (S.studioInput.colors || []).filter(Boolean);
   const colorList = colors.length ? colors : ['图片所示颜色'];
   const mainPer = Number(S.arkCounts.mainPer) || 2;
   const detailPer = Number(S.arkCounts.detailPer) || 0;
-
   const jobs = [];
   colorList.forEach((color) => {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
@@ -1563,44 +1575,36 @@ async function arkGenerate() {
     const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰' })[0].prompt;
     jobs.push({ label: '引流图（简配）', prompt: p + '。' + ARK_PHOTO });
   }
+  return jobs;
+}
 
+/* 执行一组 jobs。btnId 是要锁定的按钮 id；doneBase 是之前已生成的张数（用于显示进度） */
+async function arkRunJobs(jobs, btnId, doneBase) {
   const total = jobs.length;
-  if (!total) { toast('张数都是 0，先选一下'); return; }
-
-  const low = (total * 0.1).toFixed(1);
-  const extraText = S.arkCounts.simpleSku ? '，另含 1 张简配引流图' : '';
-  const msg = `识别到 ${colorList.length} 个颜色，每个颜色主图 ${mainPer} 张、详情图 ${detailPer} 张${extraText}，共 ${total} 张。每张约 0.1~1 元，合计约 ${low}~${total} 元，从你的方舟余额扣。继续吗？`;
-  if (!confirm(msg)) return;
-
+  if (!total) return 0;
   let phase = '准备中';
   let done = 0;
   const startedAt = Date.now();
   const lockBtn = () => {
-    const b = $('#arkGenBtn');
-    if (b) { b.disabled = true; b.textContent = `生成中…（${done}/${total}）`; }
+    const b = $('#' + btnId);
+    if (b) { b.disabled = true; b.textContent = `生成中…（${doneBase + done}/${doneBase + total}）`; }
   };
   const timer = setInterval(() => {
     setArkStatus(`${phase}，已等 ${Math.round((Date.now() - startedAt) / 1000)} 秒，别关页面`);
   }, 1000);
 
-  S.arkStatus = `共 ${total} 张，正在生成…`;
-  renderRoute();
-  bindRoute();
-  lockBtn();
-
   const styleInfo = arkStyleInfo();
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
-  let faceRef = null;
   try {
     for (let i = 0; i < total; i++) {
       const job = jobs[i];
-      phase = `正在生成第 ${i + 1}/${total} 张（${job.label}）`;
+      phase = `正在生成第 ${doneBase + i + 1}/${doneBase + total} 张（${job.label}）`;
       S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
       let prompt = job.prompt + '。' + styleInfo + '。' + FACE_SPEC + '。' + ARK_PHOTO;
       const body = { prompt, size: '1024x1536' };
-      if (faceRef) {
-        body.images = [garment, faceRef];
+      if (S.arkFaceRef) {
+        body.images = [garment, S.arkFaceRef];
         prompt += '。服装严格按参考图1；脸部、发型、妆容、体型必须与参考图2完全一致，不要换脸。';
         body.prompt = prompt;
       } else {
@@ -1612,25 +1616,87 @@ async function arkGenerate() {
       });
       const url = r.dataUrl || r.url;
       if (!url) throw new Error('方舟没返回图片');
-      if (!faceRef) faceRef = url;
+      if (!S.arkFaceRef) S.arkFaceRef = url;
       S.studioAiImages.unshift({ url, label: job.label });
       done += 1;
-      S.arkStatus = `已生成 ${done}/${total} 张…`;
+      S.arkStatus = `已生成 ${doneBase + done}/${doneBase + total} 张…`;
       renderRoute();
       bindRoute();
       lockBtn();
     }
-    S.arkStatus = `完成：共 ${total} 张（${colorList.length} 个颜色 × 主图 ${mainPer} 张 + 详情图 ${detailPer} 张${extraText}）。点图片看大图，点「下载」保存。`;
-    renderRoute();
-    bindRoute();
-    toast('模特图已生成');
+    return { done, ok: true };
   } catch (e) {
-    S.arkStatus = `第 ${done + 1} 张失败了：${(e.body && e.body.message) || e.message}。已成功 ${done} 张，没出来的那张不扣钱。`;
+    S.arkStatus = `第 ${doneBase + done + 1} 张失败了：${(e.body && e.body.message) || e.message}。已成功 ${doneBase + done} 张，没出来的那张不扣钱。`;
     renderRoute();
     bindRoute();
+    return { done, ok: false };
   } finally {
     clearInterval(timer);
   }
+}
+
+async function arkPreviewOne() {
+  if (!arkCheckReady()) return;
+  const jobs = arkBuildJobs();
+  const total = jobs.length;
+  if (!total) { toast('张数都是 0，先选一下'); return; }
+  const msg = `先出 1 张预览（${jobs[0].label}），看看人脸和风格对不对。满意了再继续生成剩下的 ${total - 1} 张。这 1 张约 0.1~1 元，从你的方舟余额扣。继续吗？`;
+  if (!confirm(msg)) return;
+
+  S.arkPendingJobs = jobs.slice(1);
+  S.arkStatus = `正在出预览图…`;
+  renderRoute();
+  bindRoute();
+  const res = await arkRunJobs([jobs[0]], 'arkGenBtn', 0);
+  if (res.ok) {
+    S.arkStatus = `预览图已出（${jobs[0].label}）。满意就点「继续生成剩余 ${S.arkPendingJobs.length} 张」，不满意就「丢掉预览，重新出」。`;
+    renderRoute();
+    bindRoute();
+    toast('预览图已出');
+  } else {
+    // 预览失败：清空待生成队列和人脸参考，让用户重新出
+    S.arkPendingJobs = null;
+    S.arkFaceRef = null;
+    renderRoute();
+    bindRoute();
+  }
+}
+
+async function arkContinueRest() {
+  if (!arkCheckReady()) return;
+  const jobs = S.arkPendingJobs;
+  if (!jobs || !jobs.length) { toast('没有待生成的图，先点「先生成 1 张预览」'); return; }
+  const total = jobs.length;
+  const low = (total * 0.1).toFixed(1);
+  const doneBase = S.studioAiImages.length;
+  const msg = `继续生成剩下的 ${total} 张，约 ${low}~${total} 元，从你的方舟余额扣。之前的预览图会保留，继续往后加。继续吗？`;
+  if (!confirm(msg)) return;
+
+  S.arkStatus = `继续生成剩余 ${total} 张…`;
+  renderRoute();
+  bindRoute();
+  const res = await arkRunJobs(jobs, 'arkContinueBtn', doneBase);
+  if (res.ok) {
+    S.arkPendingJobs = null;
+    S.arkStatus = `完成：本次共生成 ${doneBase + total} 张。点图片看大图，点「下载」保存。`;
+    renderRoute();
+    bindRoute();
+    toast('模特图已生成');
+  } else {
+    // 中途失败：把已成功的从 pending 里去掉，剩下的留着让用户重试
+    S.arkPendingJobs = jobs.slice(res.done);
+    renderRoute();
+    bindRoute();
+  }
+}
+
+function arkRestartPreview() {
+  S.studioAiImages = [];
+  S.arkFaceRef = null;
+  S.arkPendingJobs = null;
+  S.arkStatus = '';
+  renderRoute();
+  bindRoute();
 }
 
 /* 给 AI 用的压缩图：最长边不超过 max，返回 dataURL */
@@ -1852,7 +1918,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1108a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1112a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
