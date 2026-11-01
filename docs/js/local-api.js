@@ -215,11 +215,15 @@
           var payload = {
             model: cfg.imageModel,
             prompt: gb.prompt,
-            size: gb.size || '1024x1024',
+            size: gb.size || '1024x1536',
             response_format: 'b64_json',
+            watermark: false,
             n: 1
           };
-          if (cfg.img2img !== false && gb.imageUrl) payload.image = gb.imageUrl;
+          if (cfg.img2img !== false) {
+            if (Array.isArray(gb.images) && gb.images.length) payload.image = gb.images;
+            else if (gb.imageUrl) payload.image = gb.imageUrl;
+          }
           return orig(baseUrl2 + '/images/generations', {
             method: 'POST',
             headers: aiHeaders(cfg),

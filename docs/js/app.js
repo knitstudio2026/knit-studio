@@ -58,6 +58,8 @@ const S = {
   route: 'dashboard',
   syncState: 'ok',
   studioImage: null,      // { img, dataUrl, aiUrl, assetUrl }
+  swapImage: null,
+  swapStatus: '',
   studioKit: null,
   studioResultTab: 'titles',
   tagOpen: false,
@@ -934,8 +936,30 @@ function viewStudio() {
         </div>
 
         <div class="card">
+          <div class="card-head"><h3>一键换装（可选）</h3><span class="sub">保留姿势，换成你的衣服</span></div>
+          <div class="card-body">
+            <p style="font-size:12px;color:#7a5a1e;background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:8px 10px;margin:0 0 10px;line-height:1.7">
+              上传一张模特图做姿势参考。工具会自动换成新面孔，降低肖像权风险；但请只使用你有权使用的图片，不要直接拿同行模特正脸上架。
+            </p>
+            ${S.swapImage
+              ? `<div class="thumb"><img src="${S.swapImage.dataUrl}" alt="模特参考图"><button class="reup" id="swapReup">换一张</button></div>`
+              : `<div class="dropzone" id="swapDz"><div class="dz-icon">⬆</div><p>上传模特图（姿势参考）</p><div class="dz-hint">全身或半身都可以</div></div>`}
+            <input type="file" id="swapFile" accept="image/*" hidden>
+            <div style="margin-top:10px">
+              <button class="btn primary" id="swapBtn" style="width:100%">换装生成（收费）</button>
+            </div>
+            <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || '会先提示费用，确认后才扣钱')}</div>
+            ${S.studioAiImages && S.studioAiImages.some((x) => /换装/.test(x.label)) ? `<div class="canvas-grid" style="margin-top:10px">${S.studioAiImages.filter((x) => /换装/.test(x.label)).map((it) => `
+              <div class="canvas-card">
+                <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
+                <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span><a class="btn sm" href="${it.url}" download="${esc(it.label)}.png">下载</a></div>
+              </div>`).join('')}</div>` : ''}
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-head">
-            <h3>2 · 商品标签</h3><span class="sub">自动识别，可改</span>
+            <h3>3 · 商品标签</h3><span class="sub">自动识别，可改</span>
             <div style="margin-left:auto"><button class="btn sm" id="tagToggle">${S.tagOpen ? '收起' : '修改标签'}</button></div>
           </div>
           <div class="card-body">
@@ -1244,6 +1268,29 @@ function bindStudio() {
       toast('已添加颜色：' + v);
     };
   }
+
+  const swapFile = $('#swapFile');
+  const chooseSwap = () => swapFile && swapFile.click();
+  const swapDz = $('#swapDz');
+  const swapReup = $('#swapReup');
+  if (swapDz) swapDz.onclick = chooseSwap;
+  if (swapReup) swapReup.onclick = chooseSwap;
+  if (swapFile) {
+    swapFile.onchange = async () => {
+      const file = swapFile.files && swapFile.files[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) { toast('图片太大，请压到 10MB 以内'); return; }
+      try {
+        const { img, dataUrl } = await loadImageFromFile(file);
+        S.swapImage = { img, dataUrl, aiUrl: toAiJpeg(img, 1500) };
+        S.swapStatus = '';
+        renderRoute();
+        bindRoute();
+      } catch (_) { toast('图片读取失败，换一张试试'); }
+    };
+  }
+  const swapBtn = $('#swapBtn');
+  if (swapBtn) swapBtn.onclick = swapGenerate;
   if (fileInput) {
     fileInput.onchange = async () => {
       const file = fileInput.files && fileInput.files[0];
@@ -1441,6 +1488,42 @@ async function autoRecognize() {
   }
 }
 
+async function swapGenerate() {
+  if (!S.studioImage) { toast('先在上面上传你的衣服实拍图'); return; }
+  if (!S.swapImage) { toast('先上传一张模特姿势图'); return; }
+  const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
+  if (!ai.apiKey) { toast('先去「设置」里填火山方舟 Key'); return; }
+  if (!confirm('换装生成 1 张，约 0.1~1 元，从你的方舟余额扣。继续吗？')) return;
+  S.swapStatus = '正在换装…约 10~30 秒，别关页面';
+  renderRoute();
+  bindRoute();
+  try {
+    const r = await api('/api/ai/generate', {
+      method: 'POST',
+      body: JSON.stringify({
+        prompt: SWAP_PROMPT + '。' + ARK_PHOTO,
+        images: [S.swapImage.aiUrl, S.studioImage.aiUrl],
+        size: '1024x1536'
+      })
+    });
+    const url = r.dataUrl || r.url;
+    if (!url) throw new Error('方舟没返回图片');
+    S.studioAiImages.unshift({ url, label: '换装图' });
+    S.swapStatus = '✅ 换装完成，图在下面';
+    renderRoute();
+    bindRoute();
+    toast('换装完成');
+  } catch (e) {
+    S.swapStatus = '❌ 换装失败：' + ((e.body && e.body.message) || e.message);
+    renderRoute();
+    bindRoute();
+  }
+}
+
+const ARK_PHOTO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和自然窗光，皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画；全身入镜，头顶留白，构图干净；服装颜色、花纹、材质、纽扣、口袋和装饰与参考图完全一致；画面无水印、无文字、无 logo';
+
+const SWAP_PROMPT = '参考图1是模特姿势和构图，参考图2是我要卖的衣服实拍。请生成一张全新照片：完全保留参考图1的姿势、镜头角度、构图和背景氛围；把人物脸换成一位全新的、与参考图1不同的亚洲年轻女性；把身上的衣服换成参考图2这件，颜色、材质纹理、花纹、纽扣、口袋、装饰必须与参考图2完全一致';
+
 async function arkGenerate() {
   if (!S.studioImage) { toast('先上传一张商品图'); return; }
   const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
@@ -1462,13 +1545,13 @@ async function arkGenerate() {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
     const mv = buildJimengPrompts(ci);
     const dv = buildJimengDetailPrompts(ci);
-    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt });
-    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[i % dv.length].prompt });
+    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + '。' + ARK_PHOTO });
+    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[i % dv.length].prompt + '。' + ARK_PHOTO });
   });
   if (S.arkCounts.simpleSku) {
     const ci = Object.assign({}, S.studioInput, { colors: [colorList[0]] });
     const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰' })[0].prompt;
-    jobs.push({ label: '引流图（简配）', prompt: p });
+    jobs.push({ label: '引流图（简配）', prompt: p + '。' + ARK_PHOTO });
   }
 
   const total = jobs.length;
@@ -1506,7 +1589,7 @@ async function arkGenerate() {
         body: JSON.stringify({
           prompt: job.prompt,
           imageUrl: S.studioImage.aiUrl || S.studioImage.dataUrl,
-          size: '1024x1024'
+          size: '1024x1536'
         })
       });
       const url = r.dataUrl || r.url;
