@@ -1673,6 +1673,83 @@ const ARK_PHOTO = ARK_PHOTO_LIFE;
 
 const SWAP_PROMPT = '参考图1是模特姿势和构图，参考图2是我要卖的衣服实拍。请生成一张全新照片：完全保留参考图1的姿势、镜头角度、构图和背景氛围；把人物脸换成一位全新的、与参考图1不同的亚洲年轻女性；把身上的衣服换成参考图2这件';
 
+/* ===== 生活种草：姿势池 + 场景池（按风格自动匹配，随机不重复） ===== */
+const LIFE_POSES = [
+  '身体侧转四分之三、微微回头看向镜头，一只手抬起拨头发，另一只手自然垂在身侧',
+  '背对镜头、侧脸回眸，下巴微收，一只手轻扶墙面，肩膀放松下沉',
+  '身体四分之三侧面站立，一只手插进牛仔裤口袋，另一只手自然下垂，重心落在一条腿上',
+  '微微低头看向镜头下方，一只手托着另一只手的手肘，安静放松',
+  '侧身站立，一手轻提衣摆展示下摆细节，眼神看向侧前方',
+  '半侧身、一只脚向前迈出半步，头发有轻微动态，像正在走动被随手拍到',
+  '坐在咖啡店木椅上，身体前倾，双手捧着拿铁，视线看向窗外',
+  '坐在咖啡店高脚凳上，一条腿搭在另一条上，侧脸看向镜头',
+  '靠在咖啡店窗边，一只手肘撑在窗台，一只手托腮',
+  '坐在沙发扶手上，双腿交叠，双手自然放在膝盖上',
+  '坐在窗边地毯上，抱膝，侧脸看向窗外',
+  '坐在床边，一只手撑着床沿，身体微微后仰',
+  '背着斜挎包走进门，一只手扶包带，身体侧转，像刚进门',
+  '站在衣柜前，一只手翻开柜门，另一只手轻搭在衣架上',
+  '低头整理袖口，视线落在手上，自然被抓拍',
+  '抬手把头发别到耳后，侧脸看向镜头',
+  '双手插进口袋，肩膀放松，直视镜头淡淡微笑',
+  '一只手举手机对着镜子自拍，另一只手垂在身侧',
+  '蹲在花店门口挑花，一只手抱着花束，侧脸看向花',
+  '站在书店过道翻书，低头看着书页',
+  '提着托特包走在街上，回头看镜头',
+  '站在街角等信号灯，双手抱臂，视线看向远方',
+  '坐在公园长椅上，手里拿杯外带咖啡，看向镜头',
+  '站在落地窗前，一只手轻贴玻璃，侧身看向窗外',
+  '半跪坐在沙发上，一只手搭在膝盖上，身体微侧',
+  '站在绿植墙前，双手自然下垂，微微侧头',
+  '转身离开的瞬间回头，裙摆和头发有轻微动态',
+  '一手扶楼梯扶手，身体侧身站在楼梯上，回头看向镜头',
+  '坐在餐桌旁，一只手扶着杯子，另一只手托着脸',
+  '站在露台栏杆边，风吹动头发，侧脸看向远处'
+];
+
+// 场景带风格标签，生成时只挑和识别出的风格匹配的
+const LIFE_SCENES = [
+  { t: '米色墙面和白色置物架的居家角落，暖色落地灯光，背景有绿植和杂物，生活气息浓但虚化', s: ['慵懒风', '温柔风', 'ins风'] },
+  { t: '韩系咖啡店靠窗座位，木质桌面、一杯拿铁、暖黄吊灯，窗外街景虚化', s: ['韩版', '通勤', 'ins风', '温柔风'] },
+  { t: '咖啡店吧台前，背景虚化的咖啡机和吊灯，暖光', s: ['韩版', 'ins风', '通勤'] },
+  { t: '卧室床边，浅色床品和毛毯，晨光柔和', s: ['日系', '慵懒风', '温柔风'] },
+  { t: '窗边卧室，浅色纱帘透光，浅木地板，柔和自然光', s: ['日系', '温柔风', '法式'] },
+  { t: '复古木质衣架前，暖黄灯光，背景挂着的衣服虚化', s: ['复古', '法式', '慵懒风'] },
+  { t: '复古室内，木质家具和暖黄灯光，胶片质感', s: ['复古', '法式'] },
+  { t: '校园图书馆书架前，暖灯和成排的书', s: ['学院风', '复古'] },
+  { t: '教学楼走廊，绿树背景虚化，明亮自然光', s: ['学院风', '日系'] },
+  { t: '写字楼玻璃幕墙走廊，简洁现代，自然光', s: ['通勤'] },
+  { t: '街边绿植墙前，城市街拍，日光柔和', s: ['韩版', 'ins风'] },
+  { t: '秋日街景，落叶和虚化的街道，暖黄日光', s: ['韩版', '通勤', '法式'] },
+  { t: '花店门口，花束和绿植，暖光', s: ['温柔风', '法式', '日系'] },
+  { t: '书店过道，书架和暖色台灯', s: ['学院风', '复古', '温柔风'] },
+  { t: '地铁口或斑马线，城市日常背景，自然光', s: ['韩版', '通勤'] },
+  { t: '露台或天台，傍晚暖光和城市天际线虚化', s: ['ins风', '韩版'] },
+  { t: '极简居家角落，白墙、浅木地板、一盆绿植', s: ['ins风', '日系'] },
+  { t: '沙发旁，抱枕和针织毛毯，暖色灯光', s: ['慵懒风', '温柔风'] },
+  { t: '打开的衣柜前，整齐挂着的衣服，暖光', s: ['慵懒风', '通勤', 'ins风'] },
+  { t: '全身镜前，镜面反光，房间一角干净', s: ['ins风', '韩版'] },
+  { t: '木质餐桌旁，浅色餐具和绿植，日间柔光', s: ['日系', '温柔风'] },
+  { t: '落地窗前的地毯上，窗外城市虚化', s: ['ins风', '日系', '韩版'] },
+  { t: '傍晚街边小店门口，暖黄霓虹灯', s: ['韩版', 'ins风'] },
+  { t: '公园长椅，绿树和柔和日光', s: ['日系', '学院风', '温柔风'] }
+];
+
+function shuffleArr(a) {
+  const arr = a.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+
+function scenesForStyle(style) {
+  if (!style) return LIFE_SCENES.map((x) => x.t);
+  const hit = LIFE_SCENES.filter((x) => x.s.indexOf(style) >= 0).map((x) => x.t);
+  return hit.length >= 5 ? hit : hit.concat(LIFE_SCENES.map((x) => x.t));
+}
+
 // 「不带装饰」开关：返回 buildJimengPrompts 用的参数
 function arkAccOpts() {
   return S.arkCounts.noAccessory
@@ -1707,13 +1784,18 @@ function arkBuildJobs() {
   const accOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'lifestyle' }, arkAccOpts() || {});
   const accNote = S.arkCounts.noAccessory ? `。衣服上不要出现${S.arkCounts.accessoryList || '丝带、蕾丝蝴蝶结等装饰'}，只保留衣服本体` : '';
   const jobs = [];
+  // 整批打乱一次：颜色之间、张数之间都不重复；每次点生成都会重新打乱
+  const styleKey = (S.studioInput.styles && S.studioInput.styles[0]) || '温柔风';
+  const posePool = shuffleArr(LIFE_POSES);
+  const scenePool = shuffleArr(scenesForStyle(styleKey));
+  let startIdx = 0;
   colorList.forEach((color, colorIdx) => {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
-    // seed = 颜色序号：不同颜色自动轮换到不同姿势/场景
-    const mv = buildJimengPrompts(ci, Object.assign({ count: mainPer, seed: colorIdx }, accOpts, { photoStyle: S.arkCounts.photoStyle || 'lifestyle' }));
+    const mv = buildJimengPrompts(ci, Object.assign({ count: mainPer, start: startIdx, poses: posePool, scenes: scenePool }, accOpts, { photoStyle: S.arkCounts.photoStyle || 'lifestyle' }));
     const dv = buildJimengDetailPrompts(ci, accOpts);
     for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + accNote });
     for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
+    startIdx += mainPer;
   });
   if (S.arkCounts.simpleSku) {
     const ci = Object.assign({}, S.studioInput, { colors: [colorList[0]] });
@@ -1979,36 +2061,17 @@ function buildJimengPrompts(input, opts) {
   };
   const st = STYLE_SCENE[style0] || STYLE_SCENE['温柔风'];
 
-  // 姿势池：每个颜色、每张图轮着用，避免所有颜色同一个动作
-  const LIFE_POSES = [
-    '身体侧转四分之三、微微回头看向镜头，一只手抬起拨头发，另一只手自然垂在身侧',
-    '背对镜头、侧脸回眸，下巴微收，一只手轻扶墙面或架子，肩膀放松下沉',
-    '身体四分之三侧面站立，一只手插进牛仔裤口袋，另一只手自然下垂，重心落在一条腿上',
-    '微微低头看向镜头下方，一只手托着另一只手的手肘，像在想事情，姿态安静',
-    '侧身站立，一手轻提衣摆展示下摆细节，眼神看向侧前方，唇角自然微扬',
-    '半侧身、一只脚向前迈出半步，头发有轻微动态，像正在走动被随手拍到',
-    '坐在窗边或沙发扶手上，身体微微前倾，双手自然放在腿上，视线看向窗外',
-    '背着斜挎包，身体侧转，一只手扶包带，另一只手自然摆动，像刚走进门'
-  ];
-
-  // 场景池：和风格场景轮换，避免每张背景都一样
-  const LIFE_SCENES = [
-    '米色墙面和白色置物架的居家角落，暖色落地灯光，背景有绿植和几件杂物，生活气息浓但虚化',
-    '韩系咖啡店室内，木质桌面、暖黄吊灯，背景虚化的座位和窗',
-    '日系清新卧室，浅色纱帘、木质地板，晨光柔和，床边有毛毯',
-    '复古木质衣架前，暖黄灯光，背景挂着几件衣服虚化',
-    '极简居家角落，白墙、浅木地板、一盆绿植，柔和自然光',
-    '靠窗的卧室，浅灰窗帘透光，床品和抱枕虚化在背景，暖色调'
-  ];
   const count = Math.max(1, Number(opts && opts.count) || 2);
-  const seed = Number(opts && opts.seed) || 0;
+  // 姿势/场景打乱后按 start 依次取，整批不重复；每次生成都换一批
+  const posePool = (opts && opts.poses) || shuffleArr(LIFE_POSES);
+  const scenePool = (opts && opts.scenes) || shuffleArr(scenesForStyle(style0));
+  const start = Number(opts && opts.start) || 0;
 
-  // 生活种草：姿势 + 场景按 seed 轮换，不同颜色得到不同动作
   const lifeVariants = [];
   for (let i = 0; i < count; i++) {
-    const pose = LIFE_POSES[(seed * 3 + i) % LIFE_POSES.length];
-    const scene = LIFE_SCENES[(seed + i) % LIFE_SCENES.length];
-    const pct = 65 + ((seed + i) % 3) * 5;
+    const pose = posePool[(start + i) % posePool.length];
+    const scene = scenePool[(start + i) % scenePool.length];
+    const pct = 65 + ((start + i) % 3) * 5;
     lifeVariants.push({
       name: `生活种草图 ${i + 1}（${style0}）`,
       prompt: base(
@@ -2151,7 +2214,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1118a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1119a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
