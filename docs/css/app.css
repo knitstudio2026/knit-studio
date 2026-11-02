@@ -413,3 +413,20 @@ table.tbl tr:hover td { background: #fdfbf7; }
 }
 
 @media print { .topbar, .tabs, .btn { display: none; } }
+
+/* 生成图大图查看 */
+.img-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.94);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+}
+.iv-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #f2f2f2; font-size: 13px; flex: none; }
+.iv-close { background: rgba(255, 255, 255, 0.14); border: 0; color: #fff; font-size: 13px; padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.iv-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: auto; -webkit-overflow-scrolling: touch; }
+.iv-body img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; background: #111; }
+.iv-foot { flex: none; display: flex; justify-content: center; padding-top: 2px; }

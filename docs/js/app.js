@@ -1665,7 +1665,7 @@ async function swapGenerate() {
   bindRoute();
 }
 
-const ARK_PHOTO_LIFE = '高调明亮的韩系咖啡馆实拍：整体曝光偏亮、画面通透有空气感，暗部提亮、不死黑不过暗，暖金色调，柔和光晕和轻微镜头泛光，不要暗调不要灰暗不要低饱和不要灰脏；混合光源：窗外明亮日光加头顶暖黄玻璃吊灯（约 3000K），光包裹人物，脸上有暖色高光和自然立体阴影，皮肤是奶油肌、细腻有光泽但保留细微毛孔，不是哑光粗糙；毛绒针织蓬松柔软、绒感极强，每根纤维清晰，衣服边缘被光打出柔和发亮的绒毛轮廓，面料有厚度和自然褶皱；模特精致：眉毛修剪整齐，纤长睫毛，自然腮红，光泽唇釉，鼻梁有高光，指甲干净修长，棕铜色光泽大波浪长卷发、法式空气刘海，发丝蓬松有光泽和几缕碎发；脸完整露出来、头发不能遮脸，四分之三侧脸直视镜头，下颌微收，表情清冷自然；手机主摄 26mm 实拍，人物清晰对焦，背景保留可辨识的真实细节（木质吧台、白瓷砖墙、黄铜吊灯、菜单板、绿植、窗外街景），只轻微虚化，带极轻微噪点；精致道具：陶瓷拿铁杯、白瓷盘蛋糕、黑色菱格纹链条包、木质托盘；镜头拉近，半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露出一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：头发干枯毛躁、背景杂乱堆东西、灰蒙蒙、廉价感、过曝死白';
+const ARK_PHOTO_LIFE = '高调明亮的韩系咖啡馆实拍：整体曝光偏亮、画面通透有空气感，暗部提亮、不死黑不过暗，暖金色调，柔和光晕和轻微镜头泛光，不要暗调不要灰暗不要低饱和不要灰脏；混合光源：窗外明亮日光在人物侧后方形成发丝轮廓光、头发边缘有轻微过曝的暖光晕，头顶有暖黄玻璃吊灯（约 3000K），光包裹人物，脸上有暖色高光和自然立体阴影，皮肤是奶油肌、细腻有光泽但保留细微毛孔，不是哑光粗糙；毛绒针织蓬松柔软、绒感极强，每根纤维清晰，衣服边缘被光打出柔和发亮的绒毛轮廓，面料有厚度和自然褶皱；模特精致：眉毛修剪整齐，纤长睫毛，自然腮红，光泽唇釉，鼻梁有高光，指甲干净修长，棕铜色光泽大波浪长卷发、法式空气刘海，发丝蓬松有光泽和几缕碎发；脸完整露出来、头发不能遮脸，四分之三侧脸直视镜头，下颌微收，表情平静不笑、嘴唇自然微张；画面像随手抓拍：头部微微偏一点、两边肩膀不绝对水平，头发有不同方向的飞丝和几根翘起的碎发，皮肤有细微肤色不均、淡淡小瑕疵和鼻头自然油光，嘴唇有自然唇纹不是玻璃唇，眼睛有真实反光不是玻璃眼，毛衣绒毛不完全均匀、有轻微压痕，背景有一点点不对称和杂物；手机主摄 26mm 实拍，轻微广角透视、轻微噪点和偏暖白平衡，人物清晰对焦，背景保留可辨识的真实细节（木质吧台、白瓷砖墙、黄铜吊灯、菜单板、绿植、窗外街景），只轻微虚化；不要完美对称、不要网红滤镜、不要过度磨皮、不要液化脸型；精致道具：陶瓷拿铁杯、白瓷盘蛋糕、黑色菱格纹链条包、木质托盘；镜头拉近，半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露出一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：头发干枯毛躁、背景杂乱堆东西、灰蒙蒙、廉价感、过曝死白';
 
 const ARK_PHOTO_STUDIO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和均匀的影棚布光，毛绒针织的绒感清晰，衣服有自然褶皱；真实肤色有毛孔和轻微不均匀，发丝有碎发，不磨皮不美颜滤镜不塑料感，非 3D 渲染非插画；镜头拉近，半身近景构图，取景从头顶到大腿中部，上衣占画面 55%~70%，裤子只露出一点，不要拍全身、不要拍到鞋子；浅灰白无缝背景和自然落地阴影；模特自然放松的站姿，肩膀微侧、重心偏一条腿，不要僵直立正、不要双手垂直下垂；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo';
 
@@ -2208,7 +2208,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1123a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1124a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
@@ -2391,6 +2391,24 @@ async function copyText(text) {
   }
 }
 
+function openImgViewer(url, label) {
+  if (!url) return;
+  const old = $('#imgViewer');
+  if (old) old.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'imgViewer';
+  wrap.className = 'img-viewer';
+  wrap.innerHTML = `
+    <div class="iv-top"><span>${esc(label || '查看大图')}</span><button class="iv-close" type="button">关闭</button></div>
+    <div class="iv-body"><img src="${url}" alt="${esc(label || '')}"></div>
+    <div class="iv-foot"><a class="btn sm primary" href="${url}" download="${esc(label || '图片')}.png">下载这张</a></div>`;
+  wrap.addEventListener('click', (e) => {
+    if (e.target.closest('.iv-top') || e.target.closest('.iv-foot')) return;
+    wrap.remove();
+  });
+  document.body.appendChild(wrap);
+}
+
 function downloadText(text, filename, mime) {
   const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
@@ -2401,6 +2419,17 @@ function downloadText(text, filename, mime) {
 }
 
 /* ================= 启动 ================= */
+
+// 生成图统一在应用内查看大图：data: 图片在新标签页会被浏览器拦截成黑屏
+document.addEventListener('click', (e) => {
+  const img = e.target.closest('.canvas-card img');
+  if (!img) return;
+  const card = img.closest('.canvas-card');
+  const labelEl = card && card.querySelector('.cc-foot span');
+  const link = img.closest('a');
+  if (link) e.preventDefault();
+  openImgViewer(img.getAttribute('src'), labelEl ? labelEl.textContent : '查看大图');
+});
 
 $('#logoutBtn').onclick = doLogout;
 window.addEventListener('resize', () => { if (S.route === 'dashboard') drawSpark(); });
