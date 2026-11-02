@@ -1592,7 +1592,7 @@ async function autoRecognize() {
   }
 }
 
-const FACE_SPEC = '固定模特：24 岁亚洲女性，普通好看的女大学生气质，不是网红脸；五官自然、左右脸略有差别、眼睛大小正常；皮肤白皙但保留真实毛孔和小雀斑，淡妆、眉毛自然、没有浓重眼妆和假睫毛；自然微卷长发带空气刘海，有毛躁碎发；身高 168cm，身材匀称；同一个商品的所有颜色图必须是同一位模特、同一张脸';
+const FACE_SPEC = '固定模特：24 岁亚洲女性，干净清爽的年轻女生气质，不是网红脸；五官自然、左右脸略有差别、眼睛大小正常；皮肤白皙细腻通透、有自然光泽和细微毛孔，不要雀斑痘印；干净淡妆、眉形自然、唇部水润，没有浓重眼妆和假睫毛；头发顺滑有光泽，微卷长发带空气刘海；身高 168cm，身材匀称；同一个商品的所有颜色图必须是同一位模特、同一张脸';
 
 function arkStyleInfo() {
   const i = S.studioInput || {};
@@ -1666,7 +1666,7 @@ async function swapGenerate() {
   bindRoute();
 }
 
-const ARK_PHOTO_LIFE = '真实手机随手拍、非专业摄影非棚拍：明亮通透的室内光，暖金色调，暗部有细节不死黑，窗边日光加暖黄吊灯混合光，窗外和墙面是偏亮的白，但高光不过曝、不泛光晕；背景保留真实可辨的咖啡馆细节（木质吧台、白瓷砖墙、菜单板、绿植、窗帘、窗外街景），轻微虚化即可，不要奶油般糊掉；手机后置主摄 26mm、自动模式、未开人像模式，轻微噪点、轻微偏暖白平衡、构图略微不水平；模特是一位普通好看的女大学生、不是网红脸：五官自然，左右脸略有差别，眼睛大小正常，皮肤有可见毛孔、细腻肤色不均、小雀斑或淡淡痘印，鼻头有自然油光，妆很淡、眉毛自然、没有浓重眼妆和假睫毛，嘴唇有自然唇纹；头发自然微卷，有毛躁的碎发和飞丝，不是根根分明的高光丝；表情平静、嘴唇自然微张，直视镜头，像自己举着手机随手一拍；毛衣毛绒质感真实，绒感柔软但不夸张，有轻微压痕、起球和自然褶皱，纽扣材质真实；脸完整露出、头发不遮脸；半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：网红妆、锥子脸、过大的眼睛、玻璃唇、玻璃眼、完美对称、磨皮液化、奶油虚化、影棚感、海报感、AI 塑料感、过曝死白';
+const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：明亮通透的室内光，暖金色调，暗部有细节不死黑，窗边日光加头顶暖黄吊灯，窗外和墙面是偏亮的白但高光不过曝；背景保留真实可辨的咖啡馆细节（木质吧台、白瓷砖墙、菜单板、绿植、窗帘），轻微虚化但清晰可辨；手机后置主摄 26mm，画质清晰锐利、细节丰富，轻微噪点，轻微偏暖白平衡；模特是一位干净清爽的年轻女生，不是网红脸：五官自然、左右脸略有差别、眼睛大小正常；皮肤白皙细腻通透、有自然光泽和细微毛孔，不要雀斑不要痘印不要鼻头油光；干净淡妆、眉形自然、唇部水润有自然唇纹、脸颊有自然红晕，没有浓重眼妆和假睫毛；头发顺滑有光泽、发梢蓬松微卷，带空气刘海，几缕自然碎发；表情平静、嘴唇自然微张、直视镜头，像自己举着手机随手拍；毛衣毛绒蓬松柔软、绒感清晰可见但不过分炸毛，面料干净平整没有起球没有脏旧感，有自然褶皱和厚度，纽扣质感真实；脸完整露出、头发不遮脸；半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：锥子脸、过大的眼睛、玻璃眼、完美对称、磨皮塑料感、影棚海报感、过曝死白、脏旧感、起球、干枯毛躁';
 
 const ARK_PHOTO_STUDIO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和均匀的影棚布光，毛绒针织的绒感清晰，衣服有自然褶皱；真实肤色有毛孔和轻微不均匀，发丝有碎发，不磨皮不美颜滤镜不塑料感，非 3D 渲染非插画；镜头拉近，半身近景构图，取景从头顶到大腿中部，上衣占画面 55%~70%，裤子只露出一点，不要拍全身、不要拍到鞋子；浅灰白无缝背景和自然落地阴影；模特自然放松的站姿，肩膀微侧、重心偏一条腿，不要僵直立正、不要双手垂直下垂；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo';
 
@@ -2071,7 +2071,7 @@ function buildJimengPrompts(input, opts) {
     lifeVariants.push({
       name: `生活种草图 ${i + 1}（${style0}）`,
       prompt: base(
-        `一位24岁左右的亚洲女性，普通好看的女大学生气质，不是网红脸，五官自然、左右脸略有差别、眼睛大小正常，皮肤白皙有真实毛孔和小雀斑，淡妆、眉毛自然，自然微卷长发带空气刘海，${st[0]}`,
+        `一位24岁左右的亚洲女性，干净清爽的年轻女生气质，不是网红脸，五官自然、左右脸略有差别、眼睛大小正常，皮肤白皙细腻通透有自然光泽和细微毛孔，干净淡妆、眉形自然、唇部水润，头发顺滑有光泽带空气刘海，${st[0]}`,
         `半身近景构图，镜头拉近，取景从头顶到大腿中部，毛衣占画面 55%~70%，裤子只露出一点，不要全身、不要拍到鞋子，${pose}，${scene}`
       )
     });
@@ -2210,7 +2210,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1126a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1127a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
@@ -2405,14 +2405,14 @@ function gradePhoto(url) {
         c.width = W;
         c.height = H;
         const x = c.getContext('2d');
-        x.filter = 'brightness(1.07) saturate(1.05) contrast(0.97)';
+        x.filter = 'brightness(1.09) saturate(1.06) contrast(1)';
         x.drawImage(img, 0, 0, W, H);
         x.filter = 'none';
         x.globalCompositeOperation = 'soft-light';
-        x.fillStyle = 'rgba(255,190,130,0.1)';
+        x.fillStyle = 'rgba(255,190,130,0.12)';
         x.fillRect(0, 0, W, H);
         x.globalCompositeOperation = 'screen';
-        x.fillStyle = 'rgba(255,244,232,0.04)';
+        x.fillStyle = 'rgba(255,244,232,0.05)';
         x.fillRect(0, 0, W, H);
         const b = document.createElement('canvas');
         b.width = Math.max(1, Math.round(W / 5));
@@ -2421,21 +2421,21 @@ function gradePhoto(url) {
         bx.filter = 'blur(6px) brightness(1.1)';
         bx.drawImage(img, 0, 0, b.width, b.height);
         x.globalCompositeOperation = 'screen';
-        x.globalAlpha = 0.07;
+        x.globalAlpha = 0.1;
         x.drawImage(b, 0, 0, W, H);
         x.globalAlpha = 1;
         x.globalCompositeOperation = 'source-over';
-        // 轻微胶片颗粒，压掉 AI 的干净塑料感
+        // 极轻颗粒，避免过度磨皮的塑料感，同时不显粗糙
         const grain = x.getImageData(0, 0, W, H);
         const gd = grain.data;
         for (let i = 0; i < gd.length; i += 4) {
-          const n = (Math.random() - 0.5) * 14;
+          const n = (Math.random() - 0.5) * 8;
           gd[i] += n;
           gd[i + 1] += n;
           gd[i + 2] += n;
         }
         x.putImageData(grain, 0, 0);
-        resolve(c.toDataURL('image/jpeg', 0.92));
+        resolve(c.toDataURL('image/jpeg', 0.94));
       } catch (_) {
         resolve(url);
       }
