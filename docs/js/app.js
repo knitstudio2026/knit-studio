@@ -977,7 +977,7 @@ function viewStudio() {
             <div style="font-size:13px;line-height:1.9;color:var(--ink-2)">
               ${esc([i.category, (i.materials || []).join('、'), i.neck, i.fit, (i.styles || []).join('、'), i.weight, i.season, (i.colors || []).length ? (i.colors || []).join('、') + '（' + (i.colors || []).length + ' 色）' : ''].filter(Boolean).join(' · '))}
               ${S.aiStatus
-                ? `<div class="ai-status ${/失败/.test(S.aiStatus) ? 'bad' : (/识别成功/.test(S.aiStatus) ? 'good' : '')}">${esc(S.aiStatus)}</div>`
+                ? `<div id="aiStatus" class="ai-status ${/失败/.test(S.aiStatus) ? 'bad' : (/识别成功/.test(S.aiStatus) ? 'good' : '')}">${esc(S.aiStatus)}</div>`
                 : '<div style="color:var(--ink-3);font-size:12px">上传图片后自动识别，不准可以点「修改标签」或重新识别</div>'}
               ${S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `<button class="btn sm" id="aiRecognizeBtn" style="margin-top:8px">重新识别一次</button>` : ''}
             </div>
@@ -1486,9 +1486,15 @@ function bindStudio() {
 async function autoRecognize() {
   if (!S.studioImage) return;
   S.studioResultTab = 'ark';
-  S.aiStatus = '正在识别材质、领型、版型、风格、颜色…（约 5-15 秒）';
+  const startedAt = Date.now();
+  const tick = () => {
+    S.aiStatus = '正在识别材质、领型、版型、风格、颜色…（已识别 ' + Math.round((Date.now() - startedAt) / 1000) + ' 秒）';
+    setAiStatus(S.aiStatus);
+  };
+  tick();
   renderRoute();
   bindRoute();
+  const timer = setInterval(tick, 1000);
   try {
     let r = null;
     let lastErr = null;
@@ -1528,6 +1534,8 @@ async function autoRecognize() {
     S.aiStatus = '❌ 识别失败：' + ((e.body && e.body.message) || e.message);
     renderRoute();
     bindRoute();
+  } finally {
+    clearInterval(timer);
   }
 }
 
@@ -2009,7 +2017,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1114a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1115a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
