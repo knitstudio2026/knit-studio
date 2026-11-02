@@ -1199,7 +1199,7 @@ function renderStudioResult() {
   }
 
   if (tab === 'jimeng') {
-    const jmOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'lifestyle' }, arkAccOpts() || {});
+    const jmOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'lifestyle', count: 4, seed: 0 }, arkAccOpts() || {});
     const variants = buildJimengPrompts(S.studioInput, jmOpts);
     const videoVariants = buildJimengVideoPrompts(S.studioInput);
     body = `
@@ -1665,9 +1665,9 @@ async function swapGenerate() {
   bindRoute();
 }
 
-const ARK_PHOTO_LIFE = '真实生活人像摄影：35mm 镜头，f/2.4 浅景深，暖色调室内自然光，柔和阴影，皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画；半身或七分身构图，人物占画面 60%~80%，构图自然抓拍感，不要全身站桩；模特造型生活化：微卷长发或空气刘海、戴细项链或背一只小巧斜挎包、下身配浅蓝牛仔裤或浅色半裙、脚穿简洁平底鞋；背景是真实的居家、咖啡店或衣柜前场景，有生活气息和层次但不抢衣服；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo';
+const ARK_PHOTO_LIFE = '真实生活人像摄影：35mm 镜头，f/2.4 浅景深，暖色调室内自然光，柔和阴影，真实肤色有轻微不均匀和小绒毛，发丝有凌乱碎发，衣服有自然褶皱和阴影，不磨皮不美颜滤镜不塑料感不过度锐化，非 3D 渲染非插画；半身或七分身构图，人物占画面 65%~80%，构图自然抓拍感，不要全身站桩；模特造型生活化：微卷长发或空气刘海、戴细项链或背一只小巧斜挎包、下身配浅蓝牛仔裤或浅色半裙、脚穿简洁平底鞋；背景是真实的居家、咖啡店或衣柜前场景，有生活气息和层次但不抢衣服；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo';
 
-const ARK_PHOTO_STUDIO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和均匀的影棚布光，皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画；七分身构图，人物占画面 70%，浅灰白无缝背景和自然落地阴影；模特自然放松的站姿，肩膀微侧、重心偏一条腿，不要僵直立正、不要双手垂直下垂；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo';
+const ARK_PHOTO_STUDIO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和均匀的影棚布光，真实肤色有轻微不均匀和小绒毛，发丝有碎发，不磨皮不美颜滤镜不塑料感，非 3D 渲染非插画；七分身构图，人物占画面 70%，浅灰白无缝背景和自然落地阴影；模特自然放松的站姿，肩膀微侧、重心偏一条腿，不要僵直立正、不要双手垂直下垂；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo';
 
 const ARK_PHOTO = ARK_PHOTO_LIFE;
 
@@ -1706,19 +1706,19 @@ function arkBuildJobs() {
   const detailPer = Number(S.arkCounts.detailPer) || 0;
   const accOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'lifestyle' }, arkAccOpts() || {});
   const accNote = S.arkCounts.noAccessory ? `。衣服上不要出现${S.arkCounts.accessoryList || '丝带、蕾丝蝴蝶结等装饰'}，只保留衣服本体` : '';
-  const photo = arkPhotoTag();
   const jobs = [];
-  colorList.forEach((color) => {
+  colorList.forEach((color, colorIdx) => {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
-    const mv = buildJimengPrompts(ci, accOpts);
+    // seed = 颜色序号：不同颜色自动轮换到不同姿势/场景
+    const mv = buildJimengPrompts(ci, Object.assign({ count: mainPer, seed: colorIdx }, accOpts, { photoStyle: S.arkCounts.photoStyle || 'lifestyle' }));
     const dv = buildJimengDetailPrompts(ci, accOpts);
-    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + '。' + photo + accNote });
-    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[i % dv.length].prompt + '。' + photo + accNote });
+    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + accNote });
+    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
   });
   if (S.arkCounts.simpleSku) {
     const ci = Object.assign({}, S.studioInput, { colors: [colorList[0]] });
-    const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰' })[0].prompt;
-    jobs.push({ label: '引流图（简配）', prompt: p + '。' + photo });
+    const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰', count: 1 })[0].prompt;
+    jobs.push({ label: '引流图（简配）', prompt: p });
   }
   return jobs;
 }
@@ -1979,23 +1979,44 @@ function buildJimengPrompts(input, opts) {
   };
   const st = STYLE_SCENE[style0] || STYLE_SCENE['温柔风'];
 
-  // 生活种草：半身侧背 + 场景走动，两种角度换着出，避免每张都一样
-  const lifeVariants = [
-    {
-      name: `生活种草图（${style0}）`,
+  // 姿势池：每个颜色、每张图轮着用，避免所有颜色同一个动作
+  const LIFE_POSES = [
+    '身体侧转四分之三、微微回头看向镜头，一只手抬起拨头发，另一只手自然垂在身侧',
+    '背对镜头、侧脸回眸，下巴微收，一只手轻扶墙面或架子，肩膀放松下沉',
+    '身体四分之三侧面站立，一只手插进牛仔裤口袋，另一只手自然下垂，重心落在一条腿上',
+    '微微低头看向镜头下方，一只手托着另一只手的手肘，像在想事情，姿态安静',
+    '侧身站立，一手轻提衣摆展示下摆细节，眼神看向侧前方，唇角自然微扬',
+    '半侧身、一只脚向前迈出半步，头发有轻微动态，像正在走动被随手拍到',
+    '坐在窗边或沙发扶手上，身体微微前倾，双手自然放在腿上，视线看向窗外',
+    '背着斜挎包，身体侧转，一只手扶包带，另一只手自然摆动，像刚走进门'
+  ];
+
+  // 场景池：和风格场景轮换，避免每张背景都一样
+  const LIFE_SCENES = [
+    '米色墙面和白色置物架的居家角落，暖色落地灯光，背景有绿植和几件杂物，生活气息浓但虚化',
+    '韩系咖啡店室内，木质桌面、暖黄吊灯，背景虚化的座位和窗',
+    '日系清新卧室，浅色纱帘、木质地板，晨光柔和，床边有毛毯',
+    '复古木质衣架前，暖黄灯光，背景挂着几件衣服虚化',
+    '极简居家角落，白墙、浅木地板、一盆绿植，柔和自然光',
+    '靠窗的卧室，浅灰窗帘透光，床品和抱枕虚化在背景，暖色调'
+  ];
+  const count = Math.max(1, Number(opts && opts.count) || 2);
+  const seed = Number(opts && opts.seed) || 0;
+
+  // 生活种草：姿势 + 场景按 seed 轮换，不同颜色得到不同动作
+  const lifeVariants = [];
+  for (let i = 0; i < count; i++) {
+    const pose = LIFE_POSES[(seed * 3 + i) % LIFE_POSES.length];
+    const scene = LIFE_SCENES[(seed + i) % LIFE_SCENES.length];
+    const pct = 65 + ((seed + i) % 3) * 5;
+    lifeVariants.push({
+      name: `生活种草图 ${i + 1}（${style0}）`,
       prompt: base(
         `一位25岁左右的亚洲女性模特，${st[0]}，中长微卷发`,
-        `半身构图，人物占画面 70%，身体侧转四分之三、微微回头，不直视镜头，一只手自然抬起（拨头发或轻扶墙面/架子），${st[1]}`
+        `半身或七分身构图，人物占画面 ${pct}%，${pose}，${scene}`
       )
-    },
-    {
-      name: '居家走动图',
-      prompt: base(
-        '一位25岁左右的亚洲女性模特，微卷长发，空气刘海，淡妆，自然放松的表情',
-        '半身到七分身构图，人物占画面 75%，在温暖的居家空间里小幅走动，一只脚在前，手臂自然摆动，头发有轻微动态，背景是米色墙、木质地板和虚化的家具，暖色自然光'
-      )
-    }
-  ];
+    });
+  }
 
   // 白底影棚：拼多多主图用，姿势也要自然，不能站桩
   const studioVariants = [
@@ -2015,7 +2036,9 @@ function buildJimengPrompts(input, opts) {
     }
   ];
 
-  const variants = lifestyle ? lifeVariants : studioVariants;
+  const variants = lifestyle
+    ? lifeVariants
+    : Array.from({ length: count }, (_, i) => studioVariants[(seed + i) % studioVariants.length]);
 
   return variants;
 }
@@ -2128,7 +2151,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1117a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1118a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
