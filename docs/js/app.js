@@ -66,7 +66,7 @@ const S = {
   studioAiImages: [],     // 方舟生成的模特图（本次会话）
   arkFaceRef: null,       // 第一张生成图的人脸参考（本会话）
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
-  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰' },
+  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'lifestyle' },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -1153,6 +1153,14 @@ function renderStudioResult() {
               </label>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
+                <select id="arkPhotoStyle" style="margin:0 4px">
+                  <option value="lifestyle" ${(S.arkCounts.photoStyle || 'lifestyle') === 'lifestyle' ? 'selected' : ''}>生活种草（推荐，像小红书爆款）</option>
+                  <option value="studio" ${S.arkCounts.photoStyle === 'studio' ? 'selected' : ''}>白底影棚（拼多多主图）</option>
+                </select>
+              </label>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
               <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
                 <input type="checkbox" id="arkSimpleSku" ${S.arkCounts.simpleSku ? 'checked' : ''}>
                 有简配版（低价 SKU 引流，多出 1 张）
@@ -1191,7 +1199,8 @@ function renderStudioResult() {
   }
 
   if (tab === 'jimeng') {
-    const variants = buildJimengPrompts(S.studioInput, arkAccOpts());
+    const jmOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'lifestyle' }, arkAccOpts() || {});
+    const variants = buildJimengPrompts(S.studioInput, jmOpts);
     const videoVariants = buildJimengVideoPrompts(S.studioInput);
     body = `
       <div class="card">
@@ -1199,6 +1208,12 @@ function renderStudioResult() {
         <div class="card-body">
           <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生图」，上传同一张实拍图，粘贴下面任意一条即可。</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:13px">
+            <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
+              <select id="jimengPhotoStyle" style="margin:0 4px">
+                <option value="lifestyle" ${(S.arkCounts.photoStyle || 'lifestyle') === 'lifestyle' ? 'selected' : ''}>生活种草（推荐）</option>
+                <option value="studio" ${S.arkCounts.photoStyle === 'studio' ? 'selected' : ''}>白底影棚</option>
+              </select>
+            </label>
             <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
               <input type="checkbox" id="jimengNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
               不带装饰（只卖衣服本体）
@@ -1482,8 +1497,16 @@ function bindStudio() {
   if (arkSimpleNote) arkSimpleNote.oninput = () => { S.arkCounts.simpleNote = arkSimpleNote.value; };
   const arkNoAcc = $('#arkNoAcc');
   if (arkNoAcc) arkNoAcc.onchange = () => { S.arkCounts.noAccessory = arkNoAcc.checked; };
+  const arkPhotoStyle = $('#arkPhotoStyle');
+  if (arkPhotoStyle) arkPhotoStyle.onchange = () => { S.arkCounts.photoStyle = arkPhotoStyle.value; };
   const arkAccList = $('#arkAccList');
   if (arkAccList) arkAccList.oninput = () => { S.arkCounts.accessoryList = arkAccList.value; };
+  const jimengPhotoStyle = $('#jimengPhotoStyle');
+  if (jimengPhotoStyle) jimengPhotoStyle.onchange = () => {
+    S.arkCounts.photoStyle = jimengPhotoStyle.value;
+    renderRoute();
+    bindRoute();
+  };
   const jimengNoAcc = $('#jimengNoAcc');
   if (jimengNoAcc) jimengNoAcc.onchange = () => {
     S.arkCounts.noAccessory = jimengNoAcc.checked;
@@ -1598,7 +1621,7 @@ async function swapGenerate() {
   renderRoute();
   bindRoute();
 
-  const styleInfo = arkStyleInfo();
+  // 换装必须保留参考图1的姿势和背景，所以这里不带生活方式收尾语
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
   const swapTail = S.arkCounts.noAccessory
     ? `，颜色、材质纹理、花纹、纽扣、口袋必须与参考图2完全一致，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
@@ -1613,7 +1636,7 @@ async function swapGenerate() {
       const r = await api('/api/ai/generate', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: SWAP_PROMPT + swapTail + '。' + styleInfo + '。' + arkPhotoTag(),
+          prompt: SWAP_PROMPT + swapTail + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，暖色调灯光有柔和阴影，背景保留参考图1的场景氛围；无水印、无文字、无 logo',
           images: [ref.aiUrl, garment],
           size: '1024x1536'
         })
@@ -1642,7 +1665,11 @@ async function swapGenerate() {
   bindRoute();
 }
 
-const ARK_PHOTO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和自然窗光，皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画；全身入镜，头顶留白，构图干净；模特下身搭配深色直筒裤或半裙和简洁鞋子，不裸露；服装颜色、花纹、材质、纽扣、口袋和装饰与参考图完全一致；画面无水印、无文字、无 logo';
+const ARK_PHOTO_LIFE = '真实生活人像摄影：35mm 镜头，f/2.4 浅景深，暖色调室内自然光，柔和阴影，皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画；半身或七分身构图，人物占画面 60%~80%，构图自然抓拍感，不要全身站桩；模特造型生活化：微卷长发或空气刘海、戴细项链或背一只小巧斜挎包、下身配浅蓝牛仔裤或浅色半裙、脚穿简洁平底鞋；背景是真实的居家、咖啡店或衣柜前场景，有生活气息和层次但不抢衣服；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo';
+
+const ARK_PHOTO_STUDIO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和均匀的影棚布光，皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画；七分身构图，人物占画面 70%，浅灰白无缝背景和自然落地阴影；模特自然放松的站姿，肩膀微侧、重心偏一条腿，不要僵直立正、不要双手垂直下垂；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo';
+
+const ARK_PHOTO = ARK_PHOTO_LIFE;
 
 const SWAP_PROMPT = '参考图1是模特姿势和构图，参考图2是我要卖的衣服实拍。请生成一张全新照片：完全保留参考图1的姿势、镜头角度、构图和背景氛围；把人物脸换成一位全新的、与参考图1不同的亚洲年轻女性；把身上的衣服换成参考图2这件';
 
@@ -1653,10 +1680,15 @@ function arkAccOpts() {
     : null;
 }
 
-// 画质收尾语：开了「不带装饰」时，把「装饰与原图一致」换成「不要任何装饰」
+// 画质收尾语：按「出图风格」选生活种草或白底影棚；开了「不带装饰」时去掉「装饰与原图一致」
 function arkPhotoTag() {
-  if (!S.arkCounts.noAccessory) return ARK_PHOTO;
-  return ARK_PHOTO.replace('服装颜色、花纹、材质、纽扣、口袋和装饰与参考图完全一致', `服装颜色、花纹、材质、纽扣、口袋与参考图完全一致，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结、胸针等'}，只保留衣服本体`);
+  const life = (S.arkCounts.photoStyle || 'lifestyle') === 'lifestyle';
+  let s = life ? ARK_PHOTO_LIFE : ARK_PHOTO_STUDIO;
+  if (S.arkCounts.noAccessory) {
+    s = s.replace('服装颜色、花纹、材质、纽扣、口袋与参考图完全一致',
+      `服装颜色、花纹、材质、纽扣、口袋与参考图完全一致，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结、胸针等'}，只保留衣服本体`);
+  }
+  return s;
 }
 
 function arkCheckReady() {
@@ -1672,20 +1704,21 @@ function arkBuildJobs() {
   const colorList = colors.length ? colors : ['图片所示颜色'];
   const mainPer = Number(S.arkCounts.mainPer) || 2;
   const detailPer = Number(S.arkCounts.detailPer) || 0;
-  const accOpts = arkAccOpts();
+  const accOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'lifestyle' }, arkAccOpts() || {});
   const accNote = S.arkCounts.noAccessory ? `。衣服上不要出现${S.arkCounts.accessoryList || '丝带、蕾丝蝴蝶结等装饰'}，只保留衣服本体` : '';
+  const photo = arkPhotoTag();
   const jobs = [];
   colorList.forEach((color) => {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
     const mv = buildJimengPrompts(ci, accOpts);
     const dv = buildJimengDetailPrompts(ci, accOpts);
-    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + '。' + ARK_PHOTO + accNote });
-    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[i % dv.length].prompt + '。' + ARK_PHOTO + accNote });
+    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + '。' + photo + accNote });
+    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[i % dv.length].prompt + '。' + photo + accNote });
   });
   if (S.arkCounts.simpleSku) {
     const ci = Object.assign({}, S.studioInput, { colors: [colorList[0]] });
     const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰' })[0].prompt;
-    jobs.push({ label: '引流图（简配）', prompt: p + '。' + ARK_PHOTO });
+    jobs.push({ label: '引流图（简配）', prompt: p + '。' + photo });
   }
   return jobs;
 }
@@ -1921,43 +1954,68 @@ function buildJimengPrompts(input, opts) {
       : `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但要去掉${accessory}，做成简配版；只改变穿着的人和场景`)
     : '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计；只改变穿着的人和场景';
 
-  // 画质约束：真实，看不出 AI
-  const quality = '真实人像摄影，皮肤质感自然，毛发清晰，光线真实有阴影，8K高清细节，电商服装主图质感，画面干净无水印无文字，不要卡通不要插画不要油画风格';
+  // 画质约束：按风格区分「生活种草」和「白底影棚」
+  const lifestyle = ((opts && opts.photoStyle) || S.arkCounts.photoStyle || 'lifestyle') === 'lifestyle';
+  const quality = lifestyle
+    ? '真实生活人像照片，暖色调室内自然光，皮肤质感自然有细节，发丝清晰，光线有柔和阴影，手机随拍感但画质高清，电商种草图质感，画面干净无水印无文字，不要卡通不要插画不要油画风'
+    : '真实商业人像摄影，柔和影棚布光，皮肤质感自然，发丝清晰，光线均匀有落地阴影，高清细节，电商主图质感，画面干净无水印无文字，不要卡通不要插画不要油画风';
 
   const base = (model, scene) => {
     return `${model}，穿着${garment}。${constraint}。${scene}。${quality}。`;
   };
 
-  // 只出 2 条：影棚正面 + 按识别出的主风格配一张场景图
+  // 生活种草场景：暖调、有生活气息，姿势自然抓拍（对标小红书爆款图）
   const style0 = (input.styles && input.styles[0]) || '温柔风';
   const STYLE_SCENE = {
-    慵懒风: ['淡妆，长发随意挽起，放松的表情', '居家场景，温暖室内自然光，坐在浅色沙发上，姿态慵懒自然，背景温馨简洁'],
-    韩版: ['气质清爽，淡妆，中长发', '城市街拍，秋季街景背景虚化，自然日光，侧身行走抓拍，画面干净有韩系氛围'],
-    日系: ['素颜感淡妆，中长发微卷，表情平静', '日系清新街景，绿色植物与浅色墙面，柔和自然光，站姿放松'],
-    复古: ['复古气质，淡妆，微卷长发', '复古室内，木质家具与暖黄灯光，胶片质感，色调偏暖'],
-    法式: ['气质优雅，淡妆，微卷长发', '法式复古室内，雕花墙面与窗边柔光，姿态松弛优雅'],
-    学院风: ['青春感淡妆，长直发，自然微笑', '校园场景，教学楼与绿树背景虚化，明亮自然光'],
-    通勤: ['干练气质，淡妆，利落发型', '写字楼或咖啡厅外景，简洁背景，自然日光，通勤穿搭氛围'],
-    ins风: ['干净气质，淡妆，自然发型', '极简纯色背景，柔和影棚光，构图干净，ins风质感'],
-    温柔风: ['气质温柔，淡妆，中长发微垂', '窗边柔光室内，浅色纱帘与自然光，表情温和']
+    慵懒风: ['微卷长发，空气刘海，淡妆，表情放松', '居家客厅，米色墙面和白色置物架，暖色落地灯光，倚着柜子侧身站着，一只手轻抬到胸前，慵懒自然'],
+    韩版: ['清爽气质，微卷长发，淡妆', '韩系咖啡店室内，木质桌面和暖黄灯光，坐姿半身，侧脸看向窗外，自然抓拍'],
+    日系: ['素颜感淡妆，微卷中长发，表情平静', '日系清新卧室，浅色纱帘和木地板，晨光柔光，站在窗边侧身，手里拿着咖啡杯'],
+    复古: ['复古气质，微卷长发，淡妆', '复古室内，木质家具与暖黄灯光，胶片质感，身体侧转回头看向镜头，色调偏暖'],
+    法式: ['气质优雅，微卷长发，淡妆', '法式复古卧室，雕花墙面与窗边柔光，靠墙侧身站立，姿态松弛优雅'],
+    学院风: ['青春感淡妆，自然微卷发', '校园图书馆或宿舍，书架背景虚化，明亮自然光，抱着一本书侧身站着'],
+    通勤: ['干练气质，利落发型，淡妆', '写字楼走廊或咖啡店外景，简洁背景，自然日光，手提托特包侧身行走抓拍'],
+    ins风: ['干净气质，微卷发，淡妆', '极简居家角落，白色置物架和绿植，柔和自然光，靠墙侧身站立，构图留白干净'],
+    温柔风: ['气质温柔，微卷长发微垂，淡妆', '窗边居家场景，米色墙面和白色置物架，暖色灯光，身体侧转四分之三背对镜头，一手轻扶架子，温柔自然']
   };
   const st = STYLE_SCENE[style0] || STYLE_SCENE['温柔风'];
-  const variants = [
+
+  // 生活种草：半身侧背 + 场景走动，两种角度换着出，避免每张都一样
+  const lifeVariants = [
     {
-      name: '影棚主图（最像真人）',
+      name: `生活种草图（${style0}）`,
       prompt: base(
-        '一位25岁左右的亚洲女性模特，五官自然，淡妆，长直发披肩，表情温和微笑',
-        '室内专业影棚拍摄，浅灰色渐变背景，柔和均匀的布光，正面半身像，服装展示清晰，模特站姿自然双手自然下垂'
+        `一位25岁左右的亚洲女性模特，${st[0]}，中长微卷发`,
+        `半身构图，人物占画面 70%，身体侧转四分之三、微微回头，不直视镜头，一只手自然抬起（拨头发或轻扶墙面/架子），${st[1]}`
       )
     },
     {
-      name: `${style0}场景图`,
+      name: '居家走动图',
       prompt: base(
-        `一位25岁左右的亚洲女性模特，${st[0]}`,
-        st[1]
+        '一位25岁左右的亚洲女性模特，微卷长发，空气刘海，淡妆，自然放松的表情',
+        '半身到七分身构图，人物占画面 75%，在温暖的居家空间里小幅走动，一只脚在前，手臂自然摆动，头发有轻微动态，背景是米色墙、木质地板和虚化的家具，暖色自然光'
       )
     }
   ];
+
+  // 白底影棚：拼多多主图用，姿势也要自然，不能站桩
+  const studioVariants = [
+    {
+      name: '白底主图',
+      prompt: base(
+        '一位25岁左右的亚洲女性模特，五官自然，淡妆，微卷长发，表情温和自然',
+        '七分身构图，人物占画面 70%，浅灰白无缝背景，柔和影棚布光，肩膀微侧、重心落在一条腿上，一只手轻搭在腰间，姿势自然不僵直'
+      )
+    },
+    {
+      name: '白底半身细节',
+      prompt: base(
+        '一位25岁左右的亚洲女性模特，五官自然，淡妆，微卷长发，自然微笑看向镜头',
+        '半身构图，浅灰白无缝背景，柔和影棚布光，身体微侧，展示领口和纽扣细节，构图干净'
+      )
+    }
+  ];
+
+  const variants = lifestyle ? lifeVariants : studioVariants;
 
   return variants;
 }
@@ -2070,7 +2128,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1116a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1117a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
