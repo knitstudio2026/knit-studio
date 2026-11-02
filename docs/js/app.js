@@ -65,6 +65,8 @@ const S = {
   tagOpen: false,
   studioAiImages: [],     // 方舟生成的模特图（本次会话）
   arkFaceRef: null,       // 第一张生成图的人脸参考（本会话）
+  libSearch: '',          // 素材库搜索关键词
+  libViewId: null,        // 素材库当前查看的素材 ID
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
   arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'lifestyle' },
   aiStatus: '',
@@ -2255,17 +2257,22 @@ async function saveToLibrary() {
       url = r.url;
       S.studioImage.assetUrl = url;
     }
+    // 保存全部：原图、火山模特图、即梦提示词、属性、SKU、标题、卖点等
+    const jmOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'lifestyle', count: 4, seed: 0 }, arkAccOpts() || {});
+    const jmVariants = buildJimengPrompts(S.studioInput, jmOpts).map((v) => ({ name: v.name, prompt: v.prompt }));
     S.data.materials.unshift({
       id: uid(),
       name: S.studioInput.category + ' · ' + (S.studioInput.colors || []).join('/'),
       imageUrl: url,
       input: Object.assign({}, S.studioInput),
       kit: S.studioKit,
+      aiImages: (S.studioAiImages || []).map((x) => ({ url: x.url, label: x.label })),
+      jimengPrompts: jmVariants,
       createdAt: Date.now()
     });
-    S.data.materials = S.data.materials.slice(0, 50);
+    S.data.materials = S.data.materials.slice(0, 500);
     persist();
-    toast('已存入素材库');
+    toast('已存入素材库（含模特图、提示词、SKU 等全部素材）');
   } catch (_) {
     toast('保存失败，检查网络');
   }
@@ -2273,10 +2280,74 @@ async function saveToLibrary() {
 
 /* ================= 设置 ================= */
 
+function filteredMaterials(materials, keyword) {
+  const k = (keyword || '').trim().toLowerCase();
+  if (!k) return materials;
+  return materials.filter((m) => {
+    const i = m.input || {};
+    const hay = [
+      m.name,
+      i.category,
+      (i.colors || []).join(' '),
+      (i.styles || []).join(' '),
+      (i.materials || []).join(' '),
+      i.neck, i.fit, i.weight, i.season,
+      (i.extra || ''),
+      (i.scene || []).join(' ')
+    ].join(' ').toLowerCase();
+    return hay.includes(k);
+  });
+}
+
+function renderMaterialDetail(m) {
+  if (!m) return '<div class="tbl-empty">素材不存在</div>';
+  const i = m.input || {};
+  const k = m.kit || {};
+  const tags = [i.category, (i.materials || []).join('、'), i.neck, i.fit, (i.styles || []).join('、'), i.weight, i.season, (i.colors || []).join('、')].filter(Boolean).join(' · ');
+  const aiImgs = m.aiImages || [];
+  const jm = m.jimengPrompts || [];
+  const titles = (k.titles || []).map((t) => t.text).filter(Boolean);
+  const skus = k.skus || [];
+  return `
+    <div style="font-size:13px;color:var(--ink-2);line-height:1.8">
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(m.name)}</div>
+      <div style="color:var(--ink-3);font-size:12px;margin-bottom:12px">${new Date(m.createdAt).toLocaleString('zh-CN')}</div>
+      <div style="background:var(--surface-2);padding:8px 12px;border-radius:8px;margin-bottom:14px">${esc(tags)}</div>
+      ${aiImgs.length ? `
+        <div style="font-weight:600;margin:12px 0 8px">火山模特图（${aiImgs.length} 张）</div>
+        <div class="canvas-grid">${aiImgs.map((a) => `
+          <div class="canvas-card">
+            <a href="${a.url}" target="_blank" rel="noopener"><img src="${a.url}" alt="${esc(a.label)}"></a>
+            <div class="cc-foot"><span>${esc(a.label)}</span><span style="margin-left:auto"><a class="btn sm" href="${a.url}" download="${esc(a.label)}.png">下载</a></span></div>
+          </div>`).join('')}</div>
+        <div style="margin-top:8px"><a class="btn sm" id="libDlAll">全部下载（${aiImgs.length} 张）</a></div>
+      ` : '<div style="color:var(--ink-3);font-size:12px;margin-bottom:12px">（保存时没有火山模特图）</div>'}
+      ${titles.length ? `
+        <div style="font-weight:600;margin:16px 0 8px">标题</div>
+        <div style="display:flex;flex-direction:column;gap:6px">${titles.map((t) => `<div style="background:var(--surface-2);padding:8px 12px;border-radius:8px;font-size:13px">${esc(t)}</div>`).join('')}</div>
+      ` : ''}
+      ${skus.length ? `
+        <div style="font-weight:600;margin:16px 0 8px">SKU 规格</div>
+        <div class="table-wrap"><table class="tbl"><thead><tr><th>颜色</th><th>尺码</th><th>拼多多规格名</th><th class="num">价格</th><th class="num">库存</th></tr></thead><tbody>${skus.map((s) => `<tr><td>${esc(s.spec1)}</td><td>${esc(s.spec2)}</td><td>${esc(s.pddName)}</td><td class="num">${s.price}</td><td class="num">${s.stock}</td></tr>`).join('')}</tbody></table></div>
+      ` : ''}
+      ${jm.length ? `
+        <div style="font-weight:600;margin:16px 0 8px">即梦提示词（${jm.length} 组）</div>
+        <div style="display:flex;flex-direction:column;gap:8px">${jm.map((p) => `
+          <div style="background:var(--surface-2);padding:10px 12px;border-radius:8px">
+            <div style="font-size:12px;color:var(--ink-3);margin-bottom:4px">${esc(p.name)}</div>
+            <div style="font-size:12px;color:var(--ink-2);line-height:1.6;word-break:break-all">${esc(p.prompt)}</div>
+          </div>`).join('')}</div>
+      ` : ''}
+      <div style="margin-top:16px">
+        <button class="btn sm" id="libDel">删除这条素材</button>
+      </div>
+    </div>`;
+}
+
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1129a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1130a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
@@ -2353,13 +2424,17 @@ function viewSettings() {
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>素材库</h3><span class="sub">最近 ${d.materials.length} 条</span></div>
+        <div class="card-head"><h3>素材库</h3><span class="sub">共 ${d.materials.length} 条</span></div>
         <div class="card-body">
-          ${d.materials.length ? `<div class="canvas-grid">${d.materials.map((m) => `
-            <div class="canvas-card">
+          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+            <input type="text" id="libSearchInput" placeholder="搜索：品类 / 颜色 / 风格 / 材质…" value="${esc(S.libSearch)}" style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--bg)">
+            ${S.libViewId ? `<button class="btn sm" id="libBack">返回列表</button>` : ''}
+          </div>
+          ${S.libViewId ? renderMaterialDetail(d.materials.find((m) => m.id === S.libViewId)) : (d.materials.length ? `<div class="canvas-grid">${filteredMaterials(d.materials, S.libSearch).map((m) => `
+            <div class="canvas-card" data-mat-id="${m.id}" style="cursor:pointer">
               <img src="${m.imageUrl}" alt="${esc(m.name)}">
-              <div class="cc-foot"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</span></div>
-            </div>`).join('')}</div>` : `<div class="tbl-empty">素材工坊里点「保存到素材库」后，会出现在这里</div>`}
+              <div class="cc-foot"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</span>${m.aiImages && m.aiImages.length ? `<span style="color:var(--brand);font-size:11px;margin-left:6px">${m.aiImages.length}图</span>` : ''}</div>
+            </div>`).join('')}</div>${filteredMaterials(d.materials, S.libSearch).length === 0 && S.libSearch ? `<div class="tbl-empty">没有匹配「${esc(S.libSearch)}」的素材</div>` : ''}` : `<div class="tbl-empty">素材工坊里点「保存到素材库」后，会出现在这里</div>`)}
         </div>
       </div>
     </div>`;
@@ -2392,6 +2467,60 @@ function bindSettings() {
   }
   const logout = $('#logoutBtn2');
   if (logout) logout.onclick = doLogout;
+
+  // 素材库：搜索
+  const libSearchInput = $('#libSearchInput');
+  if (libSearchInput) {
+    libSearchInput.oninput = (e) => {
+      S.libSearch = e.target.value;
+      S.libViewId = null;
+      renderRoute();
+      bindSettings();
+      // 重新聚焦搜索框并把光标放到末尾
+      const inp = $('#libSearchInput');
+      if (inp) { inp.focus(); const v = inp.value; inp.value = ''; inp.value = v; }
+    };
+  }
+  // 素材库：点击素材查看详情
+  $$('[data-mat-id]').forEach((el) => {
+    el.onclick = () => {
+      S.libViewId = el.dataset.matId;
+      renderRoute();
+      bindSettings();
+    };
+  });
+  // 素材库：返回列表
+  const libBack = $('#libBack');
+  if (libBack) libBack.onclick = () => { S.libViewId = null; renderRoute(); bindSettings(); };
+  // 素材库：批量下载
+  const libDlAll = $('#libDlAll');
+  if (libDlAll) libDlAll.onclick = () => {
+    const m = S.data.materials.find((x) => x.id === S.libViewId);
+    const imgs = (m && m.aiImages) || [];
+    if (!imgs.length) return;
+    imgs.forEach((it, i) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = it.url;
+        a.download = (it.label || '模特图') + '.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }, i * 400);
+    });
+    toast('开始下载 ' + imgs.length + ' 张');
+  };
+  // 素材库：删除
+  const libDel = $('#libDel');
+  if (libDel) libDel.onclick = () => {
+    if (!confirm('确定删除这条素材？此操作不可恢复。')) return;
+    S.data.materials = S.data.materials.filter((x) => x.id !== S.libViewId);
+    S.libViewId = null;
+    persist();
+    renderRoute();
+    bindSettings();
+    toast('已删除');
+  };
 
   const aiSave = $('#aiSaveBtn');
   if (aiSave) aiSave.onclick = () => {
