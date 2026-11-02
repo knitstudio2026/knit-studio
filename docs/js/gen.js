@@ -170,8 +170,17 @@ export function makeTitles(input) {
     [0, 1, 2, 3, 4, 5, 6, 7, 10, n - 5, n - 4, n - 2]
   ].map((idxs) => idxs.map(at));
 
+  // 防比价：每次生成随机打乱 2~3 个词的位置，并随机加一个语气词/修饰词，避免标题和别家完全一致
+  const extraFlavor = ['洋气', '减龄', '显白', '遮肉', '不起球', '不缩水', '高质感', '氛围感', '小香风', '甜美', '显瘦', '百搭', '软糯', '亲肤', '高级感', '韩系', '温柔', '气质', '慵懒', '简约'];
+  const flav = extraFlavor[Math.floor(Math.random() * extraFlavor.length)];
   const titles = combos.map((parts, i) => {
-    const t = fitLimit(parts.filter(Boolean).join(' '));
+    const useFlav = Math.random() > 0.4 ? [flav] : [];
+    // 随机交换 1 对相邻元素位置
+    if (parts.length > 2 && Math.random() > 0.5) {
+      const k = Math.floor(Math.random() * (parts.length - 1));
+      [parts[k], parts[k + 1]] = [parts[k + 1], parts[k]];
+    }
+    const t = fitLimit(useFlav.concat(parts).filter(Boolean).join(' '));
     return { text: t, len: charLen(t), kind: ['关键词堆砌', '卖点前置', '场景痛点', '风格人群', '材质工艺', '同义词长尾', '满配长尾'][i] };
   });
 
@@ -228,17 +237,35 @@ export function makeSkus(input) {
   const price = Number(input.price) || 59.9;
   const skus = [];
   let n = 1;
+  // 防比价：给每个颜色随机一个别名后缀，SKU 规格名不和同行撞
+  const colorAlias = {
+    燕麦色: ['燕麦奶', '杏奶茶', '米杏色', '燕麦奶白'],
+    奶白色: ['奶油白', '云朵白', '象牙白', '糯米白'],
+    雾霾蓝: ['灰雾蓝', '雾感蓝', '烟灰蓝', '雾霾灰蓝'],
+    奶茶色: ['焦糖奶', '棕奶茶', '拿铁棕', '奶茶棕'],
+    焦糖色: ['焦糖棕', '红棕焦糖', '太妃糖', '焦糖橘'],
+    墨绿色: ['森林绿', '复古墨绿', '暗松绿', '墨松绿'],
+    藏青色: ['深海蓝', '藏青蓝', '暗夜蓝', '深蓝藏青'],
+    黑色: ['经典黑', '炭黑', '暗夜黑', '纯黑'],
+    灰色: ['云雾灰', '高级灰', '烟灰', '浅麻灰'],
+    粉色: ['樱花粉', '蜜桃粉', '奶油粉', '雾粉'],
+    浅杏色: ['浅杏奶', '杏色', '奶茶杏', '裸杏色'],
+    酒红色: ['复古酒红', '勃艮第红', '暗酒红', '车厘子红']
+  };
+  const randomSuffix = () => String(Math.floor(Math.random() * 900) + 100);
   colors.forEach((c) => {
     sizes.forEach((s) => {
+      const alias = (colorAlias[c] && colorAlias[c][Math.floor(Math.random() * colorAlias[c].length)]) || c;
+      const sep = ['-', '/', '·', ' '][Math.floor(Math.random() * 4)];
       skus.push({
         id: 'sku-' + n++,
         spec1: c,
         spec2: s,
-        name: `${c} ${s}码`,
-        pddName: `${c}-${s}`,
+        name: `${alias} ${s}码`,
+        pddName: `${alias}${sep}${s}`,
         price: price.toFixed(2),
         stock: 100,
-        code: `KN${String(n - 1).padStart(3, '0')}`
+        code: `KN${randomSuffix()}${String(n - 1).padStart(2, '0')}`
       });
     });
   });

@@ -271,7 +271,8 @@
             size: gb.size || '1024x1536',
             response_format: 'b64_json',
             watermark: false,
-            n: 1
+            n: 1,
+            seed: Math.floor(Math.random() * 1e9)
           };
           if (cfg.img2img !== false) {
             if (Array.isArray(gb.images) && gb.images.length) payload.image = gb.images;
