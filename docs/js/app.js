@@ -66,7 +66,7 @@ const S = {
   studioAiImages: [],     // 方舟生成的模特图（本次会话）
   arkFaceRef: null,       // 第一张生成图的人脸参考（本会话）
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
-  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带' },
+  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰' },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -1159,6 +1159,13 @@ function renderStudioResult() {
               </label>
               <input id="arkSimpleNote" type="text" value="${esc(S.arkCounts.simpleNote)}" placeholder="简配差异，例如：不带丝带" style="flex:1;min-width:140px">
             </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+                <input type="checkbox" id="arkNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
+                不带装饰（只生成衣服本体，全部图都生效）
+              </label>
+              <input id="arkAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结" style="flex:1;min-width:140px">
+            </div>
             <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
               ${S.arkPendingJobs && S.arkPendingJobs.length ? `
                 <button class="btn primary" id="arkContinueBtn">继续生成剩余 ${S.arkPendingJobs.length} 张</button>
@@ -1184,13 +1191,20 @@ function renderStudioResult() {
   }
 
   if (tab === 'jimeng') {
-    const variants = buildJimengPrompts(S.studioInput);
+    const variants = buildJimengPrompts(S.studioInput, arkAccOpts());
     const videoVariants = buildJimengVideoPrompts(S.studioInput);
     body = `
       <div class="card">
         <div class="card-head"><h3>即梦图片提示词</h3><span class="sub">免费，复制的越少越好用</span></div>
         <div class="card-body">
           <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生图」，上传同一张实拍图，粘贴下面任意一条即可。</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:13px">
+            <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+              <input type="checkbox" id="jimengNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
+              不带装饰（只卖衣服本体）
+            </label>
+            <input id="jimengAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结" style="flex:1;min-width:140px" ${S.arkCounts.noAccessory ? '' : 'disabled'}>
+          </div>
           ${S.studioImage ? '' : `<div class="tbl-empty" style="margin-bottom:12px">请先上传商品图</div>`}
           <div class="copy-list">
             ${variants.map((v, i) => `
@@ -1466,6 +1480,22 @@ function bindStudio() {
   if (arkSimpleSku) arkSimpleSku.onchange = () => { S.arkCounts.simpleSku = arkSimpleSku.checked; };
   const arkSimpleNote = $('#arkSimpleNote');
   if (arkSimpleNote) arkSimpleNote.oninput = () => { S.arkCounts.simpleNote = arkSimpleNote.value; };
+  const arkNoAcc = $('#arkNoAcc');
+  if (arkNoAcc) arkNoAcc.onchange = () => { S.arkCounts.noAccessory = arkNoAcc.checked; };
+  const arkAccList = $('#arkAccList');
+  if (arkAccList) arkAccList.oninput = () => { S.arkCounts.accessoryList = arkAccList.value; };
+  const jimengNoAcc = $('#jimengNoAcc');
+  if (jimengNoAcc) jimengNoAcc.onchange = () => {
+    S.arkCounts.noAccessory = jimengNoAcc.checked;
+    renderRoute();
+    bindRoute();
+  };
+  const jimengAccList = $('#jimengAccList');
+  if (jimengAccList) jimengAccList.onchange = () => {
+    S.arkCounts.accessoryList = jimengAccList.value;
+    renderRoute();
+    bindRoute();
+  };
   const arkClear = $('#arkClearBtn');
   if (arkClear) arkClear.onclick = () => {
     S.studioAiImages = [];
@@ -1570,6 +1600,9 @@ async function swapGenerate() {
 
   const styleInfo = arkStyleInfo();
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
+  const swapTail = S.arkCounts.noAccessory
+    ? `，颜色、材质纹理、花纹、纽扣、口袋必须与参考图2完全一致，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
+    : '，颜色、材质纹理、花纹、纽扣、口袋、装饰必须与参考图2完全一致';
   let done = 0;
   for (let i = 0; i < n; i++) {
     try {
@@ -1580,7 +1613,7 @@ async function swapGenerate() {
       const r = await api('/api/ai/generate', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: SWAP_PROMPT + '。' + styleInfo + '。' + ARK_PHOTO,
+          prompt: SWAP_PROMPT + swapTail + '。' + styleInfo + '。' + arkPhotoTag(),
           images: [ref.aiUrl, garment],
           size: '1024x1536'
         })
@@ -1611,7 +1644,20 @@ async function swapGenerate() {
 
 const ARK_PHOTO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和自然窗光，皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画；全身入镜，头顶留白，构图干净；模特下身搭配深色直筒裤或半裙和简洁鞋子，不裸露；服装颜色、花纹、材质、纽扣、口袋和装饰与参考图完全一致；画面无水印、无文字、无 logo';
 
-const SWAP_PROMPT = '参考图1是模特姿势和构图，参考图2是我要卖的衣服实拍。请生成一张全新照片：完全保留参考图1的姿势、镜头角度、构图和背景氛围；把人物脸换成一位全新的、与参考图1不同的亚洲年轻女性；把身上的衣服换成参考图2这件，颜色、材质纹理、花纹、纽扣、口袋、装饰必须与参考图2完全一致';
+const SWAP_PROMPT = '参考图1是模特姿势和构图，参考图2是我要卖的衣服实拍。请生成一张全新照片：完全保留参考图1的姿势、镜头角度、构图和背景氛围；把人物脸换成一位全新的、与参考图1不同的亚洲年轻女性；把身上的衣服换成参考图2这件';
+
+// 「不带装饰」开关：返回 buildJimengPrompts 用的参数
+function arkAccOpts() {
+  return S.arkCounts.noAccessory
+    ? { simple: true, noAccessory: true, accessory: S.arkCounts.accessoryList || '丝带、蕾丝蝴蝶结等装饰' }
+    : null;
+}
+
+// 画质收尾语：开了「不带装饰」时，把「装饰与原图一致」换成「不要任何装饰」
+function arkPhotoTag() {
+  if (!S.arkCounts.noAccessory) return ARK_PHOTO;
+  return ARK_PHOTO.replace('服装颜色、花纹、材质、纽扣、口袋和装饰与参考图完全一致', `服装颜色、花纹、材质、纽扣、口袋与参考图完全一致，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结、胸针等'}，只保留衣服本体`);
+}
 
 function arkCheckReady() {
   if (!S.studioImage) { toast('先上传一张商品图'); return false; }
@@ -1626,13 +1672,15 @@ function arkBuildJobs() {
   const colorList = colors.length ? colors : ['图片所示颜色'];
   const mainPer = Number(S.arkCounts.mainPer) || 2;
   const detailPer = Number(S.arkCounts.detailPer) || 0;
+  const accOpts = arkAccOpts();
+  const accNote = S.arkCounts.noAccessory ? `。衣服上不要出现${S.arkCounts.accessoryList || '丝带、蕾丝蝴蝶结等装饰'}，只保留衣服本体` : '';
   const jobs = [];
   colorList.forEach((color) => {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
-    const mv = buildJimengPrompts(ci);
-    const dv = buildJimengDetailPrompts(ci);
-    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + '。' + ARK_PHOTO });
-    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[i % dv.length].prompt + '。' + ARK_PHOTO });
+    const mv = buildJimengPrompts(ci, accOpts);
+    const dv = buildJimengDetailPrompts(ci, accOpts);
+    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + '。' + ARK_PHOTO + accNote });
+    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[i % dv.length].prompt + '。' + ARK_PHOTO + accNote });
   });
   if (S.arkCounts.simpleSku) {
     const ci = Object.assign({}, S.studioInput, { colors: [colorList[0]] });
@@ -1665,7 +1713,7 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       phase = `正在生成第 ${doneBase + i + 1}/${doneBase + total} 张（${job.label}）`;
       S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
-      let prompt = job.prompt + '。' + styleInfo + '。' + FACE_SPEC + '。' + ARK_PHOTO;
+      let prompt = job.prompt + '。' + styleInfo + '。' + FACE_SPEC + '。' + arkPhotoTag();
       const body = { prompt, size: '1024x1536' };
       if (S.arkFaceRef) {
         body.images = [garment, S.arkFaceRef];
@@ -1868,7 +1916,9 @@ function buildJimengPrompts(input, opts) {
   // 核心约束：严格参考上传的服装图（简配版会去掉指定装饰）
   const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
   const constraint = accessory
-    ? `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但要去掉${accessory}，做成简配版；只改变穿着的人和场景`
+    ? (opts && opts.noAccessory
+      ? `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
+      : `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但要去掉${accessory}，做成简配版；只改变穿着的人和场景`)
     : '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计；只改变穿着的人和场景';
 
   // 画质约束：真实，看不出 AI
@@ -1913,7 +1963,7 @@ function buildJimengPrompts(input, opts) {
 }
 
 // 即梦/方舟「详情图」提示词（面料、领口、袖口等局部特写）
-function buildJimengDetailPrompts(input) {
+function buildJimengDetailPrompts(input, opts) {
   const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
   const category = input.category || '毛衣';
   const materials = (input.materials && input.materials.length) ? input.materials.join('、') : '';
@@ -1935,7 +1985,10 @@ function buildJimengDetailPrompts(input) {
   if (desc.length) garment += '，' + desc.join('，');
   if (styles) garment += `，${styles}风格`;
 
-  const constraint = '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计';
+  const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
+  const constraint = accessory
+    ? `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但衣服上不要出现${accessory}，只保留衣服本体，局部特写里也不能拍到任何附加挂饰`
+    : '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计';
   const quality = '真实商品摄影，细节清晰锐利，光线柔和有层次，浅灰色或纯白背景，无水印无文字，不要卡通不要插画';
   const base = (scene) => `局部特写照片，一位模特穿着${garment}。${constraint}。${scene}。${quality}。`;
 
@@ -2017,7 +2070,7 @@ async function saveToLibrary() {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1115a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1116a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
