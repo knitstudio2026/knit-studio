@@ -281,6 +281,7 @@
             n: 1,
             seed: Math.floor(Math.random() * 1e9)
           };
+          if (gb.negative_prompt) payload.negative_prompt = gb.negative_prompt;
           if (cfg.img2img !== false) {
             if (Array.isArray(gb.images) && gb.images.length) payload.image = gb.images;
             else if (gb.imageUrl) payload.image = gb.imageUrl;

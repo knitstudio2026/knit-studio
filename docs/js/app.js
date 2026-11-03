@@ -1741,9 +1741,10 @@ async function swapGenerate() {
       const r = await api('/api/ai/generate', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: SWAP_PROMPT + swapTail + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，暖色调灯光有柔和阴影，背景保留参考图1的场景氛围；无水印、无文字、无 logo',
+          prompt: SWAP_PROMPT + swapTail + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景保留参考图1的场景氛围；无水印、无文字、无 logo',
           images: [ref.aiUrl, garment],
-          size: '1024x1536'
+          size: '1024x1536',
+          negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands'
         })
       });
       const raw = r.dataUrl || r.url;
@@ -2184,7 +2185,7 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       } else {
         prompt += '。颜色严格保持参考图1的原色，不要改色';
       }
-      const body = { prompt, size: '1024x1536' };
+      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
       if (faceRef && !job.isDetail) {
         body.images = [garment, faceRef];
         prompt += '。参考图1 是服装图，只对照衣服的款式、版型、面料纹理、纽扣和口袋位置；参考图2 只是模特的脸部特写，只参考五官、脸型、发型、发色和妆容，绝对不要参考参考图2 的姿势、动作、构图、背景、光线角度和衣服';
@@ -2399,14 +2400,17 @@ function buildJimengPrompts(input, opts) {
     ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
     : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}；只改变穿着的人和场景`;
 
-  // 画质约束：融合｜生活种草｜电商主图
+  // 画质约束：融合｜生活种草｜电商主图（精简版：相机+光线+颗粒，去掉网红感词）
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'blend';
   const useLife = photoMode !== 'studio';
+  // 核心画质句：具体相机 + 真实光线 + 胶片颗粒，这是去 AI 味的关键
+  const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
+  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face';
   const quality = photoMode === 'studio'
-    ? '真实电商商品实拍，明亮均匀柔光，中性白平衡；背景只有一个颜色、平整干净，在清晰对焦内不虚化；镜头 50mm f/4，衣服纹理、纽扣、走线都清晰；模特真实素人感，五官自然、脸有轻微不对称、皮肤有真实毛孔和细微绒毛，不是网红脸；中景偏半身、镜头略微后退，上衣占画面 60%~78%，头部上方留空间，不拍全身不拍鞋；有细微胶片颗粒；不磨皮不塑料感不暖橙滤镜，无水印无文字，不要卡通不要插画不要 3D 渲染'
+    ? `${CAMERA}; 商品主图实拍，干净平整的单色背景，背景在清晰对焦内不虚化；中景偏半身，上衣占画面 60%~78%，头部上方留空间，不拍全身不拍鞋；${NEG}`
     : photoMode === 'blend'
-      ? '明亮通透的真实手机实拍，像白天在真实店铺或街边拍的高质量照片：自然光、曝光亮但不发白、不套暖橙滤镜；衣服是画面绝对主体、清晰对焦，针织纹理、绒感、纽扣、走线都看得清，达到商品主图的清晰度；中景偏半身、镜头略微后退，上衣占画面 65%~80%，头部上方留空间；背景是真实生活场景但简洁干净、不杂乱不抢主体，轻微自然景深；皮肤有真实毛孔和细微绒毛、轻微肤色不均，不是磨皮不是塑料；头发哑光自然、发丝有层次；有细微胶片颗粒；画面干净无水印无文字；不要卡通不要插画不要油画风，不要磨皮不要塑料感，不要过曝死白'
-      : '明亮通透的手机实拍，像朋友在白天自然光下随手拍的，曝光偏亮但不发白、不套暖橙滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深不是糊成一片；毛绒针织蓬松柔软、绒感自然，能看到纤维走向；皮肤有真实毛孔和细微绒毛、轻微肤色不均，不是磨皮不是塑料；头发哑光自然、发丝有层次；有细微胶片颗粒；画面干净无水印无文字；不要卡通不要插画不要油画风，不要磨皮不要塑料感，不要过曝死白';
+      ? `${CAMERA}; 明亮通透的真实实拍，自然光、曝光亮但不发白、不套暖橙滤镜；衣服是画面绝对主体、清晰对焦，针织纹理绒感纽扣走线都看得清；中景偏半身、镜头略微后退，上衣占画面 65%~80%，头部上方留空间；背景是真实生活场景但简洁干净、不杂乱不抢主体、轻微自然景深；${NEG}`
+      : `${CAMERA}; 明亮通透的手机实拍，像白天自然光下随手拍的，曝光偏亮但不发白；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深不是糊成一片；毛绒针织绒感自然、能看到纤维走向；${NEG}`;
 
   const base = (model, scene) => {
     return `场景和动作必须是这里描述的这一处：${scene}。${model}，穿着${garment}。${quality}。${constraint}。背景、房间、墙面、家具都要按上面这段重新布置，不要复制参考图里的背景和环境，不要沿用参考图的构图。`;
@@ -2475,7 +2479,7 @@ function buildJimengPrompts(input, opts) {
     lifeVariants.push({
       name: `生活种草图 ${i + 1}（${style0}）`,
       prompt: base(
-        `一位年轻的亚洲女生，干净清爽的年轻女生气质，不是网红脸，五官自然、左右脸略有差别、眼睛大小正常，精致但很淡的妆：底妆通透水光、自然粉橘腮红、水润唇釉、细而自然的眼线、轻微卧蚕，皮肤白皙细嫩如瓷但保留真实毛孔，${st[0]}；发色、发型、脸型严格按模特身份描述来，不要一律做成微卷长发加空气刘海`,
+        `一位年轻的亚洲女生，干净清爽的素人气质，不是网红脸，五官自然、左右脸略有差别、眼睛大小正常；素颜感，几乎看不出化妆，自然唇色，没有浓眼线没有假睫毛，皮肤有真实毛孔和细微绒毛、轻微肤色不均；${st[0]}；发色、发型、脸型严格按模特身份描述来，不要一律做成微卷长发加空气刘海`,
         `${shot}，${pose}，${scene}，${acc}，${expr}，裤子只露出一点，不要全身、不要拍到鞋子`
       )
     });
@@ -2557,7 +2561,7 @@ function buildJimengDetailPrompts(input, opts) {
   const constraint = accessory
     ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体，局部特写里也不能拍到任何附加挂饰`
     : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}`;
-  const quality2 = '真实商品摄影，细节清晰锐利，光线柔和有层次，浅灰色或纯白背景，画面只拍衣服的一个局部，不要出现完整上半身、不要拍到脸、不要拍到房间或环境背景，只出现两只手、手指数量正确、结构自然，不要多余的手或手臂，无水印无文字，不要卡通不要插画';
+  const quality2 = 'photorealistic, shot on Canon EOS R5, 100mm macro lens, soft diffused studio light, neutral white balance, subtle film grain, sharp fine detail; 画面只拍衣服的一个局部，不要出现完整上半身、不要拍到脸、不要拍到房间或环境背景，只出现两只手、手指数量正确、结构自然，不要多余的手或手臂；no plastic texture, no cartoon, no watermark, no text';
   const base = (scene) => `局部特写照片，一位模特穿着${garment}。${constraint}。${scene}。${quality2}。`;
 
   return [
@@ -2886,7 +2890,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1148a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1149a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
