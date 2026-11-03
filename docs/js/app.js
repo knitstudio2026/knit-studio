@@ -1734,6 +1734,7 @@ async function swapGenerate() {
       if (!raw) throw new Error('方舟没返回图片');
       const url = await gradePhoto(raw);
       S.studioAiImages.unshift({ url, label: `换装图（参考图 ${i + 1}）` });
+      cacheImageNow(url);
       done++;
       if (btn) btn.textContent = `换装中…（${done}/${n}）`;
       renderRoute();
@@ -1755,7 +1756,7 @@ async function swapGenerate() {
   bindRoute();
 }
 
-const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__，暗部有细节不死黑，窗外和墙面是偏亮的白但高光不过曝；用手机主摄 f/2.2 小光圈拍摄，背景清晰不虚化、不糊，环境的墙、家具、桌椅、绿植、招牌、书架等细节都能看清，只有远处轻微虚化；手机后置主摄 __LENS__，画质清晰锐利、细节丰富，毛衣绒毛根根可见、发丝和睫毛清楚、布料褶皱有纹理，真实照片的细微噪点，__WB__；模特表情自然、嘴唇自然微张、看着镜头，像自己举着手机随手拍；只出现两只手、五指数量正确、手指结构自然，不要出现多余的手、手臂或指头；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；毛衣毛绒蓬松柔软、绒感清晰可见但不过分炸毛，面料干净平整没有起球没有脏旧感，有自然褶皱和厚度，纽扣质感真实；脸完整露出、头发不遮脸；半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：背景虚化糊掉、奶油虚化、景深过浅、过度磨皮塑料感、影棚海报感、过曝死白、脏旧感、起球、干枯毛躁、插画感、3D 渲染感';
+const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__，暗部有细节不死黑，窗外和墙面是偏亮的白但高光不过曝；用手机主摄 f/2.8 拍摄，背景是自然的浅景深：近处墙面、桌椅、窗框、绿植能看出形状和材质，远处逐渐柔化，不是糊成一片奶油；手机后置主摄 __LENS__，画质清晰锐利、细节丰富，毛衣绒毛根根可见、发丝和睫毛清楚、布料褶皱有纹理，真实照片的细微噪点，__WB__；模特表情自然、嘴唇自然微张、看着镜头，像朋友拿手机随手抓拍的一瞬间，构图略微不完美、不是精修海报；只出现两只手、五指数量正确、手指结构自然，不要出现多余的手、手臂或指头；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，鼻尖和颧骨有自然高光，不是磨皮不是塑料；毛衣毛绒蓬松柔软、绒感清晰可见但不过分炸毛，面料干净平整没有起球没有脏旧感，有自然褶皱和厚度，纽扣质感真实；脸完整露出、头发不遮脸；半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：背景虚化糊掉、奶油虚化、景深过浅、过度磨皮塑料感、影棚海报感、过曝死白、脏旧感、起球、干枯毛躁、插画感、3D 渲染感';
 
 // 每个商品随机一位模特（脸型/发型/身高/年纪都不同），同一商品的各颜色仍共用同一张脸
 const ARK_IDENTITIES = [
@@ -2063,6 +2064,7 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       const url = await gradePhoto(raw);
       if (!S.arkFaceRef) S.arkFaceRef = url;
       S.studioAiImages.unshift({ url, label: job.label });
+      cacheImageNow(url);
       done += 1;
       S.arkStatus = `已生成 ${doneBase + done}/${doneBase + total} 张…`;
       renderRoute();
@@ -2503,10 +2505,60 @@ function makeZip(files) {
   return new Blob([...chunks, ...central, end], { type: 'application/zip' });
 }
 
+/* ===== 图片本地缓存：方舟图片链接 24 小时后会失效，生成时就存一份到浏览器 ===== */
+const IMG_DB = 'knit-img';
+function imgDb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IMG_DB, 1);
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('imgs')) r.result.createObjectStore('imgs'); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function imgCacheGet(url) {
+  return imgDb().then((db) => new Promise((res) => {
+    const t = db.transaction('imgs').objectStore('imgs').get(url);
+    t.onsuccess = () => res(t.result || null);
+    t.onerror = () => res(null);
+  })).catch(() => null);
+}
+function imgCachePut(url, blob) {
+  return imgDb().then((db) => new Promise((res) => {
+    const t = db.transaction('imgs', 'readwrite').objectStore('imgs').put(blob, url);
+    t.onsuccess = () => res(true);
+    t.onerror = () => res(false);
+  })).catch(() => false);
+}
+// 生成完马上缓存，之后下载不再依赖方舟链接
+function cacheImageNow(url) {
+  if (!url) return;
+  imgCacheGet(url).then((c) => {
+    if (c) return;
+    fetch(url).then((resp) => {
+      if (!resp.ok) return;
+      const type = resp.headers.get('content-type') || '';
+      if (!/^image\//.test(type)) return;
+      return resp.blob().then((b) => imgCachePut(url, b));
+    }).catch(() => {});
+  });
+}
+async function fetchImageBlob(url) {
+  const cached = await imgCacheGet(url);
+  if (cached) return cached;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('这张图的方舟链接已失效（方舟图片只保留 24 小时），重新生成一下这张就行');
+  const type = resp.headers.get('content-type') || '';
+  const blob = await resp.blob();
+  if (!/^image\//.test(type) || blob.size < 20000) {
+    throw new Error('这张图的方舟链接已失效（方舟图片只保留 24 小时），重新生成一下这张就行');
+  }
+  imgCachePut(url, blob);
+  return blob;
+}
+
 async function downloadOne(url, name) {
   try {
-    const resp = await fetch(url);
-    const blob = await resp.blob();
+    const blob = await fetchImageBlob(url);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = (name || '图片').replace(/[\\/:*?"<>|]/g, '_') + '.jpg';
@@ -2514,8 +2566,8 @@ async function downloadOne(url, name) {
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 30000);
-  } catch (_) {
-    toast('下载失败，长按图片可保存');
+  } catch (e) {
+    toast(e.message || '下载失败，长按图片可保存');
   }
 }
 
@@ -2536,8 +2588,13 @@ async function downloadAsZip(items, zipName) {
     const files = [];
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-      const resp = await fetch(it.url);
-      const buf = new Uint8Array(await resp.arrayBuffer());
+      let buf;
+      try {
+        const blob = await fetchImageBlob(it.url);
+        buf = new Uint8Array(await blob.arrayBuffer());
+      } catch (e) {
+        throw new Error(`第 ${i + 1} 张（${it.label || '未命名'}）：${e.message}`);
+      }
       const safe = (it.label || ('图片' + (i + 1))).replace(/[\\/:*?"<>|]/g, '_');
       files.push({ name: `${String(i + 1).padStart(2, '0')}_${safe}.jpg`, bytes: buf });
     }
@@ -2624,7 +2681,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1136a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1137a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
