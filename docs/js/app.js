@@ -328,6 +328,7 @@ function renderRoute() {
 function bindRoute() {
   const fn = { dashboard: bindDashboard, products: bindProducts, studio: bindStudio, shops: bindShops, settings: bindSettings }[S.route];
   if (fn) fn();
+  bindOneDownloads();
 }
 
 /* ================= 通用组件 ================= */
@@ -1191,12 +1192,12 @@ function renderStudioResult() {
             <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (S.arkPendingJobs && S.arkPendingJobs.length ? '预览图已出，满意就点「继续生成」，不满意就「丢掉预览，重新出」' : (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张' : '建议先出 1 张看看人脸和风格，满意了再批量出，省得浪费钱')))}</div>
             ${aiImgs.length ? `<div class="row" style="margin-bottom:10px">
                 <button class="btn sm primary" id="arkDlAll">全部下载（${aiImgs.length} 张）</button>
-                <span class="sub" style="font-size:12px;color:var(--ink-3)">会按顺序一张张保存到浏览器下载目录</span>
+                <span class="sub" style="font-size:12px;color:var(--ink-3)">打包成 1 个 zip 下载，不会一张张弹窗</span>
               </div><div class="canvas-grid">${aiImgs.map((it) => `
               <div class="canvas-card">
                 <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
                 <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span>
-                  <a class="btn sm" href="${it.url}" download="${esc(it.label)}.png">下载</a></div>
+                  <a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">下载</a></div>
               </div>`).join('')}</div>` : ''}
           ` : `
             <div class="tbl-empty" style="margin-bottom:12px">还没填火山方舟 Key，不能直接出图。</div>
@@ -1544,17 +1545,8 @@ function bindStudio() {
   if (arkDlAll) arkDlAll.onclick = () => {
     const imgs = (S.studioAiImages || []).slice();
     if (!imgs.length) return;
-    imgs.forEach((it, i) => {
-      setTimeout(() => {
-        const a = document.createElement('a');
-        a.href = it.url;
-        a.download = (it.label || '模特图') + '.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }, i * 400);
-    });
-    toast('开始下载 ' + imgs.length + ' 张，请在浏览器下载栏查看');
+    const stamp = new Date().toLocaleString('zh-CN').replace(/[\/\s:]/g, '-');
+    downloadAsZip(imgs, `毛衣素材_${stamp}.zip`);
   };
   const arkGoSettings = $('#arkGoSettings');
   if (arkGoSettings) arkGoSettings.onclick = () => {
@@ -1712,7 +1704,7 @@ async function swapGenerate() {
   bindRoute();
 }
 
-const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__，暗部有细节不死黑，窗外和墙面是偏亮的白但高光不过曝；用手机主摄 f/2.2 小光圈拍摄，背景清晰不虚化、不糊，环境的墙、家具、桌椅、绿植、招牌、书架等细节都能看清，只有远处轻微虚化；手机后置主摄 __LENS__，画质清晰锐利、细节丰富，毛衣绒毛根根可见、发丝和睫毛清楚、布料褶皱有纹理，真实照片的细微噪点，__WB__；模特表情自然、嘴唇自然微张、看着镜头，像自己举着手机随手拍；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；毛衣毛绒蓬松柔软、绒感清晰可见但不过分炸毛，面料干净平整没有起球没有脏旧感，有自然褶皱和厚度，纽扣质感真实；脸完整露出、头发不遮脸；半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：背景虚化糊掉、奶油虚化、景深过浅、过度磨皮塑料感、影棚海报感、过曝死白、脏旧感、起球、干枯毛躁、插画感、3D 渲染感';
+const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__，暗部有细节不死黑，窗外和墙面是偏亮的白但高光不过曝；用手机主摄 f/2.2 小光圈拍摄，背景清晰不虚化、不糊，环境的墙、家具、桌椅、绿植、招牌、书架等细节都能看清，只有远处轻微虚化；手机后置主摄 __LENS__，画质清晰锐利、细节丰富，毛衣绒毛根根可见、发丝和睫毛清楚、布料褶皱有纹理，真实照片的细微噪点，__WB__；模特表情自然、嘴唇自然微张、看着镜头，像自己举着手机随手拍；只出现两只手、五指数量正确、手指结构自然，不要出现多余的手、手臂或指头；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；毛衣毛绒蓬松柔软、绒感清晰可见但不过分炸毛，面料干净平整没有起球没有脏旧感，有自然褶皱和厚度，纽扣质感真实；脸完整露出、头发不遮脸；半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：背景虚化糊掉、奶油虚化、景深过浅、过度磨皮塑料感、影棚海报感、过曝死白、脏旧感、起球、干枯毛躁、插画感、3D 渲染感';
 
 // 每个商品随机一位模特（脸型/发型/身高/年纪都不同），同一商品的各颜色仍共用同一张脸
 const ARK_IDENTITIES = [
@@ -2307,8 +2299,8 @@ function buildJimengDetailPrompts(input, opts) {
   const constraint = accessory
     ? `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但衣服上不要出现${accessory}，只保留衣服本体，局部特写里也不能拍到任何附加挂饰`
     : '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计';
-  const quality = '真实商品摄影，细节清晰锐利，光线柔和有层次，浅灰色或纯白背景，无水印无文字，不要卡通不要插画';
-  const base = (scene) => `局部特写照片，一位模特穿着${garment}。${constraint}。${scene}。${quality}。`;
+  const quality2 = '真实商品摄影，细节清晰锐利，光线柔和有层次，浅灰色或纯白背景，只出现两只手、手指数量正确、结构自然，不要多余的手或手臂，无水印无文字，不要卡通不要插画';
+  const base = (scene) => `局部特写照片，一位模特穿着${garment}。${constraint}。${scene}。${quality2}。`;
 
   return [
     { name: '领口细节', prompt: base('镜头近景聚焦领口，展示领型、走线、拉链或纽扣和毛绒质感，模特下巴以下入镜') },
@@ -2388,7 +2380,131 @@ async function saveToLibrary() {
   }
 }
 
-/* ================= 设置 ================= */
+/* ================= 批量下载（打包 zip） ================= */
+function zipCrc32(buf) {
+  if (!zipCrc32.table) {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    zipCrc32.table = t;
+  }
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) crc = zipCrc32.table[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function makeZip(files) {
+  const te = new TextEncoder();
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  const d = new Date();
+  const dosTime = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF;
+  const dosDate = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+  files.forEach((f) => {
+    const nameBytes = te.encode(f.name);
+    const data = f.bytes;
+    const crc = zipCrc32(data);
+    const local = new Uint8Array(30 + nameBytes.length);
+    const dv = new DataView(local.buffer);
+    dv.setUint32(0, 0x04034b50, true);
+    dv.setUint16(4, 20, true);
+    dv.setUint16(6, 0x0800, true);
+    dv.setUint16(8, 0, true);
+    dv.setUint16(10, dosTime, true);
+    dv.setUint16(12, dosDate, true);
+    dv.setUint32(14, crc, true);
+    dv.setUint32(18, data.length, true);
+    dv.setUint32(22, data.length, true);
+    dv.setUint16(26, nameBytes.length, true);
+    dv.setUint16(28, 0, true);
+    local.set(nameBytes, 30);
+    chunks.push(local, data);
+    const c = new Uint8Array(46 + nameBytes.length);
+    const cdv = new DataView(c.buffer);
+    cdv.setUint32(0, 0x02014b50, true);
+    cdv.setUint16(4, 20, true);
+    cdv.setUint16(6, 20, true);
+    cdv.setUint16(8, 0x0800, true);
+    cdv.setUint16(10, 0, true);
+    cdv.setUint16(12, dosTime, true);
+    cdv.setUint16(14, dosDate, true);
+    cdv.setUint32(16, crc, true);
+    cdv.setUint32(20, data.length, true);
+    cdv.setUint32(24, data.length, true);
+    cdv.setUint16(28, nameBytes.length, true);
+    cdv.setUint32(42, offset, true);
+    c.set(nameBytes, 46);
+    central.push(c);
+    offset += local.length + data.length;
+  });
+  const cdSize = central.reduce((s, c) => s + c.length, 0);
+  const end = new Uint8Array(22);
+  const edv = new DataView(end.buffer);
+  edv.setUint32(0, 0x06054b50, true);
+  edv.setUint16(8, files.length, true);
+  edv.setUint16(10, files.length, true);
+  edv.setUint32(12, cdSize, true);
+  edv.setUint32(16, offset, true);
+  return new Blob([...chunks, ...central, end], { type: 'application/zip' });
+}
+
+async function downloadOne(url, name) {
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (name || '图片').replace(/[\\/:*?"<>|]/g, '_') + '.jpg';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 30000);
+  } catch (_) {
+    toast('下载失败，长按图片可保存');
+  }
+}
+
+function bindOneDownloads() {
+  $$('.dlOne').forEach((el) => {
+    el.onclick = (e) => {
+      e.preventDefault();
+      downloadOne(el.dataset.url, el.dataset.name);
+    };
+  });
+}
+
+async function downloadAsZip(items, zipName) {
+  if (!items || !items.length) return;
+  const toastMsg = toast;
+  toastMsg(`正在打包 ${items.length} 张图片…`);
+  try {
+    const files = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const resp = await fetch(it.url);
+      const buf = new Uint8Array(await resp.arrayBuffer());
+      const safe = (it.label || ('图片' + (i + 1))).replace(/[\\/:*?"<>|]/g, '_');
+      files.push({ name: `${String(i + 1).padStart(2, '0')}_${safe}.jpg`, bytes: buf });
+    }
+    const blob = makeZip(files);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = zipName;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 30000);
+    toastMsg(`已打包 ${items.length} 张，下载 1 个 zip 文件即可`);
+  } catch (e) {
+    toast('打包失败：' + (e.message || e));
+  }
+}
+
+
 
 function filteredMaterials(materials, keyword) {
   const k = (keyword || '').trim().toLowerCase();
@@ -2428,7 +2544,7 @@ function renderMaterialDetail(m) {
         <div class="canvas-grid">${aiImgs.map((a) => `
           <div class="canvas-card">
             <a href="${a.url}" target="_blank" rel="noopener"><img src="${a.url}" alt="${esc(a.label)}"></a>
-            <div class="cc-foot"><span>${esc(a.label)}</span><span style="margin-left:auto"><a class="btn sm" href="${a.url}" download="${esc(a.label)}.png">下载</a></span></div>
+            <div class="cc-foot"><span>${esc(a.label)}</span><span style="margin-left:auto"><a class="btn sm dlOne" href="${a.url}" data-url="${a.url}" data-name="${esc(a.label)}">下载</a></span></div>
           </div>`).join('')}</div>
         <div style="margin-top:8px"><a class="btn sm" id="libDlAll">全部下载（${aiImgs.length} 张）</a></div>
       ` : '<div style="color:var(--ink-3);font-size:12px;margin-bottom:12px">（保存时没有火山模特图）</div>'}
@@ -2457,7 +2573,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1132a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1133a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
@@ -2608,17 +2724,7 @@ function bindSettings() {
     const m = S.data.materials.find((x) => x.id === S.libViewId);
     const imgs = (m && m.aiImages) || [];
     if (!imgs.length) return;
-    imgs.forEach((it, i) => {
-      setTimeout(() => {
-        const a = document.createElement('a');
-        a.href = it.url;
-        a.download = (it.label || '模特图') + '.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }, i * 400);
-    });
-    toast('开始下载 ' + imgs.length + ' 张');
+    downloadAsZip(imgs, `${(m.name || '素材').replace(/[\\/:*?"<>|]/g, '_')}.zip`);
   };
   // 素材库：删除
   const libDel = $('#libDel');
