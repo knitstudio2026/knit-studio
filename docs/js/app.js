@@ -1664,7 +1664,7 @@ async function autoRecognize() {
 }
 
 // 妆容与皮肤的统一要求（所有模特共用，保证质感一致）
-const FACE_QUALITY = '精致但很淡的妆：底妆通透有细腻水光感、自然粉橘腮红、水润唇釉有光泽并保留自然唇纹、眼线细而自然、睫毛根根分明但不夸张、眼周轻微卧蚕、鼻梁和颧骨柔和局部高光，不要浓重眼影不要假睫毛；皮肤白皙细嫩如瓷但保留真实毛孔和轻微肤色变化，不是磨皮假面不是塑料感；眉形自然、少量杂毛不是浓眉；不是网红脸、左右脸略有差别、眼睛大小正常';
+const FACE_QUALITY = '精致但很淡的妆：底妆通透有细腻水光感、自然粉橘腮红、水润唇釉有光泽并保留自然唇纹、眼线细而自然、睫毛根根分明但不夸张、眼周轻微卧蚕、鼻梁和颧骨柔和局部高光，不要浓重眼影不要假睫毛；皮肤白皙细嫩如瓷但保留真实毛孔和轻微肤色变化，不是磨皮假面不是塑料感；眉形自然、少量杂毛不是浓眉；不是网红脸、左右脸略有差别、眼睛大小正常；头发是真实发丝，不是一整片色块：能看出发丝走向和层次、发缝自然、发际线有小碎发、几根飞散的毛躁发丝、发根到发梢有轻微深浅变化、发丝受光有真实高光和阴影，不要假发感、不要头盔感、不要边缘发丝糊成一团';
 
 // 当前这一款商品用哪位模特：新商品重新随机，同商品各颜色保持一致
 function arkIdentity() {
@@ -2009,16 +2009,17 @@ function arkBuildJobs() {
   let startIdx = 0;
   colorList.forEach((color, colorIdx) => {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
-    const mv = buildJimengPrompts(ci, Object.assign({ count: mainPer, start: startIdx, poses: posePool, scenes: scenePool }, accOpts, { photoStyle: S.arkCounts.photoStyle || 'lifestyle' }));
-    const dv = buildJimengDetailPrompts(ci, accOpts);
-    for (let i = 0; i < mainPer; i++) jobs.push({ label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + accNote });
-    for (let i = 0; i < detailPer; i++) jobs.push({ label: `${color} 详情图 ${i + 1}`, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
+    const fc = color === '图片所示颜色' ? '' : color;
+    const mv = buildJimengPrompts(ci, Object.assign({ count: mainPer, start: startIdx, poses: posePool, scenes: scenePool, forceColor: fc }, accOpts, { photoStyle: S.arkCounts.photoStyle || 'lifestyle' }));
+    const dv = buildJimengDetailPrompts(ci, Object.assign({}, accOpts, { forceColor: fc }));
+    for (let i = 0; i < mainPer; i++) jobs.push({ color, label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + accNote });
+    for (let i = 0; i < detailPer; i++) jobs.push({ color, label: `${color} 详情图 ${i + 1}`, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
     startIdx += mainPer;
   });
   if (S.arkCounts.simpleSku) {
     const ci = Object.assign({}, S.studioInput, { colors: [colorList[0]] });
     const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰', count: 1 })[0].prompt;
-    jobs.push({ label: '引流图（简配）', prompt: p });
+    jobs.push({ color: colorList[0], label: '引流图（简配）', prompt: p });
   }
   return jobs;
 }
@@ -2047,10 +2048,16 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
       let prompt = job.prompt + '。' + styleInfo + '。' + arkFaceSpec() + '。' + arkPhotoTag();
+      // 颜色必须以这一张对应的颜色为准：参考图只借款式，颜色要重新上
+      if (job.color && job.color !== '图片所示颜色') {
+        prompt += `。这一张的衣服必须是「${job.color}」：参考图1只用来对照款式、版型、针织纹理、纽扣和口袋的位置，颜色不要照搬参考图，整件衣服（含领口、袖口、门襟、口袋、纽扣）都要呈现${job.color}，颜色要准确、均匀、饱和自然`;
+      } else {
+        prompt += '。颜色严格保持参考图1的原色，不要改色';
+      }
       const body = { prompt, size: '1024x1536' };
       if (S.arkFaceRef) {
         body.images = [garment, S.arkFaceRef];
-        prompt += '。服装严格按参考图1；脸部、发型、妆容、体型必须与参考图2完全一致，不要换脸。';
+        prompt += '。服装款式按参考图1，脸部、发型、妆容、体型必须与参考图2完全一致，不要换脸。';
         body.prompt = prompt;
       } else {
         body.imageUrl = garment;
@@ -2250,16 +2257,18 @@ function buildJimengPrompts(input, opts) {
 
   // 核心约束：严格参考上传的服装图（简配版会去掉指定装饰）
   const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
+  const forceColor = (opts && opts.forceColor) || '';
+  const colorFix = forceColor
+    ? `；颜色必须做成${forceColor}：参考图只对照款式、版型、针织纹理、纽扣和口袋位置，颜色不要照搬原图`
+    : '，颜色深浅与原图一致';
   const constraint = accessory
-    ? (opts && opts.noAccessory
-      ? `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
-      : `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但要去掉${accessory}，做成简配版；只改变穿着的人和场景`)
-    : '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计；只改变穿着的人和场景';
+    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}；只改变穿着的人和场景`;
 
   // 画质约束：按风格区分「生活种草」和「白底影棚」
   const lifestyle = ((opts && opts.photoStyle) || S.arkCounts.photoStyle || 'lifestyle') === 'lifestyle';
   const quality = lifestyle
-    ? '高调明亮、通透有空气感的手机实拍，整体曝光偏亮、暖金色调、暗部提亮不死黑，柔和光晕，不要暗调不要灰暗不要低饱和；人物清晰对焦，背景保留可辨识真实细节只轻微虚化；毛绒针织蓬松柔软、绒感极强、每根纤维清晰、边缘有被光打亮的绒毛轮廓；皮肤是奶油肌、细腻有光泽但保留细微毛孔，头发蓬松有光泽；画面干净无水印无文字；不要卡通不要插画不要油画风，不要磨皮不要塑料感，不要廉价灰脏感，不要过曝死白'
+    ? '高调明亮、通透的手机实拍，整体曝光偏亮、暖金色调、暗部提亮不死黑；人物清晰对焦，背景保留可辨识真实细节、自然浅景深不是糊成一片；毛绒针织蓬松柔软、绒感自然，靠近能看到纤维走向，不要像毛绒玩具；皮肤是奶油肌但有细微毛孔和自然高光，头发蓬松有光泽但发丝真实、能看到发缝和几根碎发，不是一整片色块；画面干净无水印无文字；不要卡通不要插画不要油画风，不要磨皮不要塑料感，不要廉价灰脏感，不要过曝死白'
     : '真实商业人像摄影，柔和影棚布光，毛绒针织绒感清晰，衣服有自然褶皱，真实肤色有毛孔，发丝有碎发，不磨皮不美颜滤镜不塑料感，高清细节，电商主图质感，画面干净无水印无文字，不要卡通不要插画不要油画风';
 
   const base = (model, scene) => {
@@ -2349,9 +2358,13 @@ function buildJimengDetailPrompts(input, opts) {
   if (styles) garment += `，${styles}风格`;
 
   const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
+  const forceColor = (opts && opts.forceColor) || '';
+  const colorFix = forceColor
+    ? `；颜色必须做成${forceColor}，参考图只对照款式、版型、针织纹理和纽扣位置，颜色不要照搬原图`
+    : '，颜色深浅与原图一致';
   const constraint = accessory
-    ? `严格参考上传的服装图片，保持服装的版型、颜色深浅、材质纹理和主体设计100%一致，但衣服上不要出现${accessory}，只保留衣服本体，局部特写里也不能拍到任何附加挂饰`
-    : '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣、装饰等所有细节与原图100%一致，不得更改服装的款式和设计';
+    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}，但衣服上不要出现${accessory}，只保留衣服本体，局部特写里也不能拍到任何附加挂饰`
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}`;
   const quality2 = '真实商品摄影，细节清晰锐利，光线柔和有层次，浅灰色或纯白背景，只出现两只手、手指数量正确、结构自然，不要多余的手或手臂，无水印无文字，不要卡通不要插画';
   const base = (scene) => `局部特写照片，一位模特穿着${garment}。${constraint}。${scene}。${quality2}。`;
 
@@ -2681,7 +2694,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1137a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1138a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
