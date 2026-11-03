@@ -1217,7 +1217,6 @@ function renderStudioResult() {
                   <option value="auto" ${(S.arkCounts.photoStyle || 'auto') === 'auto' ? 'selected' : ''}>自动随机（每款统一风格）</option>
                   <option value="flatlay" ${S.arkCounts.photoStyle === 'flatlay' ? 'selected' : ''}>全平铺挂拍（无模特）</option>
                   <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>全素人模特随手拍</option>
-                  <option value="studio" ${S.arkCounts.photoStyle === 'studio' ? 'selected' : ''}>纯电商主图（干净背景）</option>
                 </select>
               </label>
             </div>
@@ -2408,12 +2407,10 @@ function buildJimengPrompts(input, opts) {
 
   // 画质约束：核心是具体相机 + 真实光线 + 胶片颗粒，去 AI 味
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
-  const useLife = photoMode !== 'studio';
+  const useLife = true;
   const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
-  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes';
-  const quality = photoMode === 'studio'
-    ? `${CAMERA}; 商品主图实拍，干净平整的单色背景，背景在清晰对焦内不虚化；中景偏半身，上衣占画面 60%~78%，头部上方留空间，不拍全身不拍鞋；${NEG}`
-    : `${CAMERA}; 自然光下的真实随手拍，曝光正常不发白、不套滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；毛绒针织绒感自然、能看到纤维走向；${NEG}`;
+  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features';
+  const quality = `${CAMERA}; 自然光下的真实随手拍，曝光正常不发白、不套滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；毛绒针织绒感自然、能看到纤维走向；${NEG}`;
 
   const base = (model, scene) => {
     return `场景和动作必须是这里描述的这一处：${scene}。${model}，穿着${garment}。${quality}。${constraint}。背景、房间、墙面、家具都要按上面这段重新布置，不要复制参考图里的背景和环境，不要沿用参考图的构图。`;
@@ -2482,7 +2479,7 @@ function buildJimengPrompts(input, opts) {
     lifeVariants.push({
       name: `生活种草图 ${i + 1}（${style0}）`,
       prompt: base(
-        `一位年轻的亚洲女生，干净清爽的素人气质，不是网红脸，五官自然、左右脸略有差别、眼睛大小正常；素颜感，几乎看不出化妆，自然唇色，没有浓眼线没有假睫毛，皮肤有真实毛孔和细微绒毛、轻微肤色不均；${st[0]}；发色、发型、脸型严格按模特身份描述来，不要一律做成微卷长发加空气刘海`,
+        `一位年轻的东亚女生（中国女生面孔），皮肤白皙干净，干净清爽的素人气质，不是网红脸；五官自然、左右脸略有差别、眼睛大小正常、鼻梁不高不矮；素颜感，几乎看不出化妆，自然唇色，没有浓眼线没有假睫毛，皮肤有真实毛孔和细微绒毛、轻微肤色不均；${st[0]}；发色、发型、脸型严格按模特身份描述来，不要一律做成微卷长发加空气刘海`,
         `${shot}，${pose}，${scene}，${acc}，${expr}，裤子只露出一点，不要全身、不要拍到鞋子`
       )
     });
@@ -2925,7 +2922,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1151a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1152a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
