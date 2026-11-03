@@ -71,7 +71,7 @@ const S = {
   libSearch: '',          // 素材库搜索关键词
   libViewId: null,        // 素材库当前查看的素材 ID
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
-  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'blend' },
+  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'flatlay' },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -1214,7 +1214,8 @@ function renderStudioResult() {
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
               <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
                 <select id="arkPhotoStyle" style="margin:0 4px">
-                  <option value="blend" ${(S.arkCounts.photoStyle || 'blend') === 'blend' ? 'selected' : ''}>融合推荐（种草氛围 + 主图质感）</option>
+                  <option value="flatlay" ${(S.arkCounts.photoStyle || 'flatlay') === 'flatlay' ? 'selected' : ''}>平铺挂拍为主（无模特，最像实拍）</option>
+                  <option value="mix" ${S.arkCounts.photoStyle === 'mix' ? 'selected' : ''}>平铺+模特混合（推荐）</option>
                   <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>纯生活种草（小红书风）</option>
                   <option value="studio" ${S.arkCounts.photoStyle === 'studio' ? 'selected' : ''}>纯电商主图（干净背景）</option>
                 </select>
@@ -2522,9 +2523,48 @@ function buildJimengPrompts(input, opts) {
     )
   }));
 
-  const variants = useLife
-    ? lifeVariants
-    : studioVariants.slice(0, count);
+  /* ===== 无模特商品图（平铺/挂拍/叠拍/人台）—— 拼多多爆款最常用，天然无 AI 味 ===== */
+  const FLATLAY_SCENES = [
+    { t: '平铺·木地板', d: '衣服平铺在浅原木地板上，旁边随意放一杯咖啡和一本杂志，自然光从窗边斜照进来，有柔和阴影，俯拍 45 度' },
+    { t: '平铺·大理石', d: '衣服平铺在白色大理石纹台面上，旁边放一副墨镜和一小束干花，干净明亮的自然光，俯拍' },
+    { t: '平铺·棉麻布', d: '衣服平铺在浅米色棉麻背景布上，旁边放一个藤编小包，柔和的室内自然光，俯拍 45 度' },
+    { t: '平铺·地毯', d: '衣服平铺在浅灰色短绒地毯上，旁边放一双帆布鞋和一顶棒球帽，自然光，俯拍' },
+    { t: '挂拍·白墙', d: '衣服挂在简约木质衣架上，背景是干净的白色墙面，柔和的侧光，正面平视拍摄' },
+    { t: '挂拍·百叶窗', d: '衣服挂在衣架上，背景是白色百叶窗，阳光透过百叶窗投下条纹光影，正面拍摄' },
+    { t: '挂拍·绿植', d: '衣服挂在衣架上，背景是一面浅色墙，旁边有一盆龟背竹绿植，自然光，正面平视' },
+    { t: '叠拍·多色', d: '同款不同色的几件毛衣整齐叠放在一起，展示所有颜色，浅木色背景，俯拍' },
+    { t: '叠拍·单款', d: '一件毛衣整齐叠放，旁边放着同色的围巾和手套，浅灰色背景，自然光，俯拍 45 度' },
+    { t: '人台', d: '衣服穿在简约的半身高模待人台（mannequin）上，没有人的头和手，只有躯干，背景是浅灰色纯色墙，柔光，正面半身' },
+    { t: '椅子搭放', d: '衣服随意搭在一把简约的木质餐椅靠背上，背景是干净的室内墙面，自然光，平视拍摄' },
+    { t: '床边平铺', d: '衣服平铺在铺着白色床单的床上，旁边放一杯水和一本打开的书，清晨柔和自然光，俯拍 45 度' }
+  ];
+  const flatPool = shuffleArr(FLATLAY_SCENES);
+  const flatConstraint = accessory
+    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体`
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}`;
+  const flatQuality = 'photorealistic, shot on Canon EOS R5, 50mm f/2.8 lens, soft natural daylight from a window, neutral white balance, subtle film grain, sharp fine detail on fabric texture; 真实商品平铺实拍质感，不是棚拍灯、不是海报；no plastic texture, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look';
+  const flatVariants = Array.from({ length: Math.max(2, count) }, (_, i) => {
+    const sc = flatPool[(start + i) % flatPool.length];
+    return {
+      name: `商品图·${sc.t}`,
+      prompt: `${sc.d}。一件${garment}。${flatConstraint}。${flatQuality}。画面里绝对不能出现人、人脸、手、手臂、腿或任何身体部位，只有衣服本身和道具；衣服占画面 65%~80%，构图饱满、主体居中偏上，不要留太多空白；背景不要复制参考图，按描述重新布置。`
+    };
+  });
+
+  const useFlat = mode === 'flatlay';
+  const useMix = mode === 'mix';
+  let variants;
+  if (useFlat) {
+    variants = flatVariants.slice(0, count);
+  } else if (useMix) {
+    // 混合：一半无模特商品图，一半素人模特随手拍
+    const half = Math.ceil(count / 2);
+    const flatHalf = flatVariants.slice(0, half);
+    const modelHalf = (useLife ? lifeVariants : studioVariants).slice(0, count - half);
+    variants = flatHalf.concat(modelHalf);
+  } else {
+    variants = useLife ? lifeVariants : studioVariants.slice(0, count);
+  }
 
   return variants;
 }
@@ -2890,7 +2930,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1149a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1150a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
