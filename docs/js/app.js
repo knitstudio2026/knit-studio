@@ -2728,7 +2728,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1140a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1141a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
