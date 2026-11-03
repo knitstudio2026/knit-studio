@@ -1756,7 +1756,7 @@ async function swapGenerate() {
   bindRoute();
 }
 
-const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__，暗部有细节不死黑，窗外和墙面是偏亮的白但高光不过曝；用手机主摄 f/2.8 拍摄，背景是自然的浅景深：近处墙面、桌椅、窗框、绿植能看出形状和材质，远处逐渐柔化，不是糊成一片奶油；手机后置主摄 __LENS__，画质清晰锐利、细节丰富，毛衣绒毛根根可见、发丝和睫毛清楚、布料褶皱有纹理，真实照片的细微噪点，__WB__；模特表情自然、嘴唇自然微张、看着镜头，像朋友拿手机随手抓拍的一瞬间，构图略微不完美、不是精修海报；头发是哑光的自然发色，不要油亮不要大面积反光，不要发丝亮成一片高光；只出现两只手、五指数量正确、手指结构自然，不要出现多余的手、手臂或指头；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，鼻尖和颧骨有自然高光，不是磨皮不是塑料；毛衣毛绒蓬松柔软、绒感清晰可见但不过分炸毛，面料干净平整没有起球没有脏旧感，有自然褶皱和厚度，纽扣质感真实；脸完整露出、头发不遮脸；半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：背景虚化糊掉、奶油虚化、景深过浅、过度磨皮塑料感、影棚海报感、过曝死白、脏旧感、起球、干枯毛躁、插画感、3D 渲染感';
+const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__，暗部有细节不死黑，窗外和墙面是偏亮的白但高光不过曝；用手机主摄 f/2.8 拍摄，背景是自然的浅景深：近处墙面、桌椅、窗框、绿植能看出形状和材质，远处逐渐柔化，不是糊成一片奶油；手机后置主摄 __LENS__，画质清晰锐利、细节丰富，毛衣绒毛根根可见、发丝和睫毛清楚、布料褶皱有纹理，真实照片的细微噪点，__WB__；模特表情自然放松、不摆拍，像朋友拿手机随手抓拍的一瞬间，构图略微不完美、不是精修海报；头发是哑光的自然发色，不要油亮不要大面积反光，不要发丝亮成一片高光；只出现两只手、五指数量正确、手指结构自然，不要出现多余的手、手臂或指头；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，鼻尖和颧骨有自然高光，不是磨皮不是塑料；毛衣毛绒蓬松柔软、绒感清晰可见但不过分炸毛，面料干净平整没有起球没有脏旧感，有自然褶皱和厚度，纽扣质感真实；脸完整露出、头发不遮脸；半身近景或坐姿半身构图，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：背景虚化糊掉、奶油虚化、景深过浅、过度磨皮塑料感、影棚海报感、过曝死白、脏旧感、起球、干枯毛躁、插画感、3D 渲染感';
 
 // 每个商品随机一位模特（脸型/发型/身高/年纪都不同），同一商品的各颜色仍共用同一张脸
 const ARK_IDENTITIES = [
@@ -1967,11 +1967,14 @@ function arkAccOpts() {
 // 画质收尾语：按「出图风格」选生活种草或白底影棚；开了「不带装饰」时去掉「装饰与原图一致」
 function arkPhotoTag() {
   const life = (S.arkCounts.photoStyle || 'lifestyle') === 'lifestyle';
+  // 光位保持统一，镜头和白平衡每张略变，避免整批像同一张图复制出来的
+  const lens = ARK_LENSES[Math.floor(Math.random() * ARK_LENSES.length)];
+  const wb = ARK_WBS[Math.floor(Math.random() * ARK_WBS.length)];
   let s = life
     ? ARK_PHOTO_LIFE
         .replace('__LIGHT__', arkLightSetup())
-        .replace('__LENS__', S.arkLens || '26mm')
-        .replace('__WB__', S.arkWb || '轻微偏暖白平衡')
+        .replace('__LENS__', lens)
+        .replace('__WB__', wb)
     : ARK_PHOTO_STUDIO;
   if (S.arkCounts.noAccessory) {
     s = s.replace('服装颜色、花纹、材质、纽扣、口袋与参考图完全一致',
@@ -2013,7 +2016,7 @@ function arkBuildJobs() {
     const mv = buildJimengPrompts(ci, Object.assign({ count: mainPer, start: startIdx, poses: posePool, scenes: scenePool, forceColor: fc }, accOpts, { photoStyle: S.arkCounts.photoStyle || 'lifestyle' }));
     const dv = buildJimengDetailPrompts(ci, Object.assign({}, accOpts, { forceColor: fc }));
     for (let i = 0; i < mainPer; i++) jobs.push({ color, label: `${color} 主图 ${i + 1}`, prompt: mv[i % mv.length].prompt + accNote });
-    for (let i = 0; i < detailPer; i++) jobs.push({ color, label: `${color} 详情图 ${i + 1}`, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
+    for (let i = 0; i < detailPer; i++) jobs.push({ color, label: `${color} 详情图 ${i + 1}`, isDetail: true, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
     startIdx += mainPer;
   });
   if (S.arkCounts.simpleSku) {
@@ -2022,6 +2025,32 @@ function arkBuildJobs() {
     jobs.push({ color: colorList[0], label: '引流图（简配）', prompt: p });
   }
   return jobs;
+}
+
+/* 把生成图里的头部裁出来当人脸参考：只传整张图会让模型连第一张的背景和动作一起抄 */
+function faceCropUrl(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const W = img.naturalWidth;
+        const H = img.naturalHeight;
+        const sx = Math.round(W * 0.12);
+        const sy = Math.round(H * 0.01);
+        const sw = Math.round(W * 0.7);
+        const sh = Math.round(H * 0.37);
+        const c = document.createElement('canvas');
+        c.width = sw;
+        c.height = sh;
+        c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        resolve(c.toDataURL('image/jpeg', 0.92));
+      } catch (_) {
+        resolve(url);
+      }
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
 }
 
 /* 执行一组 jobs。btnId 是要锁定的按钮 id；doneBase 是之前已生成的张数（用于显示进度） */
@@ -2041,13 +2070,16 @@ async function arkRunJobs(jobs, btnId, doneBase) {
 
   const styleInfo = arkStyleInfo();
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
+  // 人脸参考只取头部：整张图当参考，会把第一张的姿势、背景、构图一起抄进后面的图
+  const faceRef = S.arkFaceRef ? await faceCropUrl(S.arkFaceRef) : null;
   try {
     for (let i = 0; i < total; i++) {
       const job = jobs[i];
       phase = `正在生成第 ${doneBase + i + 1}/${doneBase + total} 张（${job.label}）`;
       S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
-      let prompt = job.prompt + '。' + styleInfo + '。' + arkFaceSpec() + '。' + arkPhotoTag();
+      // 详情图是局部特写，不套用生活种草的半身构图和模特描述，免得又被带成一张半身照
+      let prompt = job.prompt + '。' + styleInfo + (job.isDetail ? '' : '。' + arkFaceSpec() + '。' + arkPhotoTag());
       // 颜色必须以这一张对应的颜色为准：参考图只借款式，颜色要重新上
       if (job.color && job.color !== '图片所示颜色') {
         prompt += `。这一张的衣服必须是「${job.color}」：参考图1只用来对照款式、版型、针织纹理、纽扣和口袋的位置，颜色不要照搬参考图，整件衣服（含领口、袖口、门襟、口袋、纽扣）都要呈现${job.color}，颜色要准确、均匀、饱和自然`;
@@ -2055,9 +2087,9 @@ async function arkRunJobs(jobs, btnId, doneBase) {
         prompt += '。颜色严格保持参考图1的原色，不要改色';
       }
       const body = { prompt, size: '1024x1536' };
-      if (S.arkFaceRef) {
-        body.images = [garment, S.arkFaceRef];
-        prompt += '。服装款式按参考图1，脸部、发型、妆容、体型必须与参考图2完全一致，不要换脸。';
+      if (faceRef && !job.isDetail) {
+        body.images = [garment, faceRef];
+        prompt += '。参考图1 是服装图，只对照衣服的款式、版型、面料纹理、纽扣和口袋位置；参考图2 只是模特的脸部特写，只参考五官、脸型、发型、发色和妆容，绝对不要参考参考图2 的姿势、动作、构图、背景、光线角度和衣服';
         body.prompt = prompt;
       } else {
         body.imageUrl = garment;
@@ -2273,7 +2305,7 @@ function buildJimengPrompts(input, opts) {
     : '真实商业人像摄影，柔和影棚布光，毛绒针织绒感清晰，衣服有自然褶皱，真实肤色有毛孔，发丝有碎发，不磨皮不美颜滤镜不塑料感，高清细节，电商主图质感，画面干净无水印无文字，不要卡通不要插画不要油画风';
 
   const base = (model, scene) => {
-    return `${model}，穿着${garment}。${quality}。${constraint}。${scene}。`;
+    return `场景和动作必须是这里描述的这一处：${scene}。${model}，穿着${garment}。${quality}。${constraint}。背景、房间、墙面、家具都要按上面这段重新布置，不要复制参考图里的背景和环境，不要沿用参考图的构图。`;
   };
 
   // 生活种草场景：暖调、有生活气息，姿势自然抓拍（对标小红书爆款图）
@@ -2367,7 +2399,7 @@ function buildJimengDetailPrompts(input, opts) {
   const constraint = accessory
     ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体，局部特写里也不能拍到任何附加挂饰`
     : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}`;
-  const quality2 = '真实商品摄影，细节清晰锐利，光线柔和有层次，浅灰色或纯白背景，只出现两只手、手指数量正确、结构自然，不要多余的手或手臂，无水印无文字，不要卡通不要插画';
+  const quality2 = '真实商品摄影，细节清晰锐利，光线柔和有层次，浅灰色或纯白背景，画面只拍衣服的一个局部，不要出现完整上半身、不要拍到脸、不要拍到房间或环境背景，只出现两只手、手指数量正确、结构自然，不要多余的手或手臂，无水印无文字，不要卡通不要插画';
   const base = (scene) => `局部特写照片，一位模特穿着${garment}。${constraint}。${scene}。${quality2}。`;
 
   return [
@@ -2696,7 +2728,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1139a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1140a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
@@ -2939,14 +2971,18 @@ function gradePhoto(url) {
         c.width = W;
         c.height = H;
         const x = c.getContext('2d');
-        x.filter = 'brightness(1.09) saturate(1.06) contrast(1)';
+        // 每张的提亮和暖调都轻微浮动，整批不会像套了同一个滤镜
+        const lift = 1.06 + Math.random() * 0.05;
+        const warm = 0.09 + Math.random() * 0.07;
+        const glow = 0.03 + Math.random() * 0.04;
+        x.filter = `brightness(${lift.toFixed(2)}) saturate(1.06) contrast(1)`;
         x.drawImage(img, 0, 0, W, H);
         x.filter = 'none';
         x.globalCompositeOperation = 'soft-light';
-        x.fillStyle = 'rgba(255,190,130,0.13)';
+        x.fillStyle = `rgba(255,190,130,${warm.toFixed(2)})`;
         x.fillRect(0, 0, W, H);
         x.globalCompositeOperation = 'screen';
-        x.fillStyle = 'rgba(255,244,232,0.05)';
+        x.fillStyle = `rgba(255,244,232,${glow.toFixed(2)})`;
         x.fillRect(0, 0, W, H);
         // 防比价：每张图加极轻微的随机色调和亮度偏移，保证像素级唯一
         const randHue = (Math.random() - 0.5) * 10;
