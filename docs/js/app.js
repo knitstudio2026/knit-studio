@@ -71,7 +71,7 @@ const S = {
   libSearch: '',          // 素材库搜索关键词
   libViewId: null,        // 素材库当前查看的素材 ID
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
-  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'flatlay' },
+  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto' },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -1214,9 +1214,9 @@ function renderStudioResult() {
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
               <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
                 <select id="arkPhotoStyle" style="margin:0 4px">
-                  <option value="flatlay" ${(S.arkCounts.photoStyle || 'flatlay') === 'flatlay' ? 'selected' : ''}>平铺挂拍为主（无模特，最像实拍）</option>
-                  <option value="mix" ${S.arkCounts.photoStyle === 'mix' ? 'selected' : ''}>平铺+模特混合（推荐）</option>
-                  <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>纯生活种草（小红书风）</option>
+                  <option value="auto" ${(S.arkCounts.photoStyle || 'auto') === 'auto' ? 'selected' : ''}>自动随机（每款统一风格）</option>
+                  <option value="flatlay" ${S.arkCounts.photoStyle === 'flatlay' ? 'selected' : ''}>全平铺挂拍（无模特）</option>
+                  <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>全素人模特随手拍</option>
                   <option value="studio" ${S.arkCounts.photoStyle === 'studio' ? 'selected' : ''}>纯电商主图（干净背景）</option>
                 </select>
               </label>
@@ -2093,10 +2093,15 @@ function arkBuildJobs() {
   const colorList = colors.length ? colors : ['图片所示颜色'];
   const mainPer = Number(S.arkCounts.mainPer) || 2;
   const detailPer = Number(S.arkCounts.detailPer) || 0;
-  const mode = S.arkCounts.photoStyle || 'blend';
+  const mode = S.arkCounts.photoStyle || 'auto';
   const accOpts = arkAccOpts() || {};
   const accNote = S.arkCounts.noAccessory ? `。衣服上不要出现${S.arkCounts.accessoryList || '丝带、蕾丝蝴蝶结等装饰'}，只保留衣服本体` : '';
   const jobs = [];
+  // 本批次统一风格：auto 模式下随机选「全平铺挂拍」或「全素人模特」，同一个款所有图风格一致
+  let batchMode = mode;
+  if (mode === 'auto') {
+    batchMode = Math.random() < 0.5 ? 'flatlay' : 'lifestyle';
+  }
   // 整批打乱一次：颜色之间、张数之间都不重复；每次点生成都会重新打乱
   const styleKey = (S.studioInput.styles && S.studioInput.styles[0]) || '温柔风';
   const posePool = shuffleArr(LIFE_POSES);
@@ -2112,8 +2117,8 @@ function arkBuildJobs() {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
     const fc = color === '图片所示颜色' ? '' : color;
     for (let i = 0; i < mainPer; i++) {
-      const one = buildJimengPrompts(ci, Object.assign({ count: 1, start: startIdx + i, poses: posePool, scenes: scenePool, forceColor: fc, photoStyle: mode }, accOpts))[0];
-      jobs.push({ color, label: `${color} 主图 ${i + 1}`, prompt: one.prompt + accNote, photoStyle: mode });
+      const one = buildJimengPrompts(ci, Object.assign({ count: 1, start: startIdx + i, poses: posePool, scenes: scenePool, forceColor: fc, photoStyle: batchMode }, accOpts))[0];
+      jobs.push({ color, label: `${color} 主图 ${i + 1}`, prompt: one.prompt + accNote, photoStyle: batchMode });
     }
     const dv = buildJimengDetailPrompts(ci, Object.assign({}, accOpts, { forceColor: fc }));
     for (let i = 0; i < detailPer; i++) jobs.push({ color, label: `${color} 详情图 ${i + 1}`, isDetail: true, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
@@ -2121,7 +2126,7 @@ function arkBuildJobs() {
   });
   if (S.arkCounts.simpleSku) {
     const ci = Object.assign({}, S.studioInput, { colors: [colorList[0]] });
-    const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰', count: 1 })[0].prompt;
+    const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰', count: 1, photoStyle: batchMode })[0].prompt;
     jobs.push({ color: colorList[0], label: '引流图（简配）', prompt: p });
   }
   return jobs;
@@ -2401,17 +2406,14 @@ function buildJimengPrompts(input, opts) {
     ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
     : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}；只改变穿着的人和场景`;
 
-  // 画质约束：融合｜生活种草｜电商主图（精简版：相机+光线+颗粒，去掉网红感词）
-  const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'blend';
+  // 画质约束：核心是具体相机 + 真实光线 + 胶片颗粒，去 AI 味
+  const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
   const useLife = photoMode !== 'studio';
-  // 核心画质句：具体相机 + 真实光线 + 胶片颗粒，这是去 AI 味的关键
   const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
-  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face';
+  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes';
   const quality = photoMode === 'studio'
     ? `${CAMERA}; 商品主图实拍，干净平整的单色背景，背景在清晰对焦内不虚化；中景偏半身，上衣占画面 60%~78%，头部上方留空间，不拍全身不拍鞋；${NEG}`
-    : photoMode === 'blend'
-      ? `${CAMERA}; 明亮通透的真实实拍，自然光、曝光亮但不发白、不套暖橙滤镜；衣服是画面绝对主体、清晰对焦，针织纹理绒感纽扣走线都看得清；中景偏半身、镜头略微后退，上衣占画面 65%~80%，头部上方留空间；背景是真实生活场景但简洁干净、不杂乱不抢主体、轻微自然景深；${NEG}`
-      : `${CAMERA}; 明亮通透的手机实拍，像白天自然光下随手拍的，曝光偏亮但不发白；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深不是糊成一片；毛绒针织绒感自然、能看到纤维走向；${NEG}`;
+    : `${CAMERA}; 自然光下的真实随手拍，曝光正常不发白、不套滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；毛绒针织绒感自然、能看到纤维走向；${NEG}`;
 
   const base = (model, scene) => {
     return `场景和动作必须是这里描述的这一处：${scene}。${model}，穿着${garment}。${quality}。${constraint}。背景、房间、墙面、家具都要按上面这段重新布置，不要复制参考图里的背景和环境，不要沿用参考图的构图。`;
@@ -2552,16 +2554,9 @@ function buildJimengPrompts(input, opts) {
   });
 
   const useFlat = mode === 'flatlay';
-  const useMix = mode === 'mix';
   let variants;
   if (useFlat) {
     variants = flatVariants.slice(0, count);
-  } else if (useMix) {
-    // 混合：一半无模特商品图，一半素人模特随手拍
-    const half = Math.ceil(count / 2);
-    const flatHalf = flatVariants.slice(0, half);
-    const modelHalf = (useLife ? lifeVariants : studioVariants).slice(0, count - half);
-    variants = flatHalf.concat(modelHalf);
   } else {
     variants = useLife ? lifeVariants : studioVariants.slice(0, count);
   }
@@ -2930,7 +2925,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1150a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1151a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
