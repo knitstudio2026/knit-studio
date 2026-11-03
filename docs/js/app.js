@@ -78,8 +78,15 @@ const S = {
     category: '套头毛衣',
     materials: ['羊毛混纺'],
     crafts: ['麻花编织'],
+    pattern: '纯色',
     neck: '半高领',
     fit: '宽松',
+    length: '常规',
+    sleeveLen: '长袖',
+    sleeveType: '常规袖',
+    elements: ['纽扣'],
+    mainStyle: '简约通勤',
+    subStyle: '慵懒风',
     styles: ['慵懒风'],
     audience: ['女士'],
     weight: '加厚',
@@ -969,7 +976,7 @@ function viewStudio() {
             ${S.studioAiImages && S.studioAiImages.some((x) => /换装/.test(x.label)) ? `<div class="canvas-grid" style="margin-top:10px">${S.studioAiImages.filter((x) => /换装/.test(x.label)).map((it) => `
               <div class="canvas-card">
                 <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
-                <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span><a class="btn sm" href="${it.url}" download="${esc(it.label)}.png">下载</a></div>
+                <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span><a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">下载</a></div>
               </div>`).join('')}</div>` : ''}
           </div>
         </div>
@@ -981,7 +988,7 @@ function viewStudio() {
           </div>
           <div class="card-body">
             <div style="font-size:13px;line-height:1.9;color:var(--ink-2)">
-              ${esc([i.category, (i.materials || []).join('、'), i.neck, i.fit, (i.styles || []).join('、'), i.weight, i.season, (i.colors || []).length ? (i.colors || []).join('、') + '（' + (i.colors || []).length + ' 色）' : ''].filter(Boolean).join(' · '))}
+              ${esc([i.category, (i.materials || []).join('、'), i.pattern, i.neck, i.fit, i.length, i.sleeveType, i.mainStyle, i.subStyle, i.weight, i.season, (i.colors || []).length ? (i.colors || []).join('、') + '（' + (i.colors || []).length + ' 色）' : ''].filter(Boolean).join(' · '))}
               ${S.aiStatus
                 ? `<div id="aiStatus" class="ai-status ${/失败/.test(S.aiStatus) ? 'bad' : (/识别成功/.test(S.aiStatus) ? 'good' : '')}">${esc(S.aiStatus)}</div>`
                 : '<div style="color:var(--ink-3);font-size:12px">上传图片后自动识别，不准可以点「修改标签」或重新识别</div>'}
@@ -998,8 +1005,8 @@ function viewStudio() {
                 ${chipGroup('materials', OPTIONS.material, true)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>工艺</span><span class="opt">可多选</span></div>
-                ${chipGroup('crafts', OPTIONS.craft, true)}
+                <div class="plabel"><span>图案</span></div>
+                ${chipGroup('pattern', OPTIONS.pattern, false)}
               </div>
               <div class="param-block">
                 <div class="plabel"><span>领型</span></div>
@@ -1010,19 +1017,35 @@ function viewStudio() {
                 ${chipGroup('fit', OPTIONS.fit, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>风格</span><span class="opt">可多选</span></div>
-                ${chipGroup('styles', OPTIONS.style, true)}
+                <div class="plabel"><span>衣长</span></div>
+                ${chipGroup('length', OPTIONS.length, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>人群</span><span class="opt">可多选</span></div>
-                ${chipGroup('audience', OPTIONS.audience, true)}
+                <div class="plabel"><span>袖长</span></div>
+                ${chipGroup('sleeveLen', OPTIONS.sleeveLen, false)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>袖型</span></div>
+                ${chipGroup('sleeveType', OPTIONS.sleeveType, false)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>流行元素</span><span class="opt">可多选</span></div>
+                ${chipGroup('elements', OPTIONS.elements, true)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>主风格</span><span class="opt">只能选 1 个</span></div>
+                ${chipGroup('mainStyle', OPTIONS.mainStyle, false)}
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>风格</span></div>
+                ${chipGroup('subStyle', OPTIONS.subStyle, false)}
               </div>
               <div class="param-block">
                 <div class="plabel"><span>厚薄</span></div>
                 ${chipGroup('weight', OPTIONS.weight, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>季节</span></div>
+                <div class="plabel"><span>适用季节</span></div>
                 ${chipGroup('season', OPTIONS.season, false)}
               </div>
               <div class="param-block">
@@ -1281,7 +1304,7 @@ function renderStudioResult() {
       </table></div>
       <div class="card-body" style="border-top:1px solid var(--line)">
         <button class="btn sm" data-copy="${esc(kit.attrs.map(([k, v]) => k + '：' + v).join('\n'))}">复制全部属性</button>
-        <p style="font-size:12px;color:var(--ink-3);margin-top:10px">材质成分记得按实际含量改成百分比，平台对这块会抽检。</p>
+        <p style="font-size:12px;color:var(--ink-3);margin-top:10px">字段与拼多多毛衣/针织衫发布页一致，主风格只能选 1 个；材质成分记得按吊牌实际含量改成百分比，平台会抽检。</p>
       </div></div>`;
   }
 
@@ -1407,6 +1430,7 @@ function bindStudio() {
           if (!arr.length) arr.push(v);
         } else {
           S.studioInput[key] = v;
+          if (key === 'subStyle') S.studioInput.styles = [v];
         }
         $$('.chip', group).forEach((c) => c.classList.toggle('active', Array.isArray(S.studioInput[key]) ? S.studioInput[key].includes(c.dataset.value) : S.studioInput[key] === c.dataset.value));
       };
@@ -1561,7 +1585,7 @@ async function autoRecognize() {
   S.studioResultTab = 'ark';
   const startedAt = Date.now();
   const tick = () => {
-    S.aiStatus = '正在识别材质、领型、版型、风格、颜色…（已识别 ' + Math.round((Date.now() - startedAt) / 1000) + ' 秒）';
+    S.aiStatus = '正在识别拼多多属性（材质、图案、领型、版型、衣长、袖型、风格、颜色）…（已识别 ' + Math.round((Date.now() - startedAt) / 1000) + ' 秒）';
     setAiStatus(S.aiStatus);
   };
   tick();
@@ -1592,7 +1616,14 @@ async function autoRecognize() {
       if (g.length > (Array.isArray(s.colors) ? s.colors.length : 0)) s.colors = g.slice(0, 12);
     }
     if (Array.isArray(s.styles) && s.styles.length > 1) s.styles = [s.styles[0]];
-    const map = ['category','materials','crafts','neck','fit','styles','audience','weight','season','colors','sizes','scene'];
+    if (!Array.isArray(s.styles) || !s.styles.length) {
+      s.styles = [s.subStyle || '慵懒风'];
+    }
+    if (!Array.isArray(s.crafts) || !s.crafts.length) {
+      s.crafts = [s.pattern && s.pattern !== '纯色' ? s.pattern : (s.materials && /羊毛|羊绒|马海毛/.test(s.materials.join('')) ? '麻花编织' : '坑条')];
+    }
+    const map = ['category','materials','crafts','neck','fit','styles','audience','weight','season','colors','sizes','scene',
+      'pattern','mainStyle','subStyle','length','sleeveLen','sleeveType','elements'];
     map.forEach((k) => { if (s[k] !== undefined && s[k] !== null) S.studioInput[k] = s[k]; });
     if (s.price) S.studioInput.price = String(s.price);
     if (s.extra) S.studioInput.extra = s.extra;
@@ -2573,7 +2604,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1133a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1134a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
