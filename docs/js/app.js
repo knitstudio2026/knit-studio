@@ -266,6 +266,16 @@ function ensureDefaults() {
   d.daily = d.daily || [];
   d.materials = d.materials || [];
   d.settings = d.settings || {};
+  d.settings.ai = d.settings.ai || {
+    provider: 'volc',
+    apiKey: '',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    visionModel: 'doubao-seed-2-1-pro-260915',
+    imageModel: 'doubao-seedream-5-0-pro-260628',
+    img2img: true,
+    accessKeyId: '',
+    secretAccessKey: ''
+  };
 }
 
 /* ================= 计算 ================= */
@@ -2876,7 +2886,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1147a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1148a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
