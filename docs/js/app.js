@@ -65,6 +65,9 @@ const S = {
   tagOpen: false,
   studioAiImages: [],     // 方舟生成的模特图（本次会话）
   arkFaceRef: null,       // 第一张生成图的人脸参考（本会话）
+  arkIdentity: null,      // 本款商品用的模特长相（换商品时重置）
+  arkLight: null,         // 本款商品用的灯光/镜头设定（换商品时重置）
+  arkRecentScenes: [],    // 最近用过的场景，避免不同商品撞背景
   libSearch: '',          // 素材库搜索关键词
   libViewId: null,        // 素材库当前查看的素材 ID
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
@@ -1370,6 +1373,8 @@ function bindStudio() {
         S.studioImage = { img, dataUrl, aiUrl, assetUrl: null };
         S.studioAiImages = [];
         S.arkFaceRef = null;
+        S.arkIdentity = null;
+        S.arkLight = null;
         S.arkPendingJobs = null;
         S.aiStatus = '';
         S.arkStatus = '';
@@ -1528,6 +1533,8 @@ function bindStudio() {
   if (arkClear) arkClear.onclick = () => {
     S.studioAiImages = [];
     S.arkFaceRef = null;
+    S.arkIdentity = null;
+    S.arkLight = null;
     S.arkPendingJobs = null;
     S.arkStatus = '';
     renderRoute();
@@ -1613,7 +1620,25 @@ async function autoRecognize() {
   }
 }
 
-const FACE_SPEC = '固定模特：24 岁亚洲女性，干净清爽的年轻女生气质，不是网红脸；五官自然、左右脸略有差别、眼睛大小正常；精致但很淡的妆：底妆通透水光、自然粉橘腮红、水润唇釉保留自然唇纹、细而自然的眼线、轻微卧蚕、鼻梁局部高光，不要浓重眼影不要假睫毛；皮肤白皙细嫩如瓷但保留真实毛孔和轻微肤色变化，不要雀斑痘印；棕铜色顺滑有光泽的微卷长发带空气刘海；身高 168cm，身材匀称；同一个商品的所有颜色图必须是同一位模特、同一张脸';
+// 妆容与皮肤的统一要求（所有模特共用，保证质感一致）
+const FACE_QUALITY = '精致但很淡的妆：底妆通透有细腻水光感、自然粉橘腮红、水润唇釉有光泽并保留自然唇纹、眼线细而自然、睫毛根根分明但不夸张、眼周轻微卧蚕、鼻梁和颧骨柔和局部高光，不要浓重眼影不要假睫毛；皮肤白皙细嫩如瓷但保留真实毛孔和轻微肤色变化，不是磨皮假面不是塑料感；眉形自然、少量杂毛不是浓眉；不是网红脸、左右脸略有差别、眼睛大小正常';
+
+// 当前这一款商品用哪位模特：新商品重新随机，同商品各颜色保持一致
+function arkIdentity() {
+  if (!S.arkIdentity) S.arkIdentity = ARK_IDENTITIES[Math.floor(Math.random() * ARK_IDENTITIES.length)];
+  return S.arkIdentity;
+}
+function arkLightSetup() {
+  if (!S.arkLight) {
+    S.arkLight = ARK_LIGHTS[Math.floor(Math.random() * ARK_LIGHTS.length)];
+    S.arkLens = ARK_LENSES[Math.floor(Math.random() * ARK_LENSES.length)];
+    S.arkWb = ARK_WBS[Math.floor(Math.random() * ARK_WBS.length)];
+  }
+  return S.arkLight;
+}
+function arkFaceSpec() {
+  return `模特：${arkIdentity()}；${FACE_QUALITY}；同一个商品的所有颜色图必须是同一位模特、同一张脸`;
+}
 
 function arkStyleInfo() {
   const i = S.studioInput || {};
@@ -1687,7 +1712,40 @@ async function swapGenerate() {
   bindRoute();
 }
 
-const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：明亮通透的室内光，暖金色调，暗部有细节不死黑，窗边日光加头顶暖黄吊灯，窗外和墙面是偏亮的白但高光不过曝；背景保留真实可辨的咖啡馆细节（木质吧台、白瓷砖墙、菜单板、绿植、窗帘），轻微虚化但清晰可辨；手机后置主摄 26mm，画质清晰锐利、细节丰富，轻微噪点，轻微偏暖白平衡；模特是一位干净清爽的年轻女生，不是网红脸：五官自然、左右脸略有差别、眼睛大小正常；精致但很淡的妆容：底妆通透有细腻水光感，腮红是自然粉橘色，唇部是水润唇釉有光泽并保留自然唇纹，眼线细而自然、睫毛根根分明但不夸张、眼周有轻微卧蚕，鼻梁和颧骨有柔和局部高光；皮肤白皙细嫩如瓷但保留真实毛孔和轻微肤色变化，不是磨皮假面不是塑料感；眉形自然、有少量杂毛不是浓眉，明确不要浓重眼影；棕铜色顺滑大波浪长卷发、有光泽高光、发梢蓬松，法式空气刘海，几缕自然碎发；表情平静、嘴唇自然微张、直视镜头，像自己举着手机随手拍；毛衣毛绒蓬松柔软、绒感清晰可见但不过分炸毛，面料干净平整没有起球没有脏旧感，有自然褶皱和厚度，纽扣质感真实；脸完整露出、头发不遮脸；半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：锥子脸、过大的眼睛、玻璃眼、完美对称、磨皮塑料感、影棚海报感、过曝死白、脏旧感、起球、干枯毛躁';
+const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__，暗部有细节不死黑，窗外和墙面是偏亮的白但高光不过曝；背景保留真实可辨的细节，轻微虚化但清晰可辨；手机后置主摄 __LENS__，画质清晰锐利、细节丰富，轻微噪点，__WB__；模特表情自然、嘴唇自然微张、看着镜头，像自己举着手机随手拍；毛衣毛绒蓬松柔软、绒感清晰可见但不过分炸毛，面料干净平整没有起球没有脏旧感，有自然褶皱和厚度，纽扣质感真实；脸完整露出、头发不遮脸；半身近景构图，取景从头顶到大腿中部，毛衣占画面 55%~75%，裤子只露一点，不要拍全身、不要拍到鞋子；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；排除：过度磨皮塑料感、影棚海报感、过曝死白、脏旧感、起球、干枯毛躁';
+
+// 每个商品随机一位模特（脸型/发型/身高/年纪都不同），同一商品的各颜色仍共用同一张脸
+const ARK_IDENTITIES = [
+  '23 岁亚洲女生，鹅蛋脸、鼻梁秀气、单眼皮内双，棕黑色中长发微卷、齐眉碎刘海、发梢刚过肩，身高 163cm、身形纤细',
+  '25 岁亚洲女生，小圆脸、眼睛偏圆、苹果肌明显，深棕色大波浪长卷发、法式空气刘海、发量蓬松，身高 168cm、身材匀称',
+  '22 岁亚洲女生，瓜子脸、眼尾略微上扬、唇形小巧，黑色长直发中分、发尾微内扣，身高 170cm、身形高挑偏瘦',
+  '26 岁亚洲女生，脸型偏长、五官立体、鼻头小巧，栗棕色短锁骨发带轻微内扣、八字刘海，身高 165cm、身材苗条',
+  '24 岁亚洲女生，脸颊有点婴儿肥、圆圆的眼睛、笑起来有卧蚕，深栗色大波浪及胸长发、侧分刘海，身高 160cm、身形娇小',
+  '27 岁亚洲女生，鹅蛋脸、鼻梁高、眼型偏细长，冷棕色顺直长发、中分、几缕碎发，身高 172cm、气质偏成熟',
+  '21 岁亚洲女生，小小一张脸、眼睛大而圆、嘴唇饱满，奶茶棕微卷长发、漫画刘海、发梢蓬松，身高 158cm、身形小巧',
+  '25 岁亚洲女生，颧骨略高、面部线条清楚、下颌线利落，黑茶色微卷过肩发、偏分，身高 166cm、身形匀称',
+  '23 岁亚洲女生，脸型柔和、眼距略宽、眼睛清亮，黑色大波浪长卷发、空气刘海，身高 164cm、身材匀称',
+  '28 岁亚洲女生，鹅蛋脸、眼神温婉、唇形薄而清晰，深棕色低盘发、两侧几缕碎发，身高 162cm、气质知性',
+  '24 岁亚洲女生，小方脸偏柔、眼尾略下垂、鼻子小巧，黑色长直发低马尾、额前碎发，身高 169cm、身形修长',
+  '22 岁亚洲女生，圆润娃娃脸、眼睛略圆、卧蚕自然，浅棕色齐肩微卷发、碎刘海，身高 161cm、身形纤细'
+];
+
+// 灯光和镜头的细微差异，保证不同商品背景与氛围不撞
+const ARK_LIGHTS = [
+  '明亮通透的室内光，暖金色调，窗边日光加头顶暖黄吊灯',
+  '清晨的侧逆光，窗外日光偏亮、室内暖白灯补光，发丝有柔和轮廓光',
+  '午后阳光斜射进窗，暖奶油色调，背景有明亮的光斑',
+  '阴天柔和漫射的日光，画面明亮通透，整体偏干净的白',
+  '傍晚暖橘色夕阳加室内暖灯，光比柔和、整体偏暖',
+  '室内暖光灯为主、窗外自然光为辅，明亮温暖偏奶黄',
+  '晴天的强日光透过纱帘，光线柔和发亮，整体明亮清爽',
+  '咖啡馆吊灯暖光加窗边日光混合，暖金色调、层次分明',
+  '上午明亮的自然光，整体偏冷白、干净通透',
+  '室内白炽灯加窗外日光，明亮通透、颜色干净'
+];
+const ARK_LENSES = ['26mm', '28mm', '35mm', '50mm'];
+const ARK_WBS = ['轻微偏暖白平衡', '白平衡偏准，颜色自然', '轻微偏暖、肤色通透', '白平衡偏准、略偏冷白'];
+
 
 const ARK_PHOTO_STUDIO = '真实商业摄影：85mm 定焦镜头，f/1.8 浅景深，柔和均匀的影棚布光，毛绒针织的绒感清晰，衣服有自然褶皱；真实肤色有毛孔和轻微不均匀，发丝有碎发，不磨皮不美颜滤镜不塑料感，非 3D 渲染非插画；镜头拉近，半身近景构图，取景从头顶到大腿中部，上衣占画面 55%~70%，裤子只露出一点，不要拍全身、不要拍到鞋子；浅灰白无缝背景和自然落地阴影；模特自然放松的站姿，肩膀微侧、重心偏一条腿，不要僵直立正、不要双手垂直下垂；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo';
 
@@ -1824,7 +1882,12 @@ function arkAccOpts() {
 // 画质收尾语：按「出图风格」选生活种草或白底影棚；开了「不带装饰」时去掉「装饰与原图一致」
 function arkPhotoTag() {
   const life = (S.arkCounts.photoStyle || 'lifestyle') === 'lifestyle';
-  let s = life ? ARK_PHOTO_LIFE : ARK_PHOTO_STUDIO;
+  let s = life
+    ? ARK_PHOTO_LIFE
+        .replace('__LIGHT__', arkLightSetup())
+        .replace('__LENS__', S.arkLens || '26mm')
+        .replace('__WB__', S.arkWb || '轻微偏暖白平衡')
+    : ARK_PHOTO_STUDIO;
   if (S.arkCounts.noAccessory) {
     s = s.replace('服装颜色、花纹、材质、纽扣、口袋与参考图完全一致',
       `服装颜色、花纹、材质、纽扣、口袋与参考图完全一致，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结、胸针等'}，只保留衣服本体`);
@@ -1851,7 +1914,13 @@ function arkBuildJobs() {
   // 整批打乱一次：颜色之间、张数之间都不重复；每次点生成都会重新打乱
   const styleKey = (S.studioInput.styles && S.studioInput.styles[0]) || '温柔风';
   const posePool = shuffleArr(LIFE_POSES);
-  const scenePool = shuffleArr(scenesForStyle(styleKey));
+  let scenePool = shuffleArr(scenesForStyle(styleKey));
+  // 不同商品之间尽量不撞背景：把上一款用过的场景挪到队尾
+  const recent = S.arkRecentScenes || [];
+  const fresh = scenePool.filter((x) => recent.indexOf(x.t) < 0);
+  const used = scenePool.filter((x) => recent.indexOf(x.t) >= 0);
+  scenePool = fresh.concat(used);
+  S.arkRecentScenes = scenePool.slice(0, 6).map((x) => x.t);
   let startIdx = 0;
   colorList.forEach((color, colorIdx) => {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
@@ -1892,7 +1961,7 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       phase = `正在生成第 ${doneBase + i + 1}/${doneBase + total} 张（${job.label}）`;
       S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
-      let prompt = job.prompt + '。' + styleInfo + '。' + FACE_SPEC + '。' + arkPhotoTag();
+      let prompt = job.prompt + '。' + styleInfo + '。' + arkFaceSpec() + '。' + arkPhotoTag();
       const body = { prompt, size: '1024x1536' };
       if (S.arkFaceRef) {
         body.images = [garment, S.arkFaceRef];
@@ -2347,7 +2416,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1130a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1131a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
