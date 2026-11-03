@@ -1,0 +1,14 @@
+{
+  "name": "编织台 · 毛衣电商效率工具",
+  "short_name": "编织台",
+  "description": "一人多店毛衣电商效率工具：利润核算 + 上架素材工坊",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf7f2",
+  "theme_color": "#faf7f2",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
