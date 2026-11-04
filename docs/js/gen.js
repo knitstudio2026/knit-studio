@@ -270,6 +270,23 @@ export function makeSkus(input) {
     酒红色: ['复古酒红', '勃艮第红', '暗酒红', '车厘子红']
   };
   const randomSuffix = () => String(Math.floor(Math.random() * 900) + 100);
+  // SKU 文字是比价权重最高的一项（实测权重 70%+）：尺码写法做变体 + 追加真实卖点后缀，避免和同行 SKU 完全一致
+  const anti = input.antiCompare !== false;
+  const sizeText = (s) => {
+    if (!anti) return `${s}码`;
+    const t = ['码', '碼', '号', '號', ''][Math.floor(Math.random() * 5)];
+    return s + t;
+  };
+  const antiTag = () => {
+    if (!anti) return '';
+    const pool = ['现货', '新款', '软糯'];
+    const w = String(input.weight || '');
+    const se = String(input.season || '');
+    if (/加厚|加绒/.test(w)) pool.push('加厚');
+    if (/秋|冬/.test(se)) pool.push(se + '款');
+    const t = pool[Math.floor(Math.random() * pool.length)];
+    return t ? ['-', '·', ' '][Math.floor(Math.random() * 3)] + t : '';
+  };
   colors.forEach((c) => {
     sizes.forEach((s) => {
       const alias = (colorAlias[c] && colorAlias[c][Math.floor(Math.random() * colorAlias[c].length)]) || c;
@@ -278,8 +295,8 @@ export function makeSkus(input) {
         id: 'sku-' + n++,
         spec1: c,
         spec2: s,
-        name: `${alias} ${s}码`,
-        pddName: `${alias}${sep}${s}`,
+        name: `${alias} ${sizeText(s)}`,
+        pddName: `${alias}${sep}${sizeText(s)}${antiTag()}`,
         price: price.toFixed(2),
         stock: 100,
         code: `KN${randomSuffix()}${String(n - 1).padStart(2, '0')}`

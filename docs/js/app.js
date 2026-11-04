@@ -71,7 +71,7 @@ const S = {
   libSearch: '',          // 素材库搜索关键词
   libViewId: null,        // 素材库当前查看的素材 ID
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
-  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto' },
+  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto', antiCompare: true },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -99,7 +99,8 @@ const S = {
     sizes: ['M', 'L', 'XL'],
     scene: ['内搭打底'],
     price: '59.9',
-    extra: ''
+    extra: '',
+    antiCompare: true
   }
 };
 
@@ -1234,6 +1235,16 @@ function renderStudioResult() {
               </label>
               <input id="arkAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结" style="flex:1;min-width:140px">
             </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+                <input type="checkbox" id="arkAntiCompare" ${S.arkCounts.antiCompare ? 'checked' : ''}>
+                防比价模式（换角度/遮挡1/3/换构图，让平台认不出是同款）
+              </label>
+            </div>
+            <div style="font-size:12px;color:var(--ink-3);line-height:1.6;margin:-4px 0 10px">
+              防比价原理：平台会比对主图、SKU图、SKU文字（权重最高）、标题、属性，相同特征超阈值就判同款、报活动被压价。开启后每张图构图/角度/遮挡都不同，SKU 文字也做变体，报活动不易被卡。<br>
+              新品标（服装类目有效期 30 天）：需店铺近 90 天 DSR 三项高于同行，且属性填全、图片原创，由平台自动判定，无法手动报名。
+            </div>
             <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
               ${S.arkPendingJobs && S.arkPendingJobs.length ? `
                 <button class="btn primary" id="arkContinueBtn">继续生成剩余 ${S.arkPendingJobs.length} 张</button>
@@ -1564,6 +1575,8 @@ function bindStudio() {
   if (arkSimpleNote) arkSimpleNote.oninput = () => { S.arkCounts.simpleNote = arkSimpleNote.value; };
   const arkNoAcc = $('#arkNoAcc');
   if (arkNoAcc) arkNoAcc.onchange = () => { S.arkCounts.noAccessory = arkNoAcc.checked; };
+  const arkAnti = $('#arkAntiCompare');
+  if (arkAnti) arkAnti.onchange = () => { S.arkCounts.antiCompare = arkAnti.checked; S.studioInput.antiCompare = arkAnti.checked; };
   const arkPhotoStyle = $('#arkPhotoStyle');
   if (arkPhotoStyle) arkPhotoStyle.onchange = () => { S.arkCounts.photoStyle = arkPhotoStyle.value; };
   const arkAccList = $('#arkAccList');
@@ -2116,7 +2129,7 @@ function arkBuildJobs() {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
     const fc = color === '图片所示颜色' ? '' : color;
     for (let i = 0; i < mainPer; i++) {
-      const one = buildJimengPrompts(ci, Object.assign({ count: 1, start: startIdx + i, poses: posePool, scenes: scenePool, forceColor: fc, photoStyle: batchMode }, accOpts))[0];
+      const one = buildJimengPrompts(ci, Object.assign({ count: 1, start: startIdx + i, poses: posePool, scenes: scenePool, forceColor: fc, photoStyle: batchMode, antiCompare: !!S.arkCounts.antiCompare }, accOpts))[0];
       jobs.push({ color, label: `${color} 主图 ${i + 1}`, prompt: one.prompt + accNote, photoStyle: batchMode });
     }
     const dv = buildJimengDetailPrompts(ci, Object.assign({}, accOpts, { forceColor: fc }));
@@ -2412,8 +2425,29 @@ function buildJimengPrompts(input, opts) {
   const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features';
   const quality = `${CAMERA}; 自然光下的真实随手拍，曝光正常不发白、不套滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；毛绒针织绒感自然、能看到纤维走向；${NEG}`;
 
-  const base = (model, scene) => {
-    return `场景和动作必须是这里描述的这一处：${scene}。${model}，穿着${garment}。${quality}。${constraint}。背景、房间、墙面、家具都要按上面这段重新布置，不要复制参考图里的背景和环境，不要沿用参考图的构图。`;
+  // 防比价：让主图/商品图在构图结构上与常见同款图不同，平台的同款识别置信度会降下来
+  // 参考实测：换角度 + 商品被遮挡约 1/3 + 换个背景结构，主图防比价率可到 95%
+  const ANTI_STRUCT = [
+    '构图故意不居中：衣服主体偏画面左侧三分之一，右侧留出环境空白',
+    '构图偏画面右侧，左侧有家具或道具自然入镜',
+    '手持拍摄的轻微倾斜构图，画面水平线不是完全水平',
+    '略高角度俯拍，衣摆被画面下边缘裁掉一部分，构图不完整',
+    '略低角度仰拍，前景有桌面或椅背入镜、自然遮住衣服下沿',
+    '前景有绿色枝叶或干花自然遮挡衣服约三分之一，主体不在正中',
+    '前景有一只手或一只咖啡杯入镜，自然挡住衣服一部分',
+    '画面边缘有窗框或门框入镜，把构图切得不规整',
+    '衣服只占画面一半，另一侧是明显的环境细节（书架/床头/桌面）',
+    '竖构图对角线取景，衣服斜放在画面里，不是标准居中商品图'
+  ];
+  const antiOn = opts && opts.antiCompare;
+  const antiClause = (idx) => {
+    if (!antiOn || idx == null) return '';
+    const s = ANTI_STRUCT[idx % ANTI_STRUCT.length];
+    return `；这张图的构图要与常见同款商品图明显不同：${s}。不要正面居中的标准商品图，构图和背景都不能和参考图或常见同款图重复`;
+  };
+
+  const base = (model, scene, antiIdx) => {
+    return `场景和动作必须是这里描述的这一处：${scene}。${model}，穿着${garment}。${quality}。${constraint}。背景、房间、墙面、家具都要按上面这段重新布置，不要复制参考图里的背景和环境，不要沿用参考图的构图${antiClause(antiIdx)}。`;
   };
 
   // 生活种草场景：暖调、有生活气息，姿势自然抓拍（对标小红书爆款图）
@@ -2480,7 +2514,8 @@ function buildJimengPrompts(input, opts) {
       name: `生活种草图 ${i + 1}（${style0}）`,
       prompt: base(
         `一位年轻的东亚女生（中国女生面孔），皮肤白皙干净，干净清爽的素人气质，不是网红脸；五官自然、左右脸略有差别、眼睛大小正常、鼻梁不高不矮；素颜感，几乎看不出化妆，自然唇色，没有浓眼线没有假睫毛，皮肤有真实毛孔和细微绒毛、轻微肤色不均；${st[0]}；发色、发型、脸型严格按模特身份描述来，不要一律做成微卷长发加空气刘海`,
-        `${shot}，${pose}，${scene}，${acc}，${expr}，裤子只露出一点，不要全身、不要拍到鞋子`
+        `${shot}，${pose}，${scene}，${acc}，${expr}，裤子只露出一点，不要全身、不要拍到鞋子`,
+        start + i
       )
     });
   }
@@ -2542,11 +2577,19 @@ function buildJimengPrompts(input, opts) {
     ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体`
     : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}`;
   const flatQuality = 'photorealistic, shot on Canon EOS R5, 50mm f/2.8 lens, soft natural daylight from a window, neutral white balance, subtle film grain, sharp fine detail on fabric texture; 真实商品平铺实拍质感，不是棚拍灯、不是海报；no plastic texture, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look';
+  const FLAT_ANTI = [
+    '衣服不平铺居中，而是斜放在画面里、构图偏左，右侧留一排道具',
+    '镜头略高俯拍，衣摆被画面下边缘裁掉一部分，属于不完整构图',
+    '前景有一片枝叶、一条围巾或一只杯子自然压住衣服约一角，遮住少量主体',
+    '衣服叠放在其他衣物上，只露出大半个主体，不完整展示',
+    '构图偏右，左侧是明显的桌面/地板/床沿环境细节'
+  ];
   const flatVariants = Array.from({ length: Math.max(2, count) }, (_, i) => {
     const sc = flatPool[(start + i) % flatPool.length];
+    const antiFlat = antiOn ? `；这张图的构图要和常见平铺图明显不同：${FLAT_ANTI[i % FLAT_ANTI.length]}，不是标准居中平铺。` : '';
     return {
       name: `商品图·${sc.t}`,
-      prompt: `${sc.d}。一件${garment}。${flatConstraint}。${flatQuality}。画面里绝对不能出现人、人脸、手、手臂、腿或任何身体部位，只有衣服本身和道具；衣服占画面 65%~80%，构图饱满、主体居中偏上，不要留太多空白；背景不要复制参考图，按描述重新布置。`
+      prompt: `${sc.d}。一件${garment}。${flatConstraint}。${flatQuality}。画面里绝对不能出现人、人脸、手、手臂、腿或任何身体部位，只有衣服本身和道具；衣服占画面 65%~80%，构图饱满、不要留太多空白${antiFlat}；背景不要复制参考图，按描述重新布置。`
     };
   });
 
@@ -2922,7 +2965,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1152a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1153a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
