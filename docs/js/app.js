@@ -1468,8 +1468,8 @@ function bindStudio() {
       if (file.size > 10 * 1024 * 1024) { toast('图片太大，请压缩到 10MB 以内'); return; }
       try {
         const { img, dataUrl } = await loadImageFromFile(file);
-        // 给 AI 用的图：统一转成 JPEG，最长边 1500，拼图多颜色也能看清
-        const aiUrl = toAiJpeg(img, 1500);
+        // 给 AI 用的图：统一转成 JPEG，最长边 2600（拼图分格后每格细节仍清晰，口袋小装饰、纽扣不会被糊掉）
+        const aiUrl = toAiJpeg(img, 2600);
         S.studioImage = { img, dataUrl, aiUrl, assetUrl: null };
         S.studioAiImages = [];
         S.arkFaceRef = null;
@@ -1668,7 +1668,7 @@ async function autoRecognize() {
   };
   tick();
   renderRoute();
-  bindRoute();
+  bindRoute()
   const timer = setInterval(tick, 1000);
   try {
     let r = null;
@@ -2416,7 +2416,7 @@ function toAiJpeg(img, max) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, c.width, c.height);
   ctx.drawImage(img, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.86);
+  return c.toDataURL('image/jpeg', 0.92);
 }
 
 function setAiStatus(text) {
@@ -2462,12 +2462,13 @@ function buildJimengPrompts(input, opts) {
   const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
   const forceColor = (opts && opts.forceColor) || '';
   const colorFix = forceColor
-    ? `；颜色必须做成${forceColor}：参考图只对照款式、版型、针织纹理、纽扣和口袋位置，颜色不要照搬原图`
+    ? `；这张图的颜色必须是${forceColor}（如果参考图本身就是这个颜色，就照原图的深浅来）；颜色可以不同，但款式、版型、长度、门襟、口袋、纽扣和纹理必须100%照参考图，不能因为改颜色就改款`
     : '，颜色深浅与原图一致';
-  const buttonFix = '；纽扣必须和参考图完全一致：数量、大小、位置、排列顺序都不变，参考图是彩色纽扣的（例如黄、蓝、粉、绿依次排列），要按原顺序保留每一种颜色，不能全部做成同色、不能串色、不能增减纽扣、不能换位置';
+  const buttonFix = '；纽扣必须和参考图完全一致：数量、大小、间距、位置、排列顺序都不变，参考图是彩色纽扣的（例如黄、蓝、粉、绿依次排列），要按原顺序保留每一种颜色，不能全部做成同色、不能串色、不能增减纽扣、不能换位置';
+  const detailFix = '；参考图可能是同一款衣服多个颜色的拼图，请把每一块都当成同一件衣服，取其中看得最清楚的那一块对照细节：衣服长度和整体轮廓不变；门襟、领口、袖口、下摆的样式不变；两个口袋的位置、大小、形状和口袋边缘的细节不变；口袋上的小别针、小挂件、小标签、小刺绣等小装饰必须原样保留，一个都不能省略；针织纹理和绒感不变。只允许更换穿着的人、姿势和背景';
   const constraint = accessory
-    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
-    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}；只改变穿着的人和场景`;
+    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}${detailFix}，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}${detailFix}；只改变穿着的人和场景`;
 
   // 画质约束：核心是具体相机 + 真实光线 + 胶片颗粒，去 AI 味
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
@@ -2479,14 +2480,14 @@ function buildJimengPrompts(input, opts) {
   // 防比价：让主图/商品图在构图结构上与常见同款图不同，平台的同款识别置信度会降下来
   // 参考实测：换角度 + 商品被遮挡约 1/3 + 换个背景结构，主图防比价率可到 95%
   const ANTI_STRUCT = [
-    '构图故意不居中：衣服主体偏画面左侧三分之一，右侧留出环境空白',
-    '构图偏画面右侧，左侧有家具或道具自然入镜',
-    '手持拍摄的轻微倾斜构图，画面水平线不是完全水平',
-    '略高角度俯拍，衣摆被画面下边缘裁掉一部分，构图不完整',
-    '略低角度仰拍，前景有桌面或椅背入镜、自然遮住衣服下沿',
-    '前景有绿色枝叶或干花自然遮挡衣服约三分之一，主体不在正中',
-    '前景有一只手或一只咖啡杯入镜，自然挡住衣服一部分',
-    '画面边缘有窗框或门框入镜，把构图切得不规整',
+    '构图故意不居中：衣服主体偏画面左侧三分之一，右侧留出环境空白，衣服完整入镜',
+    '构图偏画面右侧，左侧有家具或道具自然入镜，衣服完整入镜',
+    '手持拍摄的轻微倾斜构图，画面水平线不是完全水平，衣服完整入镜',
+    '略高角度俯拍，背景里有桌面边缘或地板线条打破画面平衡，衣服从领口到下摆完整入镜',
+    '略低角度仰拍，前景有桌面或椅背出现在画面下方边缘，衣服完整入镜',
+    '前景有绿色枝叶或干花出现在画面一侧，主体偏左，衣服和两个口袋都完整可见',
+    '前景有一只手或一只咖啡杯出现在画面边缘，价格牌也不入镜，衣服本体和口袋不被遮挡',
+    '画面边缘有窗框或门框入镜，把背景切得不规整，衣服完整',
     '衣服只占画面一半，另一侧是明显的环境细节（书架/床头/桌面）',
     '竖构图对角线取景，衣服斜放在画面里，不是标准居中商品图'
   ];
@@ -2496,10 +2497,10 @@ function buildJimengPrompts(input, opts) {
     const s = ANTI_STRUCT[idx % ANTI_STRUCT.length];
     return `；这张图的构图要与常见同款商品图明显不同：${s}。不要正面居中的标准商品图，构图和背景都不能和参考图或常见同款图重复`;
   };
-  // 链接第 1 张主图单独加码：只露半侧面/不完整入镜（同行主图基本都是正面完整展示，这条最能拉开差异）
+  // 链接第 1 张主图单独加码：半侧面 + 换机位/背景/陈设，但衣服必须完整可见（细节不能丢）
   const heroOn = !!(opts && opts.heroShot && opts.antiCompare);
   const heroClause = heroOn
-    ? '；这张是链接第 1 张主图：模特侧身约 45° 半侧面站立或坐，身体不要正对镜头，衣服只露出大半，衣摆或肩线被画面上边缘或侧边裁掉一部分，属于不完整构图；不要正对镜头的完整正面商品展示'
+    ? '；这张是链接第 1 张主图：模特侧身约 45° 半侧面站立或坐、身体不正对镜头，但衣服必须完整入镜（从领口到下摆、两个口袋和口袋上的小装饰都看得见），靠机位高度、背景和陈设的不同来制造差异，不要把衣服裁掉或被前景遮挡；不要正对镜头的正面站姿商品图'
     : '';
 
   const base = (model, scene, antiIdx) => {
@@ -2630,21 +2631,21 @@ function buildJimengPrompts(input, opts) {
   ];
   const flatPool = shuffleArr(FLATLAY_SCENES);
   const flatConstraint = accessory
-    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体`
-    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}`;
+    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}${detailFix}，但衣服上不要出现${accessory}，只保留衣服本体`
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}${detailFix}`;
   const flatQuality = 'photorealistic, shot on Canon EOS R5, 50mm f/2.8 lens, soft natural daylight from a window, neutral white balance, subtle film grain, sharp fine detail on fabric texture; 真实商品平铺实拍质感，不是棚拍灯、不是海报；no plastic texture, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look';
   const FLAT_ANTI = [
-    '衣服不平铺居中，而是斜放在画面里、构图偏左，右侧留一排道具',
-    '镜头略高俯拍，衣摆被画面下边缘裁掉一部分，属于不完整构图',
-    '前景有一片枝叶、一条围巾或一只杯子自然压住衣服约一角，遮住少量主体',
-    '衣服叠放在其他衣物上，只露出大半个主体，不完整展示',
-    '构图偏右，左侧是明显的桌面/地板/床沿环境细节'
+    '衣服不平铺居中，而是斜放在画面里、构图偏左，右侧留一排道具，衣服完整入镜',
+    '镜头略高俯拍，背景里有桌面边缘或地板纹理打破画面平衡，衣服完整不被裁切',
+    '前景有一片枝叶、一条围巾或一只杯子出现在画面边缘，不压住衣服和口袋',
+    '衣服旁边叠放其他衣物作为环境元素，主件衣服完整展示',
+    '构图偏右，左侧是明显的桌面/地板/床沿环境细节，衣服完整'
   ];
   const flatVariants = Array.from({ length: Math.max(2, count) }, (_, i) => {
     const sc = flatPool[(start + i) % flatPool.length];
     const antiFlat = antiOn ? `；这张图的构图要和常见平铺图明显不同：${FLAT_ANTI[i % FLAT_ANTI.length]}，不是标准居中平铺。` : '';
     const heroFlat = (opts && opts.heroShot && opts.antiCompare)
-      ? '；这张是链接第 1 张主图：衣服斜向摆放不居中，只露出大半个主体，衣摆或一角被画面上边缘或侧边裁掉，属于不完整构图；不要平铺居中、完整展示的标准商品图'
+      ? '；这张是链接第 1 张主图：衣服斜放在画面里、不居中，靠桌面/地面材质、道具排布和机位角度的不同来制造差异，但衣服必须完整入镜（从领口到下摆、两个口袋和口袋上的小装饰都能看到），图片不能被裁切；不要平铺居中、完整展示的标准商品图'
       : '';
     return {
       name: `商品图·${sc.t}`,
