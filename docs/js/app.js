@@ -1,17 +1,17 @@
-import { OPTIONS, generateKit, detailToText, skuToCsv } from './gen.js';
+mport { OPTIONS, generateKit, detailToText, skuToCsv } from './gen.js';
 import { buildMainImages, buildDetailImage, downloadCanvas, loadImageFromFile } from './img.js';
 
-/* å…¨å±€å¼‚å¸¸å…œåº•ï¼šä»»ä½•é™é»˜å¼‚å¸¸éƒ½å¼¹ toast */
+/* 全局异常兜底：任何静默异常都弹 toast */
 window.addEventListener('unhandledrejection', (e) => {
-  const msg = (e.reason && (e.reason.message || e.reason.body)) || 'æœªçŸ¥é”™è¯¯';
+  const msg = (e.reason && (e.reason.message || e.reason.body)) || '未知错误';
   console.error('[unhandled promise]', e.reason);
-  toast('å‡ºé”™äº†ï¼š' + msg);
+  toast('出错了：' + msg);
 });
 window.addEventListener('error', (e) => {
   console.error('[runtime error]', e.error || e.message);
 });
 
-/* ================= åŸºç¡€è®¾æ–½ ================= */
+/* ================= 基础设施 ================= */
 
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -22,11 +22,11 @@ const esc = (s) =>
 const uid = () => 'id-' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
 
 const money = (n) => {
-  if (!isFinite(n)) return 'â€”';
-  return (n < 0 ? '-' : '') + 'Â¥' + Math.abs(n).toFixed(2);
+  if (!isFinite(n)) return '—';
+  return (n < 0 ? '-' : '') + '¥' + Math.abs(n).toFixed(2);
 };
-const pct = (n) => (isFinite(n) ? (n * 100).toFixed(1) + '%' : 'â€”');
-const num = (n, d) => (isFinite(n) ? n.toFixed(d == null ? 0 : d) : 'â€”');
+const pct = (n) => (isFinite(n) ? (n * 100).toFixed(1) + '%' : '—');
+const num = (n, d) => (isFinite(n) ? n.toFixed(d == null ? 0 : d) : '—');
 
 const today = () => {
   const d = new Date();
@@ -60,7 +60,7 @@ async function api(path, opts) {
   return body;
 }
 
-/* ================= çŠ¶æ€ ================= */
+/* ================= 状态 ================= */
 
 const S = {
   data: null,
@@ -68,46 +68,46 @@ const S = {
   route: 'dashboard',
   syncState: 'ok',
   studioImage: null,      // { img, dataUrl, aiUrl, assetUrl }
-  swapImages: [],         // å¤šå¼ å§¿åŠ¿å‚è€ƒå›¾ [{ img, dataUrl, aiUrl }]
+  swapImages: [],         // 多张姿势参考图 [{ img, dataUrl, aiUrl }]
   swapStatus: '',
   studioKit: null,
   studioResultTab: 'titles',
   tagOpen: false,
-  studioAiImages: [],     // æ–¹èˆŸç”Ÿæˆçš„æ¨¡ç‰¹å›¾ï¼ˆæœ¬æ¬¡ä¼šè¯ï¼‰
-  arkFaceRef: null,       // ç¬¬ä¸€å¼ ç”Ÿæˆå›¾çš„äººè„¸å‚è€ƒï¼ˆæœ¬ä¼šè¯ï¼‰
-  arkIdentity: null,      // æœ¬æ¬¾å•†å“ç”¨çš„æ¨¡ç‰¹é•¿ç›¸ï¼ˆæ¢å•†å“æ—¶é‡ç½®ï¼‰
-  arkLight: null,         // æœ¬æ¬¾å•†å“ç”¨çš„ç¯å…‰/é•œå¤´è®¾å®šï¼ˆæ¢å•†å“æ—¶é‡ç½®ï¼‰
-  arkRecentScenes: [],    // æœ€è¿‘ç”¨è¿‡çš„åœºæ™¯ï¼Œé¿å…ä¸åŒå•†å“æ’žèƒŒæ™¯
-  libSearch: '',          // ç´ æåº“æœç´¢å…³é”®è¯
-  libViewId: null,        // ç´ æåº“å½“å‰æŸ¥çœ‹çš„ç´ æ ID
-  arkPendingJobs: null,   // é¢„è§ˆåŽå¾…ç”Ÿæˆçš„å‰©ä½™ jobs
-  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: 'ä¸å¸¦ä¸å¸¦', noAccessory: false, accessoryList: 'ä¸å¸¦ã€è•¾ä¸è´è¶ç»“ã€èƒ¸é’ˆç­‰è£…é¥°', photoStyle: 'auto', antiCompare: true },
+  studioAiImages: [],     // 方舟生成的模特图（本次会话）
+  arkFaceRef: null,       // 第一张生成图的人脸参考（本会话）
+  arkIdentity: null,      // 本款商品用的模特长相（换商品时重置）
+  arkLight: null,         // 本款商品用的灯光/镜头设定（换商品时重置）
+  arkRecentScenes: [],    // 最近用过的场景，避免不同商品撞背景
+  libSearch: '',          // 素材库搜索关键词
+  libViewId: null,        // 素材库当前查看的素材 ID
+  arkPendingJobs: null,   // 预览后待生成的剩余 jobs
+  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto', antiCompare: true },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
-    category: 'å¥—å¤´æ¯›è¡£',
-    materials: ['ç¾Šæ¯›', 'è…ˆçº¶'],
-    crafts: ['éº»èŠ±ç¼–ç»‡'],
-    pattern: 'çº¯è‰²',
-    wearStyle: 'å¥—å¤´',
-    neck: 'åŠé«˜é¢†',
-    fit: 'å®½æ¾',
-    length: 'å¸¸è§„æ¬¾',
-    sleeveLen: 'é•¿è¢–',
-    sleeveType: 'å¸¸è§„',
-    elements: ['çº½æ‰£'],
-    fiber: 'é’ˆç»‡',
-    age: 'ä¸­é’å¹´ï¼ˆ26-40å‘¨å²ï¼‰',
-    fleece: 'ä¸åŠ ç»’',
-    mainStyle: 'ç®€çº¦é€šå‹¤',
-    subStyle: 'æ…µæ‡’é£Ž',
-    styles: ['æ…µæ‡’é£Ž'],
-    audience: ['å¥³å£«'],
-    weight: 'åŠ åŽš',
-    season: 'ç§‹å†¬',
-    colors: ['ç‡•éº¦è‰²'],
+    category: '套头毛衣',
+    materials: ['羊毛', '腈纶'],
+    crafts: ['麻花编织'],
+    pattern: '纯色',
+    wearStyle: '套头',
+    neck: '半高领',
+    fit: '宽松',
+    length: '常规款',
+    sleeveLen: '长袖',
+    sleeveType: '常规',
+    elements: ['纽扣'],
+    fiber: '针织',
+    age: '中青年（26-40周岁）',
+    fleece: '不加绒',
+    mainStyle: '简约通勤',
+    subStyle: '慵懒风',
+    styles: ['慵懒风'],
+    audience: ['女士'],
+    weight: '加厚',
+    season: '秋冬',
+    colors: ['燕麦色'],
     sizes: ['M', 'L', 'XL'],
-    scene: ['å†…æ­æ‰“åº•'],
+    scene: ['内搭打底'],
     price: '59.9',
     extra: '',
     antiCompare: true
@@ -125,7 +125,7 @@ function setSync(state, text) {
 }
 
 function persist() {
-  setSync('pending', 'åŒæ­¥ä¸­â€¦');
+  setSync('pending', '同步中…');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flush, 500);
 }
@@ -146,17 +146,17 @@ async function flush() {
     const r = await api('/api/data', { method: 'PUT', body: JSON.stringify(body) });
     S.rev = r.rev;
     S.data.updatedAt = r.updatedAt;
-    setSync('ok', 'å·²åŒæ­¥');
+    setSync('ok', '已同步');
     localStorage.setItem('knit-cache', JSON.stringify(S.data));
   } catch (err) {
     if (err.status === 409) {
-      setSync('error', 'æœ‰å†²çª');
-      toast('æ•°æ®åœ¨å…¶ä»–è®¾å¤‡ä¸Šæ›´æ–°äº†ï¼Œæ­£åœ¨é‡æ–°è½½å…¥â€¦', 3000);
+      setSync('error', '有冲突');
+      toast('数据在其他设备上更新了，正在重新载入…', 3000);
       await loadData();
       renderRoute();
       return;
     }
-    setSync('error', 'ç¦»çº¿');
+    setSync('error', '离线');
   }
 }
 
@@ -165,16 +165,16 @@ async function loadData() {
   S.data = d;
   S.rev = d.rev;
   localStorage.setItem('knit-cache', JSON.stringify(d));
-  setSync('ok', 'å·²åŒæ­¥');
+  setSync('ok', '已同步');
 }
 
-/* ================= è®¤è¯ ================= */
+/* ================= 认证 ================= */
 
 async function boot() {
   try {
     await enter();
   } catch (e) {
-    authError('æ‰“å¼€å¤±è´¥ï¼š' + ((e && e.message) || 'æœªçŸ¥åŽŸå› '));
+    authError('打开失败：' + ((e && e.message) || '未知原因'));
     showAuth(false);
   }
 }
@@ -193,11 +193,11 @@ function authError(msg) {
 
 window.addEventListener('error', (e) => {
   if (!$('#authScreen') || $('#authScreen').hidden) return;
-  authError('ç¨‹åºå‡ºé”™ï¼š' + (e.message || 'æœªçŸ¥é”™è¯¯'));
+  authError('程序出错：' + (e.message || '未知错误'));
 });
 window.addEventListener('unhandledrejection', (e) => {
   if (!$('#authScreen') || $('#authScreen').hidden) return;
-  authError('ç¨‹åºå‡ºé”™ï¼š' + ((e.reason && e.reason.message) || 'æœªçŸ¥é”™è¯¯'));
+  authError('程序出错：' + ((e.reason && e.reason.message) || '未知错误'));
 });
 
 function showAuth(needsSetup) {
@@ -205,23 +205,23 @@ function showAuth(needsSetup) {
   screen.hidden = false;
   screen.style.display = 'grid';
   $('#shell').hidden = true;
-  $('#authSub').textContent = needsSetup ? 'ç¬¬ä¸€æ¬¡ä½¿ç”¨ï¼Œè®¾ç½®ä¸€ä¸ªåªæœ‰ä½ çŸ¥é“çš„å£ä»¤' : 'è¾“å…¥å£ä»¤ï¼Œæ‰‹æœºå’Œç”µè„‘å…±ç”¨åŒä¸€ä»½æ•°æ®';
-  $('#authTip').textContent = needsSetup ? 'å£ä»¤ä¿å­˜åœ¨æœåŠ¡å™¨ä¸Šï¼Œå¿˜è®°åŽéœ€è¦æ¸…ç©ºæ•°æ®ç›®å½•æ‰èƒ½é‡ç½®ã€‚' : 'ç™»å½•çŠ¶æ€ä¼šè®°ä½ 30 å¤©ã€‚';
+  $('#authSub').textContent = needsSetup ? '第一次使用，设置一个只有你知道的口令' : '输入口令，手机和电脑共用同一份数据';
+  $('#authTip').textContent = needsSetup ? '口令保存在服务器上，忘记后需要清空数据目录才能重置。' : '登录状态会记住 30 天。';
   const input = $('#authInput');
   const btn = $('#authBtn');
   input.value = '';
-  btn.textContent = needsSetup ? 'è®¾ç½®å¹¶è¿›å…¥' : 'è¿›å…¥';
+  btn.textContent = needsSetup ? '设置并进入' : '进入';
   const submit = async () => {
     const password = input.value.trim();
-    if (!password) { authError('è¯·è¾“å…¥å£ä»¤'); return; }
+    if (!password) { authError('请输入口令'); return; }
     btn.disabled = true;
-    btn.textContent = 'æ­£åœ¨è¿›å…¥â€¦';
+    btn.textContent = '正在进入…';
     try {
       await api('/api/health');
     } catch (_) {
-      authError('è¿žä¸ä¸ŠæœåŠ¡å™¨ï¼šé»‘è‰²çª—å£å…³æŽ‰äº†ï¼Ÿè¯·é‡æ–°åŒå‡» knit-studio.exe');
+      authError('连不上服务器：黑色窗口关掉了？请重新双击 knit-studio.exe');
       btn.disabled = false;
-      btn.textContent = needsSetup ? 'è®¾ç½®å¹¶è¿›å…¥' : 'è¿›å…¥';
+      btn.textContent = needsSetup ? '设置并进入' : '进入';
       return;
     }
     try {
@@ -229,10 +229,10 @@ function showAuth(needsSetup) {
       screen.hidden = true;
       await enter();
     } catch (err) {
-      authError(err.status === 401 ? 'å£ä»¤ä¸æ­£ç¡®' : ('å‡ºé”™äº†ï¼š' + (err.message || 'æœªçŸ¥åŽŸå› ')));
+      authError(err.status === 401 ? '口令不正确' : ('出错了：' + (err.message || '未知原因')));
     } finally {
       btn.disabled = false;
-      btn.textContent = needsSetup ? 'è®¾ç½®å¹¶è¿›å…¥' : 'è¿›å…¥';
+      btn.textContent = needsSetup ? '设置并进入' : '进入';
     }
   };
   btn.onclick = submit;
@@ -255,10 +255,10 @@ async function enter() {
     if (cache) {
       S.data = JSON.parse(cache);
       S.rev = S.data.rev || 0;
-      setSync('error', 'ç¦»çº¿æ¨¡å¼');
+      setSync('error', '离线模式');
       renderRoute();
       registerTabs();
-      toast('å½“å‰å¤„äºŽç¦»çº¿æ¨¡å¼ï¼Œæ”¹åŠ¨ä¼šåœ¨è”ç½‘åŽåŒæ­¥');
+      toast('当前处于离线模式，改动会在联网后同步');
     }
   }
 }
@@ -289,7 +289,7 @@ function ensureDefaults() {
   };
 }
 
-/* ================= è®¡ç®— ================= */
+/* ================= 计算 ================= */
 
 function productProfit(p) {
   const price = Number(p.price) || 0;
@@ -348,7 +348,7 @@ function rangeStats(days) {
   return { sales, refunds, adSpend, orders, gross, net: gross - adSpend - refunds, roi: adSpend > 0 ? sales / adSpend : Infinity };
 }
 
-/* ================= æ¸²æŸ“å…¥å£ ================= */
+/* ================= 渲染入口 ================= */
 
 function renderRoute() {
   const view = $('#view');
@@ -363,7 +363,7 @@ function bindRoute() {
   bindOneDownloads();
 }
 
-/* ================= é€šç”¨ç»„ä»¶ ================= */
+/* ================= 通用组件 ================= */
 
 function openDrawer(title, bodyHtml, footHtml) {
   closeDrawer();
@@ -374,7 +374,7 @@ function openDrawer(title, bodyHtml, footHtml) {
     <div class="drawer" role="dialog" aria-modal="true">
       <div class="drawer-head">
         <h3>${esc(title)}</h3>
-        <div style="margin-left:auto"><button class="icon-btn" data-close>å…³é—­</button></div>
+        <div style="margin-left:auto"><button class="icon-btn" data-close>关闭</button></div>
       </div>
       <div class="drawer-body">${bodyHtml}</div>
       <div class="drawer-foot">${footHtml || ''}</div>
@@ -389,7 +389,7 @@ function closeDrawer() {
   if (old) old.remove();
 }
 
-/* é¡µé¢å†…ç¡®è®¤å¯¹è¯æ¡†ï¼Œæ›¿ä»£åŽŸç”Ÿ confirmï¼ˆåŽŸç”Ÿ confirm åœ¨éƒ¨åˆ†æ‰‹æœºæµè§ˆå™¨å¯èƒ½ä¸å¼¹ï¼‰ */
+/* 页面内确认对话框，替代原生 confirm（原生 confirm 在部分手机浏览器可能不弹） */
 function confirm2(msg) {
   return new Promise((resolve) => {
     const wrap = document.createElement('div');
@@ -397,11 +397,11 @@ function confirm2(msg) {
     wrap.style.zIndex = '9999';
     wrap.innerHTML = `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;color:#1a1a1a;padding:22px 20px 16px;border-radius:14px;max-width:340px;width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25);font-size:14px;line-height:1.6">
-        <div style="font-weight:600;font-size:15px;margin-bottom:10px">ç¡®è®¤ä¸€ä¸‹</div>
+        <div style="font-weight:600;font-size:15px;margin-bottom:10px">确认一下</div>
         <div style="margin-bottom:18px;color:#333">${esc(msg)}</div>
         <div style="display:flex;gap:10px;justify-content:flex-end">
-          <button class="btn sm" data-cancel>å–æ¶ˆ</button>
-          <button class="btn sm primary" data-ok>ç»§ç»­</button>
+          <button class="btn sm" data-cancel>取消</button>
+          <button class="btn sm primary" data-ok>继续</button>
         </div>
       </div>`;
     document.body.appendChild(wrap);
@@ -412,17 +412,17 @@ function confirm2(msg) {
   });
 }
 
-/* ================= çœ‹æ¿ ================= */
+/* ================= 看板 ================= */
 
 function viewDashboard() {
   const d = S.data;
   if (!d.shops.length) {
     return `
       <div class="empty">
-        <div class="glyph">â—«</div>
-        <h4>å…ˆæ·»åŠ ä½ çš„ç¬¬ä¸€å®¶åº—</h4>
-        <p>ä¸€äººå¤šåº—ï¼šæ¯åŠ ä¸€å®¶åº—ï¼Œçœ‹æ¿å’Œåˆ©æ¶¦è¡¨éƒ½ä¼šè‡ªåŠ¨æ±‡æ€»ã€‚</p>
-        <button class="btn primary" data-act="add-shop">ï¼‹ æ·»åŠ åº—é“º</button>
+        <div class="glyph">◫</div>
+        <h4>先添加你的第一家店</h4>
+        <p>一人多店：每加一家店，看板和利润表都会自动汇总。</p>
+        <button class="btn primary" data-act="add-shop">＋ 添加店铺</button>
       </div>`;
   }
 
@@ -439,7 +439,7 @@ function viewDashboard() {
         <td class="num">${money(st.sales)}</td>
         <td class="num">${num(st.orders)}</td>
         <td class="num" style="color:${st.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(st.net)}</td>
-        <td class="num">${st.roi === Infinity ? 'â€”' : st.roi.toFixed(2)}</td>
+        <td class="num">${st.roi === Infinity ? '—' : st.roi.toFixed(2)}</td>
         <td class="num">${pct(st.refundRate)}</td>
       </tr>`;
   }).join('');
@@ -449,60 +449,60 @@ function viewDashboard() {
   return `
     <div class="page-head">
       <div>
-        <h2>ç»è¥çœ‹æ¿</h2>
-        <p>${todayStr} Â· ${d.shops.length} å®¶åº—åœ¨ç®¡</p>
+        <h2>经营看板</h2>
+        <p>${todayStr} · ${d.shops.length} 家店在管</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn sm" data-act="export-daily">å¯¼å‡º</button>
-      <button class="btn primary sm" data-act="add-daily">ï¼‹ å½•å…¥ä»Šæ—¥æ•°æ®</button>
+      <button class="btn sm" data-act="export-daily">导出</button>
+      <button class="btn primary sm" data-act="add-daily">＋ 录入今日数据</button>
     </div>
 
     <div class="grid four" style="margin-bottom:14px">
       <div class="stat accent">
-        <div class="label">ä»Šæ—¥å‡€åˆ©</div>
+        <div class="label">今日净利</div>
         <div class="value">${money(t.net)}</div>
-        <div class="hint">é”€å”®é¢ ${money(t.sales)}</div>
+        <div class="hint">销售额 ${money(t.sales)}</div>
       </div>
       <div class="stat">
-        <div class="label">è¿‘ 7 å¤©å‡€åˆ©</div>
+        <div class="label">近 7 天净利</div>
         <div class="value">${money(w.net)}</div>
-        <div class="hint">é”€å”®é¢ ${money(w.sales)}</div>
+        <div class="hint">销售额 ${money(w.sales)}</div>
       </div>
       <div class="stat">
-        <div class="label">è¿‘ 30 å¤©å‡€åˆ©</div>
+        <div class="label">近 30 天净利</div>
         <div class="value">${money(m.net)}</div>
-        <div class="hint">å¹¿å‘Šè´¹ ${money(m.adSpend)}</div>
+        <div class="hint">广告费 ${money(m.adSpend)}</div>
       </div>
       <div class="stat">
-        <div class="label">æ•´ä½“ ROI</div>
-        <div class="value">${m.roi === Infinity ? 'â€”' : m.roi.toFixed(2)}</div>
-        <div class="hint">é”€å”®é¢ / å¹¿å‘Šè´¹</div>
+        <div class="label">整体 ROI</div>
+        <div class="value">${m.roi === Infinity ? '—' : m.roi.toFixed(2)}</div>
+        <div class="hint">销售额 / 广告费</div>
       </div>
     </div>
 
     <div class="stack">
       <div class="card">
         <div class="card-head">
-          <h3>å„åº—ä»Šæ—¥è¡¨çŽ°</h3>
-          <span class="sub">å‡€åˆ©å·²æ‰£æˆæœ¬ã€ä½£é‡‘ã€å¹¿å‘Šã€é€€æ¬¾</span>
+          <h3>各店今日表现</h3>
+          <span class="sub">净利已扣成本、佣金、广告、退款</span>
         </div>
         <div class="table-wrap">
           <table class="tbl">
-            <thead><tr><th>åº—é“º</th><th class="num">ä»Šæ—¥é”€å”®é¢</th><th class="num">è®¢å•</th><th class="num">ä»Šæ—¥å‡€åˆ©</th><th class="num">ROI</th><th class="num">é€€æ¬¾çŽ‡</th></tr></thead>
+            <thead><tr><th>店铺</th><th class="num">今日销售额</th><th class="num">订单</th><th class="num">今日净利</th><th class="num">ROI</th><th class="num">退款率</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>è¿‘ 14 å¤©å‡€åˆ©è¶‹åŠ¿</h3><span class="sub">æŒ‰æ—¥æ±‡æ€»</span></div>
+        <div class="card-head"><h3>近 14 天净利趋势</h3><span class="sub">按日汇总</span></div>
         <div class="card-body">
-          ${series.hasData ? `<canvas id="spark" class="spark" width="800" height="160"></canvas>` : `<div class="tbl-empty">è¿˜æ²¡æœ‰æ¯æ—¥æ•°æ®ï¼Œå½•å…¥ 2 å¤©ä»¥ä¸Šå°±èƒ½çœ‹åˆ°è¶‹åŠ¿</div>`}
+          ${series.hasData ? `<canvas id="spark" class="spark" width="800" height="160"></canvas>` : `<div class="tbl-empty">还没有每日数据，录入 2 天以上就能看到趋势</div>`}
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>éœ€è¦ä½ æ³¨æ„</h3></div>
+        <div class="card-head"><h3>需要你注意</h3></div>
         <div class="card-body">${attentionList()}</div>
       </div>
     </div>`;
@@ -512,14 +512,14 @@ function attentionList() {
   const items = [];
   const lowMargin = S.data.products.map((p) => ({ p, r: productProfit(p) })).filter((x) => x.r.net < 0);
   if (lowMargin.length) {
-    items.push(`<div class="seg-row"><div class="sk">äºæŸ</div><div>${lowMargin.length} ä¸ªå•†å“æ‰£æŽ‰æŽ¨å¹¿è´¹åŽæ˜¯è´Ÿæ¯›åˆ©ï¼š${lowMargin.slice(0, 3).map((x) => esc(x.p.name)).join('ã€')}${lowMargin.length > 3 ? ' ç­‰' : ''}</div><span class="pill bad">çœ‹åˆ©æ¶¦é¡µ</span></div>`);
+    items.push(`<div class="seg-row"><div class="sk">亏损</div><div>${lowMargin.length} 个商品扣掉推广费后是负毛利：${lowMargin.slice(0, 3).map((x) => esc(x.p.name)).join('、')}${lowMargin.length > 3 ? ' 等' : ''}</div><span class="pill bad">看利润页</span></div>`);
   }
   S.data.shops.forEach((shop) => {
     const st = shopStats(shop.id);
-    if (st.refundRate > 0.05) items.push(`<div class="seg-row"><div class="sk">é€€æ¬¾</div><div>${esc(shop.name)} é€€æ¬¾çŽ‡ ${pct(st.refundRate)}ï¼Œé«˜äºŽ 5%</div><span class="pill warn">æŸ¥å”®åŽ</span></div>`);
-    if (st.adSpend > 0 && st.roi < 2) items.push(`<div class="seg-row"><div class="sk">æŠ•æ”¾</div><div>${esc(shop.name)} ROI åªæœ‰ ${st.roi.toFixed(2)}ï¼Œå…ˆåˆ«åŠ é¢„ç®—</div><span class="pill warn">æŸ¥æŽ¨å¹¿</span></div>`);
+    if (st.refundRate > 0.05) items.push(`<div class="seg-row"><div class="sk">退款</div><div>${esc(shop.name)} 退款率 ${pct(st.refundRate)}，高于 5%</div><span class="pill warn">查售后</span></div>`);
+    if (st.adSpend > 0 && st.roi < 2) items.push(`<div class="seg-row"><div class="sk">投放</div><div>${esc(shop.name)} ROI 只有 ${st.roi.toFixed(2)}，先别加预算</div><span class="pill warn">查推广</span></div>`);
   });
-  if (!items.length) return `<div class="tbl-empty">ä¸€åˆ‡æ­£å¸¸ï¼Œæ²¡æœ‰éœ€è¦ç«‹åˆ»å¤„ç†çš„é—®é¢˜</div>`;
+  if (!items.length) return `<div class="tbl-empty">一切正常，没有需要立刻处理的问题</div>`;
   return items.join('');
 }
 
@@ -615,27 +615,27 @@ function bindDashboard() {
 
 function openDailyForm() {
   const shops = S.data.shops;
-  if (!shops.length) { toast('å…ˆæ·»åŠ åº—é“º'); return; }
+  if (!shops.length) { toast('先添加店铺'); return; }
   const html = `
     <div class="stack">
       <div class="grid two">
-        <div class="field"><label>æ—¥æœŸ</label><input class="input" type="date" id="dDate" value="${today()}"></div>
-        <div class="field"><label>åº—é“º</label>
+        <div class="field"><label>日期</label><input class="input" type="date" id="dDate" value="${today()}"></div>
+        <div class="field"><label>店铺</label>
           <select class="select" id="dShop">${shops.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select>
         </div>
       </div>
       <div class="grid two">
-        <div class="field"><label>é”€å”®é¢ï¼ˆæˆäº¤é‡‘é¢ï¼‰</label><input class="input" id="dSales" type="number" inputmode="decimal" placeholder="0.00"></div>
-        <div class="field"><label>è®¢å•æ•°</label><input class="input" id="dOrders" type="number" inputmode="numeric" placeholder="0"></div>
+        <div class="field"><label>销售额（成交金额）</label><input class="input" id="dSales" type="number" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label>订单数</label><input class="input" id="dOrders" type="number" inputmode="numeric" placeholder="0"></div>
       </div>
       <div class="grid two">
-        <div class="field"><label>é€€æ¬¾é‡‘é¢</label><input class="input" id="dRefunds" type="number" inputmode="decimal" placeholder="0.00"></div>
-        <div class="field"><label>æŽ¨å¹¿èŠ±è´¹</label><input class="input" id="dAd" type="number" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label>退款金额</label><input class="input" id="dRefunds" type="number" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label>推广花费</label><input class="input" id="dAd" type="number" inputmode="decimal" placeholder="0.00"></div>
       </div>
-      <div class="field"><label>è®¿å®¢æ•°ï¼ˆå¯é€‰ï¼‰</label><input class="input" id="dVisitors" type="number" inputmode="numeric" placeholder="0"></div>
-      <p class="tip" style="font-size:12px;color:var(--ink-3)">æ•°æ®ä»Žæ‹¼å¤šå¤šå•†å®¶åŽå°ã€Œæ•°æ®ä¸­å¿ƒ â†’ ç»è¥æ¦‚å†µã€æŠ„å½•ï¼Œä¸€å¤©å½•ä¸€æ¬¡å³å¯ã€‚æˆæœ¬çŽ‡ã€ä½£é‡‘çŽ‡åœ¨åº—é“ºè®¾ç½®é‡Œé…ç½®ã€‚</p>
+      <div class="field"><label>访客数（可选）</label><input class="input" id="dVisitors" type="number" inputmode="numeric" placeholder="0"></div>
+      <p class="tip" style="font-size:12px;color:var(--ink-3)">数据从拼多多商家后台「数据中心 → 经营概况」抄录，一天录一次即可。成本率、佣金率在店铺设置里配置。</p>
     </div>`;
-  openDrawer('å½•å…¥æ¯æ—¥æ•°æ®', html, `<button class="btn ghost" data-close>å–æ¶ˆ</button><button class="btn primary" id="dSave">ä¿å­˜</button>`);
+  openDrawer('录入每日数据', html, `<button class="btn ghost" data-close>取消</button><button class="btn primary" id="dSave">保存</button>`);
 
   $('#dSave').onclick = () => {
     const shopId = $('#dShop').value;
@@ -655,12 +655,12 @@ function openDailyForm() {
     persist();
     closeDrawer();
     renderRoute();
-    toast('å·²ä¿å­˜ ' + date + ' çš„æ•°æ®');
+    toast('已保存 ' + date + ' 的数据');
   };
 }
 
 function exportDaily() {
-  const head = 'æ—¥æœŸ,åº—é“º,é”€å”®é¢,è®¢å•æ•°,é€€æ¬¾,æŽ¨å¹¿è´¹,è®¿å®¢';
+  const head = '日期,店铺,销售额,订单数,退款,推广费,访客';
   const body = S.data.daily
     .slice()
     .sort((a, b) => (a.date < b.date ? -1 : 1))
@@ -672,7 +672,7 @@ function exportDaily() {
   downloadText(head + '\n' + body, 'daily-' + today() + '.csv', 'text/csv');
 }
 
-/* ================= åˆ©æ¶¦ ================= */
+/* ================= 利润 ================= */
 
 function viewProducts() {
   const products = S.data.products;
@@ -684,43 +684,43 @@ function viewProducts() {
     const shop = S.data.shops.find((s) => s.id === p.shopId);
     return `
       <tr data-id="${p.id}" style="cursor:pointer">
-        <td><strong>${esc(p.name)}</strong><div style="font-size:11px;color:var(--ink-3)">${esc(shop ? shop.name : 'æœªåˆ†é…åº—é“º')}</div></td>
+        <td><strong>${esc(p.name)}</strong><div style="font-size:11px;color:var(--ink-3)">${esc(shop ? shop.name : '未分配店铺')}</div></td>
         <td class="num">${money(r.price)}</td>
         <td class="num">${money(r.costSum)}</td>
         <td class="num">${money(r.gross)}</td>
         <td class="num"><span class="pill ${r.grossMargin >= 0.35 ? 'good' : r.grossMargin >= 0.15 ? 'warn' : 'bad'}">${pct(r.grossMargin)}</span></td>
         <td class="num" style="color:${r.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(r.net)}</td>
-        <td class="num">${r.breakEvenRoi === Infinity ? 'â€”' : r.breakEvenRoi.toFixed(2)}</td>
+        <td class="num">${r.breakEvenRoi === Infinity ? '—' : r.breakEvenRoi.toFixed(2)}</td>
       </tr>`;
   }).join('');
 
   return `
     <div class="page-head">
-      <div><h2>åˆ©æ¶¦æ ¸ç®—</h2><p>æŠŠæˆæœ¬æ‘Šå¼€ç®—æ¸…æ¥šï¼Œæ‰çŸ¥é“è¯¥ä¸è¯¥æŠ•æŽ¨å¹¿</p></div>
+      <div><h2>利润核算</h2><p>把成本摊开算清楚，才知道该不该投推广</p></div>
       <div class="spacer"></div>
-      <button class="btn primary sm" data-act="add-product">ï¼‹ æ–°å¢žå•†å“æˆæœ¬å¡</button>
+      <button class="btn primary sm" data-act="add-product">＋ 新增商品成本卡</button>
     </div>
 
     <div class="grid three" style="margin-bottom:14px">
-      <div class="stat"><div class="label">å•†å“æ•°</div><div class="value">${products.length}<small>ä¸ª</small></div></div>
-      <div class="stat"><div class="label">å¹³å‡æ¯›åˆ©çŽ‡</div><div class="value">${pct(avgMargin)}</div><div class="hint">æ‰£é™¤æˆæœ¬/è¿è´¹/ä½£é‡‘ï¼Œæœªæ‰£æŽ¨å¹¿</div></div>
-      <div class="stat ${loss ? 'bad' : 'good'}"><div class="label">æ‰£æŽ¨å¹¿åŽäºæŸ</div><div class="value">${loss}<small>ä¸ª</small></div></div>
+      <div class="stat"><div class="label">商品数</div><div class="value">${products.length}<small>个</small></div></div>
+      <div class="stat"><div class="label">平均毛利率</div><div class="value">${pct(avgMargin)}</div><div class="hint">扣除成本/运费/佣金，未扣推广</div></div>
+      <div class="stat ${loss ? 'bad' : 'good'}"><div class="label">扣推广后亏损</div><div class="value">${loss}<small>个</small></div></div>
     </div>
 
     <div class="card">
-      <div class="card-head"><h3>æˆæœ¬å¡åˆ—è¡¨</h3><span class="sub">ç‚¹å‡»ä¸€è¡Œå¯ç¼–è¾‘</span></div>
+      <div class="card-head"><h3>成本卡列表</h3><span class="sub">点击一行可编辑</span></div>
       ${products.length ? `<div class="table-wrap"><table class="tbl">
-        <thead><tr><th>å•†å“</th><th class="num">å”®ä»·</th><th class="num">å•ä»¶æˆæœ¬</th><th class="num">æ¯›åˆ©</th><th class="num">æ¯›åˆ©çŽ‡</th><th class="num">å‡€åˆ©</th><th class="num">ä¿æœ¬ROI</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>` : `<div class="tbl-empty">è¿˜æ²¡æœ‰å•†å“ï¼Œå…ˆå»ºä¸€å¼ æˆæœ¬å¡è¯•è¯•</div>`}
+        <thead><tr><th>商品</th><th class="num">售价</th><th class="num">单件成本</th><th class="num">毛利</th><th class="num">毛利率</th><th class="num">净利</th><th class="num">保本ROI</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>` : `<div class="tbl-empty">还没有商品，先建一张成本卡试试</div>`}
     </div>
 
     <div class="card" style="margin-top:14px">
-      <div class="card-head"><h3>æ€Žä¹ˆç”¨è¿™å‡ åˆ—</h3></div>
+      <div class="card-head"><h3>怎么用这几列</h3></div>
       <div class="card-body" style="font-size:13px;color:var(--ink-2);line-height:1.9">
-        <div><b>æ¯›åˆ©</b> = å”®ä»· âˆ’ å•†å“æˆæœ¬ âˆ’ è¿è´¹ âˆ’ å¹³å°ä½£é‡‘ï¼ˆæœªæ‰£æŽ¨å¹¿è´¹ï¼‰</div>
-        <div><b>å‡€åˆ©</b> = æ¯›åˆ© âˆ’ å•ç¬”æŽ¨å¹¿è´¹ âˆ’ é€€æ¬¾æŸè€—ï¼ˆæŒ‰é€€æ¬¾çŽ‡ä¼°ç®—å¾€è¿”è¿è´¹ä¸ŽåŒ…è£…æŸè€—ï¼‰</div>
-        <div><b>ä¿æœ¬ROI</b> = å”®ä»· Ã·ï¼ˆå”®ä»· âˆ’ æˆæœ¬ âˆ’ è¿è´¹ âˆ’ ä½£é‡‘ âˆ’ é€€æ¬¾æŸè€—ï¼‰ã€‚æŽ¨å¹¿ ROI ä½ŽäºŽè¿™ä¸ªæ•°å°±æ˜¯åœ¨äºé’±å–ã€‚</div>
-        <div><b>ä¿æœ¬å”®ä»·</b> = æˆæœ¬ Ã·ï¼ˆ1 âˆ’ ä½£é‡‘çŽ‡ï¼‰ï¼Œç”¨æ¥åˆ¤æ–­è¿˜èƒ½ä¸èƒ½å†é™ä»·ã€‚</div>
+        <div><b>毛利</b> = 售价 − 商品成本 − 运费 − 平台佣金（未扣推广费）</div>
+        <div><b>净利</b> = 毛利 − 单笔推广费 − 退款损耗（按退款率估算往返运费与包装损耗）</div>
+        <div><b>保本ROI</b> = 售价 ÷（售价 − 成本 − 运费 − 佣金 − 退款损耗）。推广 ROI 低于这个数就是在亏钱卖。</div>
+        <div><b>保本售价</b> = 成本 ÷（1 − 佣金率），用来判断还能不能再降价。</div>
       </div>
     </div>`;
 }
@@ -750,28 +750,28 @@ function openProductForm(product) {
   };
   const shopOpts = S.data.shops.map((s) => `<option value="${s.id}" ${p.shopId === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
 
-  openDrawer(product ? 'ç¼–è¾‘æˆæœ¬å¡' : 'æ–°å¢žæˆæœ¬å¡', `
+  openDrawer(product ? '编辑成本卡' : '新增成本卡', `
     <div class="stack">
-      <div class="field"><label>å•†å“åç§°</label><input class="input" id="pName" value="${esc(p.name)}" placeholder="ä¾‹å¦‚ï¼šåŠé«˜é¢†åŠ åŽšæ¯›è¡£"></div>
-      <div class="field"><label>æ‰€å±žåº—é“º</label><select class="select" id="pShop">${shopOpts}</select></div>
+      <div class="field"><label>商品名称</label><input class="input" id="pName" value="${esc(p.name)}" placeholder="例如：半高领加厚毛衣"></div>
+      <div class="field"><label>所属店铺</label><select class="select" id="pShop">${shopOpts}</select></div>
       <div class="grid two">
-        <div class="field"><label>å”®ä»·ï¼ˆå…ƒï¼‰</label><input class="input" id="pPrice" type="number" value="${p.price}"></div>
-        <div class="field"><label>å¹³å°ä½£é‡‘çŽ‡ï¼ˆ%ï¼‰</label><input class="input" id="pCommission" type="number" step="0.01" value="${p.commission}"><div class="tip">æ‹¼å¤šå¤šå¤šä¸º 0.6%</div></div>
+        <div class="field"><label>售价（元）</label><input class="input" id="pPrice" type="number" value="${p.price}"></div>
+        <div class="field"><label>平台佣金率（%）</label><input class="input" id="pCommission" type="number" step="0.01" value="${p.commission}"><div class="tip">拼多多多为 0.6%</div></div>
       </div>
-      <div class="card-head" style="padding:0;border:0;background:none"><h3 style="font-size:13px;color:var(--ink-2)">å•ä»¶æˆæœ¬</h3></div>
+      <div class="card-head" style="padding:0;border:0;background:none"><h3 style="font-size:13px;color:var(--ink-2)">单件成本</h3></div>
       <div class="grid two">
-        <div class="field"><label>é‡‡è´­/ç”Ÿäº§</label><input class="input" id="cMaterial" type="number" value="${p.cost.material}"></div>
-        <div class="field"><label>åŠ å·¥/å·¥è´¹</label><input class="input" id="cLabor" type="number" value="${p.cost.labor}"></div>
-        <div class="field"><label>è¾…æ–™/åŠç‰Œ</label><input class="input" id="cAcc" type="number" value="${p.cost.accessories}"></div>
-        <div class="field"><label>åŒ…è£…</label><input class="input" id="cPack" type="number" value="${p.cost.packaging}"></div>
+        <div class="field"><label>采购/生产</label><input class="input" id="cMaterial" type="number" value="${p.cost.material}"></div>
+        <div class="field"><label>加工/工费</label><input class="input" id="cLabor" type="number" value="${p.cost.labor}"></div>
+        <div class="field"><label>辅料/吊牌</label><input class="input" id="cAcc" type="number" value="${p.cost.accessories}"></div>
+        <div class="field"><label>包装</label><input class="input" id="cPack" type="number" value="${p.cost.packaging}"></div>
       </div>
       <div class="grid two">
-        <div class="field"><label>å•ä»¶è¿è´¹ï¼ˆå…ƒï¼‰</label><input class="input" id="pShip" type="number" value="${p.shipping}"></div>
-        <div class="field"><label>å•ç¬”æŽ¨å¹¿è´¹ï¼ˆå…ƒï¼‰</label><input class="input" id="pAd" type="number" value="${p.adCost}"></div>
+        <div class="field"><label>单件运费（元）</label><input class="input" id="pShip" type="number" value="${p.shipping}"></div>
+        <div class="field"><label>单笔推广费（元）</label><input class="input" id="pAd" type="number" value="${p.adCost}"></div>
       </div>
-      <div class="field"><label>é¢„ä¼°é€€æ¬¾çŽ‡ï¼ˆ%ï¼‰</label><input class="input" id="pRefund" type="number" value="${p.refundRate}"></div>
+      <div class="field"><label>预估退款率（%）</label><input class="input" id="pRefund" type="number" value="${p.refundRate}"></div>
       <div class="card" style="background:var(--surface-2);box-shadow:none" id="pCalc"></div>
-    </div>`, `<button class="btn danger" id="pDel">åˆ é™¤</button><button class="btn primary" id="pSave">ä¿å­˜</button>`);
+    </div>`, `<button class="btn danger" id="pDel">删除</button><button class="btn primary" id="pSave">保存</button>`);
 
   const calc = () => {
     const tmp = {
@@ -791,12 +791,12 @@ function openProductForm(product) {
     $('#pCalc').innerHTML = `
       <div class="card-body" style="padding:14px">
         <div class="grid two" style="gap:10px">
-          <div><div style="font-size:11px;color:var(--ink-3)">å•ä»¶æ€»æˆæœ¬</div><div style="font-weight:650">${money(r.costSum + r.shipping)}</div></div>
-          <div><div style="font-size:11px;color:var(--ink-3)">æ¯›åˆ© / æ¯›åˆ©çŽ‡</div><div style="font-weight:650">${money(r.gross)} Â· ${pct(r.grossMargin)}</div></div>
-          <div><div style="font-size:11px;color:var(--ink-3)">å‡€åˆ© / å‡€åˆ©çŽ‡</div><div style="font-weight:650;color:${r.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(r.net)} Â· ${pct(r.netMargin)}</div></div>
-          <div><div style="font-size:11px;color:var(--ink-3)">ä¿æœ¬ ROI</div><div style="font-weight:650">${r.breakEvenRoi === Infinity ? 'â€”' : r.breakEvenRoi.toFixed(2)}</div></div>
-          <div><div style="font-size:11px;color:var(--ink-3)">ä¿æœ¬å”®ä»·</div><div style="font-weight:650">${money(r.breakEvenPrice)}</div></div>
-          <div><div style="font-size:11px;color:var(--ink-3)">é€€æ¬¾æŸè€—</div><div style="font-weight:650">${money(r.refundLoss)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">单件总成本</div><div style="font-weight:650">${money(r.costSum + r.shipping)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">毛利 / 毛利率</div><div style="font-weight:650">${money(r.gross)} · ${pct(r.grossMargin)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">净利 / 净利率</div><div style="font-weight:650;color:${r.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(r.net)} · ${pct(r.netMargin)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">保本 ROI</div><div style="font-weight:650">${r.breakEvenRoi === Infinity ? '—' : r.breakEvenRoi.toFixed(2)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">保本售价</div><div style="font-weight:650">${money(r.breakEvenPrice)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">退款损耗</div><div style="font-weight:650">${money(r.refundLoss)}</div></div>
         </div>
       </div>`;
   };
@@ -806,7 +806,7 @@ function openProductForm(product) {
 
   $('#pSave').onclick = () => {
     const name = $('#pName').value.trim();
-    if (!name) { toast('ç»™å•†å“èµ·ä¸ªåå­—'); return; }
+    if (!name) { toast('给商品起个名字'); return; }
     const rec = {
       id: p.id,
       shopId: $('#pShop').value,
@@ -829,20 +829,20 @@ function openProductForm(product) {
     persist();
     closeDrawer();
     renderRoute();
-    toast('å·²ä¿å­˜');
+    toast('已保存');
   };
 
   $('#pDel').onclick = () => {
-    if (!confirm('åˆ é™¤è¿™å¼ æˆæœ¬å¡ï¼Ÿ')) return;
+    if (!confirm('删除这张成本卡？')) return;
     S.data.products = S.data.products.filter((x) => x.id !== p.id);
     persist();
     closeDrawer();
     renderRoute();
-    toast('å·²åˆ é™¤');
+    toast('已删除');
   };
 }
 
-/* ================= åº—é“º ================= */
+/* ================= 店铺 ================= */
 
 function viewShops() {
   const cards = S.data.shops.map((shop) => {
@@ -852,12 +852,12 @@ function viewShops() {
         <div class="accent-bar" style="background:${esc(shop.color || '#c4562b')}"></div>
         <div class="card-body">
           <div class="name">${esc(shop.name)}</div>
-          <div class="meta">${esc(shop.note || 'æœªå¡«å†™å¤‡æ³¨')}</div>
+          <div class="meta">${esc(shop.note || '未填写备注')}</div>
           <div class="shop-kv">
-            <div><div class="k">è¿è¥æ–¹å¼</div><div class="v" style="font-size:13px">${esc(shop.opMode || 'æœªè®¾ç½®')}</div></div>
-            <div><div class="k">ä»·ä½æ®µ</div><div class="v" style="font-size:13px">${esc(shop.band || 'æœªè®¾ç½®')}</div></div>
-            <div><div class="k">ç´¯è®¡å‡€åˆ©</div><div class="v" style="color:${st.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(st.net)}</div></div>
-            <div><div class="k">å•†å“æ•°</div><div class="v">${S.data.products.filter((p) => p.shopId === shop.id).length}</div></div>
+            <div><div class="k">运营方式</div><div class="v" style="font-size:13px">${esc(shop.opMode || '未设置')}</div></div>
+            <div><div class="k">价位段</div><div class="v" style="font-size:13px">${esc(shop.band || '未设置')}</div></div>
+            <div><div class="k">累计净利</div><div class="v" style="color:${st.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(st.net)}</div></div>
+            <div><div class="k">商品数</div><div class="v">${S.data.products.filter((p) => p.shopId === shop.id).length}</div></div>
           </div>
         </div>
       </div>`;
@@ -865,16 +865,16 @@ function viewShops() {
 
   return `
     <div class="page-head">
-      <div><h2>æˆ‘çš„åº—é“º</h2><p>ä¸€äººå¤šåº—ï¼šæ–°å¼€åº—é“ºåŠ è¿›æ¥ï¼Œæ‰€æœ‰æ•°æ®è‡ªåŠ¨æ±‡æ€»</p></div>
+      <div><h2>我的店铺</h2><p>一人多店：新开店铺加进来，所有数据自动汇总</p></div>
       <div class="spacer"></div>
-      <button class="btn primary sm" data-act="add-shop">ï¼‹ æ·»åŠ åº—é“º</button>
+      <button class="btn primary sm" data-act="add-shop">＋ 添加店铺</button>
     </div>
-    ${S.data.shops.length ? `<div class="shop-grid">${cards}</div>` : `<div class="empty"><div class="glyph">â—«</div><h4>è¿˜æ²¡æœ‰åº—é“º</h4><p>å…ˆæŠŠæ­£åœ¨ç»è¥çš„åº—åŠ è¿›æ¥</p><button class="btn primary" data-act="add-shop">ï¼‹ æ·»åŠ åº—é“º</button></div>`}
+    ${S.data.shops.length ? `<div class="shop-grid">${cards}</div>` : `<div class="empty"><div class="glyph">◫</div><h4>还没有店铺</h4><p>先把正在经营的店加进来</p><button class="btn primary" data-act="add-shop">＋ 添加店铺</button></div>`}
     <div class="card" style="margin-top:16px">
-      <div class="card-head"><h3>ä¸ç”¨è‡ªå·±ç®—ï¼Œé€‰ä¸€ä¸‹å°±è¡Œ</h3></div>
+      <div class="card-head"><h3>不用自己算，选一下就行</h3></div>
       <div class="card-body" style="font-size:13px;color:var(--ink-2);line-height:1.9">
-        <div>æ·»åŠ åº—é“ºåªéœ€è¦ï¼šåº—åã€è¿è¥æ–¹å¼ã€ä»·ä½æ®µã€‚ç³»ç»ŸæŒ‰ä»·ä½æ®µè‡ªåŠ¨ä¼°ç®—æˆæœ¬çŽ‡ï¼Œçœ‹æ¿ä¸Šçš„æ¯›åˆ©æ˜¯ä¼°ç®—å€¼ã€‚</div>
-        <div>æƒ³ç®—å‡†æŸä¸€ä¸ªæ¬¾ï¼šåŽ»ã€Œåˆ©æ¶¦ã€é¡µå»ºæˆæœ¬å¡ï¼Œå¡«å”®ä»·ã€è¿›è´§ä»·ã€è¿è´¹ã€æ¯å¤©æŽ¨å¹¿è´¹ï¼Œç³»ç»Ÿè‡ªåŠ¨ç®—å‡ºæ¯›åˆ©çŽ‡å’Œä¿æœ¬ ROIã€‚</div>
+        <div>添加店铺只需要：店名、运营方式、价位段。系统按价位段自动估算成本率，看板上的毛利是估算值。</div>
+        <div>想算准某一个款：去「利润」页建成本卡，填售价、进货价、运费、每天推广费，系统自动算出毛利率和保本 ROI。</div>
       </div>
     </div>`;
 }
@@ -887,22 +887,22 @@ function bindShops() {
 }
 
 function openShopForm(shop) {
-  const s = shop || { id: uid(), name: '', note: '', opMode: 'è‡ªç„¶æµé‡', band: '30-60', costRate: 40, commission: 0.6, color: '#c4562b' };
+  const s = shop || { id: uid(), name: '', note: '', opMode: '自然流量', band: '30-60', costRate: 40, commission: 0.6, color: '#c4562b' };
   const colors = ['#c4562b', '#2f3a30', '#7a6a58', '#3f5b7a', '#8a4b63', '#a8781c'];
-  const MODES = ['è‡ªç„¶æµé‡', 'ä»˜è´¹æŽ¨å¹¿', 'ç›´æ’­å¸¦è´§', 'æ´»åŠ¨ç§’æ€', 'å¤šåº—é“ºè´§'];
-  const BANDS = ['30å…ƒä»¥ä¸‹', '30-60å…ƒ', '60-100å…ƒ', '100å…ƒä»¥ä¸Š'];
-  const BAND_RATE = { '30å…ƒä»¥ä¸‹': 45, '30-60å…ƒ': 40, '60-100å…ƒ': 35, '100å…ƒä»¥ä¸Š': 30 };
-  const mode = s.opMode || 'è‡ªç„¶æµé‡';
+  const MODES = ['自然流量', '付费推广', '直播带货', '活动秒杀', '多店铺货'];
+  const BANDS = ['30元以下', '30-60元', '60-100元', '100元以上'];
+  const BAND_RATE = { '30元以下': 45, '30-60元': 40, '60-100元': 35, '100元以上': 30 };
+  const mode = s.opMode || '自然流量';
   let band = s.band || '30-60';
-  openDrawer(shop ? 'ç¼–è¾‘åº—é“º' : 'æ·»åŠ åº—é“º', `
+  openDrawer(shop ? '编辑店铺' : '添加店铺', `
     <div class="stack">
-      <div class="field"><label>åº—é“ºåç§°</label><input class="input" id="sName" value="${esc(s.name)}" placeholder="ä¾‹å¦‚ï¼šç»‡é—´æ——èˆ°åº—"></div>
-      <div class="field"><label>ä¸»è¦è¿è¥æ–¹å¼</label><div class="chip-group" id="sMode">${MODES.map((m) => `<button class="chip ${m === mode ? 'active' : ''}" data-mode="${m}">${m}</button>`).join('')}</div></div>
-      <div class="field"><label>ä¸»æµä»·ä½æ®µ</label><div class="chip-group" id="sBand">${BANDS.map((b) => `<button class="chip ${b === band ? 'active' : ''}" data-band="${b}">${b}</button>`).join('')}</div></div>
-      <div class="field"><label>å¤‡æ³¨ï¼ˆå¯é€‰ï¼‰</label><input class="input" id="sNote" value="${esc(s.note)}" placeholder="ä¸»è¥ç±»ç›® / é£Žæ ¼ / å…¶ä»–è¦ç‚¹"></div>
-      <div class="field"><label>è¯†åˆ«è‰²</label><div class="chip-group" id="sColors">${colors.map((c) => `<button class="chip ${c === s.color ? 'active' : ''}" data-color="${c}" style="width:34px;height:34px;padding:0;background:${c};border-color:${c}"></button>`).join('')}</div></div>
-      <div class="hint" style="color:var(--ink-3);font-size:12px">æˆæœ¬çŽ‡ä¸ç”¨ä½ ç®—ï¼šç³»ç»ŸæŒ‰ä»·ä½æ®µè‡ªåŠ¨ä¼°ç®—ï¼Œçœ‹æ¿ä¸Šæ˜¯ä¼°ç®—å€¼ï¼›è¦ç²¾ç¡®åˆ°å•å“ï¼Œåœ¨ã€Œåˆ©æ¶¦ã€é¡µå»ºæˆæœ¬å¡ã€‚</div>
-    </div>`, `<button class="btn danger" id="sDel">åˆ é™¤</button><button class="btn primary" id="sSave">ä¿å­˜</button>`);
+      <div class="field"><label>店铺名称</label><input class="input" id="sName" value="${esc(s.name)}" placeholder="例如：织间旗舰店"></div>
+      <div class="field"><label>主要运营方式</label><div class="chip-group" id="sMode">${MODES.map((m) => `<button class="chip ${m === mode ? 'active' : ''}" data-mode="${m}">${m}</button>`).join('')}</div></div>
+      <div class="field"><label>主流价位段</label><div class="chip-group" id="sBand">${BANDS.map((b) => `<button class="chip ${b === band ? 'active' : ''}" data-band="${b}">${b}</button>`).join('')}</div></div>
+      <div class="field"><label>备注（可选）</label><input class="input" id="sNote" value="${esc(s.note)}" placeholder="主营类目 / 风格 / 其他要点"></div>
+      <div class="field"><label>识别色</label><div class="chip-group" id="sColors">${colors.map((c) => `<button class="chip ${c === s.color ? 'active' : ''}" data-color="${c}" style="width:34px;height:34px;padding:0;background:${c};border-color:${c}"></button>`).join('')}</div></div>
+      <div class="hint" style="color:var(--ink-3);font-size:12px">成本率不用你算：系统按价位段自动估算，看板上是估算值；要精确到单品，在「利润」页建成本卡。</div>
+    </div>`, `<button class="btn danger" id="sDel">删除</button><button class="btn primary" id="sSave">保存</button>`);
 
   let color = s.color;
   let modeSel = mode;
@@ -930,7 +930,7 @@ function openShopForm(shop) {
 
   $('#sSave').onclick = () => {
     const name = $('#sName').value.trim();
-    if (!name) { toast('å¡«ä¸€ä¸ªåº—é“ºå'); return; }
+    if (!name) { toast('填一个店铺名'); return; }
     const rec = {
       id: s.id,
       name,
@@ -946,11 +946,11 @@ function openShopForm(shop) {
     persist();
     closeDrawer();
     renderRoute();
-    toast('å·²ä¿å­˜');
+    toast('已保存');
   };
 
   $('#sDel').onclick = () => {
-    if (!confirm('åˆ é™¤åº—é“ºï¼Ÿè¯¥åº—é“ºä¸‹çš„å•†å“æˆæœ¬å¡ä¸ä¼šè¢«åˆ é™¤ã€‚')) return;
+    if (!confirm('删除店铺？该店铺下的商品成本卡不会被删除。')) return;
     S.data.shops = S.data.shops.filter((x) => x.id !== s.id);
     persist();
     closeDrawer();
@@ -958,7 +958,7 @@ function openShopForm(shop) {
   };
 }
 
-/* ================= ç´ æå·¥åŠ ================= */
+/* ================= 素材工坊 ================= */
 
 function chipGroup(key, values, multi) {
   const cur = S.studioInput[key];
@@ -974,171 +974,171 @@ function viewStudio() {
 
   return `
     <div class="page-head">
-      <div><h2>ç´ æå·¥åŠ</h2><p>ä¸Šä¼ ä¸€å¼ å›¾ â†’ æ ‡é¢˜ã€å–ç‚¹ã€SKUã€ä¸»å›¾ã€è¯¦æƒ…é¡µå…¨éƒ¨å‡ºæ¥</p></div>
+      <div><h2>素材工坊</h2><p>上传一张图 → 标题、卖点、SKU、主图、详情页全部出来</p></div>
     </div>
 
     <div class="studio">
       <div class="stack">
         <div class="card">
-          <div class="card-head"><h3>1 Â· å•†å“å›¾</h3></div>
+          <div class="card-head"><h3>1 · 商品图</h3></div>
           <div class="card-body">
             ${S.studioImage
-              ? `<div class="thumb"><img src="${S.studioImage.dataUrl}" alt="å•†å“å›¾"><button class="reup" id="reup">æ¢å›¾</button></div>`
-              : `<div class="dropzone" id="dz"><div class="dz-icon">â¬†</div><p>ç‚¹å‡»ä¸Šä¼  / æ‹ç…§</p><div class="dz-hint">å»ºè®®ç™½åº•æˆ–å¹²å‡€èƒŒæ™¯ï¼Œæ­£æ–¹å½¢æœ€å¥½</div></div>`}
+              ? `<div class="thumb"><img src="${S.studioImage.dataUrl}" alt="商品图"><button class="reup" id="reup">换图</button></div>`
+              : `<div class="dropzone" id="dz"><div class="dz-icon">⬆</div><p>点击上传 / 拍照</p><div class="dz-hint">建议白底或干净背景，正方形最好</div></div>`}
             <input type="file" id="fileInput" accept="image/*" hidden>
             ${S.studioImage && S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `
-              <div style="margin-top:12px"><button class="btn primary" id="arkGenTop" style="width:100%">ç”¨ç«å±±æ–¹èˆŸç”Ÿæˆæ¨¡ç‰¹å›¾ï¼ˆå…ˆå‡º 1 å¼ é¢„è§ˆï¼‰</button></div>
-              <p style="font-size:12px;color:var(--ink-3);margin:6px 0 0">å…ˆå‡º 1 å¼ é¢„è§ˆçœ‹äººè„¸å’Œé£Žæ ¼ï¼Œæ»¡æ„äº†å†æ‰¹é‡å‡ºï¼Œä¸ç‚¹ä¸æ‰£é’±ã€‚</p>
+              <div style="margin-top:12px"><button class="btn primary" id="arkGenTop" style="width:100%">用火山方舟生成模特图（先出 1 张预览）</button></div>
+              <p style="font-size:12px;color:var(--ink-3);margin:6px 0 0">先出 1 张预览看人脸和风格，满意了再批量出，不点不扣钱。</p>
             ` : (S.studioImage ? `
               <div class="no-key">
-                <b>è¿˜æ²¡å¡«ç«å±±æ–¹èˆŸ Key</b>
-                <p>æ‰€ä»¥è¿™å¼ å›¾ä¸ä¼šè¯†åˆ«é¢œè‰²ï¼Œä¹Ÿä¸ä¼šç”Ÿæˆæ¨¡ç‰¹å›¾ã€‚å¡«ä¸€æ¬¡ Key å°±èƒ½è‡ªåŠ¨è¯†åˆ«ã€‚</p>
-                <button class="btn primary sm" id="goSettings">åŽ»è®¾ç½®å¡« Key</button>
+                <b>还没填火山方舟 Key</b>
+                <p>所以这张图不会识别颜色，也不会生成模特图。填一次 Key 就能自动识别。</p>
+                <button class="btn primary sm" id="goSettings">去设置填 Key</button>
               </div>` : '')}
           </div>
         </div>
 
         <div class="card">
-          <div class="card-head"><h3>ä¸€é”®æ¢è£…ï¼ˆå¯é€‰ï¼‰</h3><span class="sub">ä¿ç•™å§¿åŠ¿ï¼Œæ¢æˆä½ çš„è¡£æœ</span></div>
+          <div class="card-head"><h3>一键换装（可选）</h3><span class="sub">保留姿势，换成你的衣服</span></div>
           <div class="card-body">
             <p style="font-size:12px;color:#7a5a1e;background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:8px 10px;margin:0 0 10px;line-height:1.7">
-              ä¸€æ¬¡å¯é€‰å¤šå¼ çˆ†æ¬¾å›¾åšå§¿åŠ¿å‚è€ƒã€‚å·¥å…·ä¼šè‡ªåŠ¨æ¢æˆæ–°é¢å­”ï¼Œé™ä½Žè‚–åƒæƒé£Žé™©ï¼›ä½†è¯·åªä½¿ç”¨ä½ æœ‰æƒä½¿ç”¨çš„å›¾ç‰‡ï¼Œä¸è¦ç›´æŽ¥æ‹¿åŒè¡Œæ¨¡ç‰¹æ­£è„¸ä¸Šæž¶ã€‚
+              一次可选多张爆款图做姿势参考。工具会自动换成新面孔，降低肖像权风险；但请只使用你有权使用的图片，不要直接拿同行模特正脸上架。
             </p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
               ${S.swapImages.map((im, i) => `
                 <div style="position:relative;width:90px">
-                  <img src="${im.dataUrl}" style="width:90px;height:120px;object-fit:cover;border-radius:6px;border:1px solid var(--line)" alt="å‚è€ƒå›¾${i+1}">
-                  <button class="reup" data-swap-del="${i}" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#fff;border:1px solid var(--line);font-size:12px;line-height:1;padding:0">Ã—</button>
-                  <div style="font-size:11px;color:var(--ink-3);text-align:center;margin-top:2px">å‚è€ƒå›¾ ${i+1}</div>
+                  <img src="${im.dataUrl}" style="width:90px;height:120px;object-fit:cover;border-radius:6px;border:1px solid var(--line)" alt="参考图${i+1}">
+                  <button class="reup" data-swap-del="${i}" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#fff;border:1px solid var(--line);font-size:12px;line-height:1;padding:0">×</button>
+                  <div style="font-size:11px;color:var(--ink-3);text-align:center;margin-top:2px">参考图 ${i+1}</div>
                 </div>`).join('')}
               <div class="dropzone" id="swapDz" style="width:90px;height:120px;min-height:auto;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
                 <div class="dz-icon" style="font-size:20px">+</div>
-                <div style="font-size:11px;color:var(--ink-3)">æ·»åŠ </div>
+                <div style="font-size:11px;color:var(--ink-3)">添加</div>
               </div>
             </div>
             <input type="file" id="swapFile" accept="image/*" multiple hidden>
             <div style="margin-top:8px">
-              <button class="btn primary" id="swapBtn" style="width:100%">${S.swapImages.length ? 'ä¸€é”®å…¨éƒ¨æ¢è£…ï¼ˆ' + S.swapImages.length + ' å¼ ï¼‰' : 'æ¢è£…ç”Ÿæˆï¼ˆæ”¶è´¹ï¼‰'}</button>
+              <button class="btn primary" id="swapBtn" style="width:100%">${S.swapImages.length ? '一键全部换装（' + S.swapImages.length + ' 张）' : '换装生成（收费）'}</button>
             </div>
-            <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || (S.swapImages.length ? 'ç‚¹ã€Œä¸€é”®å…¨éƒ¨æ¢è£…ã€ä¼šå¯¹æ¯å¼ å‚è€ƒå›¾å„å‡º 1 å¼ ' : 'ä¼šå…ˆæç¤ºè´¹ç”¨ï¼Œç¡®è®¤åŽæ‰æ‰£é’±'))}</div>
-            ${S.studioAiImages && S.studioAiImages.some((x) => /æ¢è£…/.test(x.label)) ? `<div class="canvas-grid" style="margin-top:10px">${S.studioAiImages.filter((x) => /æ¢è£…/.test(x.label)).map((it) => `
+            <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || (S.swapImages.length ? '点「一键全部换装」会对每张参考图各出 1 张' : '会先提示费用，确认后才扣钱'))}</div>
+            ${S.studioAiImages && S.studioAiImages.some((x) => /换装/.test(x.label)) ? `<div class="canvas-grid" style="margin-top:10px">${S.studioAiImages.filter((x) => /换装/.test(x.label)).map((it) => `
               <div class="canvas-card">
                 <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
-                <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span><a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">ä¸‹è½½</a></div>
+                <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span><a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">下载</a></div>
               </div>`).join('')}</div>` : ''}
           </div>
         </div>
 
         <div class="card">
           <div class="card-head">
-            <h3>3 Â· å•†å“æ ‡ç­¾</h3><span class="sub">è‡ªåŠ¨è¯†åˆ«ï¼Œå¯æ”¹</span>
-            <div style="margin-left:auto"><button class="btn sm" id="tagToggle">${S.tagOpen ? 'æ”¶èµ·' : 'ä¿®æ”¹æ ‡ç­¾'}</button></div>
+            <h3>3 · 商品标签</h3><span class="sub">自动识别，可改</span>
+            <div style="margin-left:auto"><button class="btn sm" id="tagToggle">${S.tagOpen ? '收起' : '修改标签'}</button></div>
           </div>
           <div class="card-body">
             <div style="font-size:13px;line-height:1.9;color:var(--ink-2)">
-              ${esc([i.category, i.wearStyle, (i.materials || []).join('ã€'), i.fiber, i.pattern, i.neck, i.fit, i.length, i.sleeveLen, i.sleeveType, i.mainStyle, i.subStyle, i.weight, i.age, i.fleece, i.season, (i.colors || []).length ? (i.colors || []).join('ã€') + 'ï¼ˆ' + (i.colors || []).length + ' è‰²ï¼‰' : ''].filter(Boolean).join(' Â· '))}
+              ${esc([i.category, i.wearStyle, (i.materials || []).join('、'), i.fiber, i.pattern, i.neck, i.fit, i.length, i.sleeveLen, i.sleeveType, i.mainStyle, i.subStyle, i.weight, i.age, i.fleece, i.season, (i.colors || []).length ? (i.colors || []).join('、') + '（' + (i.colors || []).length + ' 色）' : ''].filter(Boolean).join(' · '))}
               ${S.aiStatus
-                ? `<div id="aiStatus" class="ai-status ${/å¤±è´¥/.test(S.aiStatus) ? 'bad' : (/è¯†åˆ«æˆåŠŸ/.test(S.aiStatus) ? 'good' : '')}">${esc(S.aiStatus)}</div>`
-                : '<div style="color:var(--ink-3);font-size:12px">ä¸Šä¼ å›¾ç‰‡åŽè‡ªåŠ¨è¯†åˆ«ï¼Œä¸å‡†å¯ä»¥ç‚¹ã€Œä¿®æ”¹æ ‡ç­¾ã€æˆ–é‡æ–°è¯†åˆ«</div>'}
-              ${S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `<button class="btn sm" id="aiRecognizeBtn" style="margin-top:8px">é‡æ–°è¯†åˆ«ä¸€æ¬¡</button>` : ''}
+                ? `<div id="aiStatus" class="ai-status ${/失败/.test(S.aiStatus) ? 'bad' : (/识别成功/.test(S.aiStatus) ? 'good' : '')}">${esc(S.aiStatus)}</div>`
+                : '<div style="color:var(--ink-3);font-size:12px">上传图片后自动识别，不准可以点「修改标签」或重新识别</div>'}
+              ${S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `<button class="btn sm" id="aiRecognizeBtn" style="margin-top:8px">重新识别一次</button>` : ''}
             </div>
             ${S.tagOpen ? `
             <div style="margin-top:14px">
               <div class="param-block">
-                <div class="plabel"><span>å“ç±»</span></div>
+                <div class="plabel"><span>品类</span></div>
                 ${chipGroup('category', OPTIONS.category, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>ä¸»é¢æ–™æˆåˆ†</span><span class="opt">å¯å¤šé€‰ï¼Œç¬¬ä¸€ä¸ªç®—ä¸»æˆåˆ†</span></div>
+                <div class="plabel"><span>主面料成分</span><span class="opt">可多选，第一个算主成分</span></div>
                 ${chipGroup('materials', OPTIONS.material, true)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>ç©¿ç€æ–¹å¼</span></div>
+                <div class="plabel"><span>穿着方式</span></div>
                 ${chipGroup('wearStyle', OPTIONS.wearStyle, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>é¢æ–™ä¿—ç§°</span></div>
+                <div class="plabel"><span>面料俗称</span></div>
                 ${chipGroup('fiber', OPTIONS.fiber, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>å›¾æ¡ˆ</span></div>
+                <div class="plabel"><span>图案</span></div>
                 ${chipGroup('pattern', OPTIONS.pattern, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>é¢†åž‹</span></div>
+                <div class="plabel"><span>领型</span></div>
                 ${chipGroup('neck', OPTIONS.neck, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>ç‰ˆåž‹</span></div>
+                <div class="plabel"><span>版型</span></div>
                 ${chipGroup('fit', OPTIONS.fit, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>è¡£é•¿</span></div>
+                <div class="plabel"><span>衣长</span></div>
                 ${chipGroup('length', OPTIONS.length, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>è¢–é•¿</span></div>
+                <div class="plabel"><span>袖长</span></div>
                 ${chipGroup('sleeveLen', OPTIONS.sleeveLen, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>è¢–åž‹</span></div>
+                <div class="plabel"><span>袖型</span></div>
                 ${chipGroup('sleeveType', OPTIONS.sleeveType, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>é€‚ç”¨å¹´é¾„</span></div>
+                <div class="plabel"><span>适用年龄</span></div>
                 ${chipGroup('age', OPTIONS.age, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>æ˜¯å¦åŠ ç»’</span></div>
+                <div class="plabel"><span>是否加绒</span></div>
                 ${chipGroup('fleece', OPTIONS.fleece, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>æµè¡Œå…ƒç´ </span><span class="opt">å¯å¤šé€‰</span></div>
+                <div class="plabel"><span>流行元素</span><span class="opt">可多选</span></div>
                 ${chipGroup('elements', OPTIONS.elements, true)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>ä¸»é£Žæ ¼</span><span class="opt">åªèƒ½é€‰ 1 ä¸ª</span></div>
+                <div class="plabel"><span>主风格</span><span class="opt">只能选 1 个</span></div>
                 ${chipGroup('mainStyle', OPTIONS.mainStyle, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>é£Žæ ¼</span></div>
+                <div class="plabel"><span>风格</span></div>
                 ${chipGroup('subStyle', OPTIONS.subStyle, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>åŽšè–„</span></div>
+                <div class="plabel"><span>厚薄</span></div>
                 ${chipGroup('weight', OPTIONS.weight, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>é€‚ç”¨å­£èŠ‚</span></div>
+                <div class="plabel"><span>适用季节</span></div>
                 ${chipGroup('season', OPTIONS.season, false)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>é¢œè‰²</span><span class="opt">å¯å¤šé€‰ï¼Œæ¼äº†å°±æ‰‹åŠ¨åŠ </span></div>
+                <div class="plabel"><span>颜色</span><span class="opt">可多选，漏了就手动加</span></div>
                 ${chipGroup('colors', Array.from(new Set([].concat(OPTIONS.color, (S.studioInput.colors || [])))), true)}
                 <div style="display:flex;gap:8px;margin-top:8px">
-                  <input class="input" id="colorCustom" placeholder="æ‰‹åŠ¨è¡¥é¢œè‰²ï¼Œå¦‚ï¼šæµ…ç´«è‰²">
-                  <button class="btn sm" id="colorAdd" style="white-space:nowrap">æ·»åŠ </button>
+                  <input class="input" id="colorCustom" placeholder="手动补颜色，如：浅紫色">
+                  <button class="btn sm" id="colorAdd" style="white-space:nowrap">添加</button>
                 </div>
               </div>
               <div class="param-block">
-                <div class="plabel"><span>å°ºç </span><span class="opt">å¯å¤šé€‰</span></div>
+                <div class="plabel"><span>尺码</span><span class="opt">可多选</span></div>
                 ${chipGroup('sizes', OPTIONS.size, true)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>åœºæ™¯</span><span class="opt">å¯å¤šé€‰</span></div>
+                <div class="plabel"><span>场景</span><span class="opt">可多选</span></div>
                 ${chipGroup('scene', OPTIONS.scene, true)}
               </div>
               <div class="param-block">
-                <div class="plabel"><span>å”®ä»·ï¼ˆå…ƒï¼‰</span></div>
+                <div class="plabel"><span>售价（元）</span></div>
                 <input class="input" id="stuPrice" type="number" value="${esc(i.price)}">
               </div>
               <div class="param-block">
-                <div class="plabel"><span>é¢å¤–å…³é”®è¯</span><span class="opt">é€‰å¡«ï¼Œé€—å·åˆ†éš”</span></div>
-                <input class="input" id="stuExtra" value="${esc(i.extra)}" placeholder="å¦‚ï¼šå¤§ç ã€å­•å¦‡å¯ç©¿ã€å¯æœºæ´—">
+                <div class="plabel"><span>额外关键词</span><span class="opt">选填，逗号分隔</span></div>
+                <input class="input" id="stuExtra" value="${esc(i.extra)}" placeholder="如：大码、孕妇可穿、可机洗">
               </div>
             </div>` : ''}
             <div style="margin-top:16px">
-              <button class="btn primary block" id="genBtn">${hasKit ? 'é‡æ–°ç”Ÿæˆå…¨éƒ¨ç´ æ' : 'ä¸€é”®ç”Ÿæˆå…¨éƒ¨ç´ æ'}</button>
+              <button class="btn primary block" id="genBtn">${hasKit ? '重新生成全部素材' : '一键生成全部素材'}</button>
             </div>
           </div>
         </div>
@@ -1147,9 +1147,9 @@ function viewStudio() {
       <div>
         ${hasKit ? renderStudioResult() : `
           <div class="card"><div class="empty" style="padding:60px 20px">
-            <div class="glyph">âœ³</div>
-            <h4>å·¦è¾¹é€‰å¥½æ ‡ç­¾ï¼Œç‚¹ã€Œä¸€é”®ç”Ÿæˆã€</h4>
-            <p>ä¼šç”Ÿæˆ 6 ç»„æ ‡é¢˜ã€8 æ¡å–ç‚¹ã€SKU è§„æ ¼è¡¨ã€5 å¼ ä¸»å›¾ã€1 å¼ è¯¦æƒ…é•¿å›¾ã€ä¸€æ•´å¥—å±žæ€§è¡¨</p>
+            <div class="glyph">✳</div>
+            <h4>左边选好标签，点「一键生成」</h4>
+            <p>会生成 6 组标题、8 条卖点、SKU 规格表、5 张主图、1 张详情长图、一整套属性表</p>
           </div></div>`}
       </div>
     </div>`;
@@ -1159,14 +1159,14 @@ function renderStudioResult() {
   const kit = S.studioKit;
   const tab = S.studioResultTab;
   const tabs = [
-    ['titles', 'æ ‡é¢˜'],
-    ['points', 'å–ç‚¹'],
+    ['titles', '标题'],
+    ['points', '卖点'],
     ['skus', 'SKU'],
-    ['images', 'æœ¬åœ°æ‹¼å›¾'],
-    ['ark', 'ç«å±±æ¨¡ç‰¹å›¾'],
-    ['jimeng', 'å³æ¢¦æç¤ºè¯'],
-    ['detail', 'è¯¦æƒ…é¡µ'],
-    ['attrs', 'å±žæ€§è¡¨']
+    ['images', '本地拼图'],
+    ['ark', '火山模特图'],
+    ['jimeng', '即梦提示词'],
+    ['detail', '详情页'],
+    ['attrs', '属性表']
   ];
 
   let body = '';
@@ -1177,25 +1177,25 @@ function renderStudioResult() {
         <div class="idx">${i + 1}</div>
         <div>
           <div class="txt">${esc(t.text)}</div>
-          <div class="meta ${t.len > 60 ? 'over' : ''}">${t.kind} Â· ${t.len} å­—${t.len > 60 ? 'ï¼ˆè¶…å‡º 60ï¼Œéœ€åˆ å‡ï¼‰' : ''}</div>
+          <div class="meta ${t.len > 60 ? 'over' : ''}">${t.kind} · ${t.len} 字${t.len > 60 ? '（超出 60，需删减）' : ''}</div>
         </div>
-        <div class="acts"><button class="btn sm" data-copy="${esc(t.text)}">å¤åˆ¶</button></div>
+        <div class="acts"><button class="btn sm" data-copy="${esc(t.text)}">复制</button></div>
       </div>`).join('');
   }
 
   if (tab === 'points') {
     body = `<div class="copy-list">${kit.sellingPoints.map((p) => `
       <div class="copy-block">
-        <div class="cb-head"><span>${p.icon} ${esc(p.text)}</span><span class="spacer"></span><button class="btn sm" data-copy="${esc(p.text)}ï¼š${esc(p.desc)}">å¤åˆ¶</button></div>
+        <div class="cb-head"><span>${p.icon} ${esc(p.text)}</span><span class="spacer"></span><button class="btn sm" data-copy="${esc(p.text)}：${esc(p.desc)}">复制</button></div>
         <pre>${esc(p.desc)}</pre>
       </div>`).join('')}</div>`;
   }
 
   if (tab === 'skus') {
     body = `
-      <div class="card"><div class="card-head"><h3>${kit.skus.length} ä¸ª SKU</h3><span class="sub">ä»·æ ¼ã€åº“å­˜å¯ç›´æŽ¥æ”¹</span></div>
+      <div class="card"><div class="card-head"><h3>${kit.skus.length} 个 SKU</h3><span class="sub">价格、库存可直接改</span></div>
       <div class="table-wrap"><table class="tbl sku-table">
-        <thead><tr><th>è§„æ ¼1</th><th>è§„æ ¼2</th><th>æ‹¼å¤šå¤šè§„æ ¼å</th><th class="num">ä»·æ ¼</th><th class="num">åº“å­˜</th><th>ç¼–ç </th></tr></thead>
+        <thead><tr><th>规格1</th><th>规格2</th><th>拼多多规格名</th><th class="num">价格</th><th class="num">库存</th><th>编码</th></tr></thead>
         <tbody>${kit.skus.map((s, idx) => `<tr>
           <td>${esc(s.spec1)}</td><td>${esc(s.spec2)}</td><td>${esc(s.pddName)}</td>
           <td class="num"><input type="number" value="${s.price}" data-sku-price="${idx}"></td>
@@ -1203,16 +1203,16 @@ function renderStudioResult() {
           <td>${esc(s.code)}</td>
         </tr>`).join('')}</tbody>
       </table></div>
-      <div class="card-body" style="border-top:1px solid var(--line)"><button class="btn sm" id="copySku">å¤åˆ¶ä¸º CSVï¼ˆå¯ç²˜è´´åˆ°è¡¨æ ¼ï¼‰</button></div>
+      <div class="card-body" style="border-top:1px solid var(--line)"><button class="btn sm" id="copySku">复制为 CSV（可粘贴到表格）</button></div>
       </div>`;
   }
 
   if (tab === 'images') {
     body = `
       <div class="row" style="margin-bottom:12px">
-        <button class="btn sm primary" id="dlAll">ä¸‹è½½å…¨éƒ¨ä¸»å›¾</button>
-        <button class="btn sm" id="dlDetail">ä¸‹è½½è¯¦æƒ…é•¿å›¾</button>
-        <span class="sub" style="font-size:12px;color:var(--ink-3)">800Ã—800 PNG Â· è¯¦æƒ… 750px å®½</span>
+        <button class="btn sm primary" id="dlAll">下载全部主图</button>
+        <button class="btn sm" id="dlDetail">下载详情长图</button>
+        <span class="sub" style="font-size:12px;color:var(--ink-3)">800×800 PNG · 详情 750px 宽</span>
       </div>
       <div class="canvas-grid" id="canvasGrid"></div>`;
   }
@@ -1223,83 +1223,83 @@ function renderStudioResult() {
     const aiImgs = S.studioAiImages || [];
     body = `
       <div class="card">
-        <div class="card-head"><h3>ç«å±±æ–¹èˆŸç”Ÿæˆæ¨¡ç‰¹å›¾</h3><span class="sub">æ‰‹åŠ¨ç‚¹ï¼Œç¡®è®¤åŽæ‰£è´¹</span>
-          <button class="btn sm" id="arkBalanceBtn" style="margin-left:auto">æŸ¥ä½™é¢</button>
+        <div class="card-head"><h3>火山方舟生成模特图</h3><span class="sub">手动点，确认后扣费</span>
+          <button class="btn sm" id="arkBalanceBtn" style="margin-left:auto">查余额</button>
         </div>
         <div class="card-body">
           <div id="arkBalanceBox" style="display:none;font-size:13px;background:#f6ffed;border:1px solid #b7eb8f;border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.7"></div>
           ${hasKey ? `
             <div style="font-size:13px;color:var(--ink-2);margin-bottom:10px">
-              è¯†åˆ«åˆ°çš„é¢œè‰²ï¼š<strong>${esc((S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.join('ã€') : 'æœªè¯†åˆ«ï¼ˆæŒ‰ 1 ä¸ªé¢œè‰²ç®—ï¼‰'))}</strong>
-              <span style="color:var(--ink-3)">ï¼ˆ${S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.length : 1} ä¸ªé¢œè‰²ï¼Œæ¯ä¸ªé¢œè‰²å•ç‹¬å‡ºï¼‰</span>
+              识别到的颜色：<strong>${esc((S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.join('、') : '未识别（按 1 个颜色算）'))}</strong>
+              <span style="color:var(--ink-3)">（${S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.length : 1} 个颜色，每个颜色单独出）</span>
             </div>
             <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
-              <label style="font-size:13px;color:var(--ink-2)">æ¯ä¸ªé¢œè‰²ä¸»å›¾
+              <label style="font-size:13px;color:var(--ink-2)">每个颜色主图
                 <select id="arkMainCount" style="margin:0 4px">
                   ${[2,3,4,5].map((n) => `<option value="${n}" ${S.arkCounts.mainPer === n ? 'selected' : ''}>${n}</option>`).join('')}
-                </select>å¼ 
+                </select>张
               </label>
-              <label style="font-size:13px;color:var(--ink-2)">æ¯ä¸ªé¢œè‰²è¯¦æƒ…å›¾
+              <label style="font-size:13px;color:var(--ink-2)">每个颜色详情图
                 <select id="arkDetailCount" style="margin:0 4px">
                   ${[0,1,2,3].map((n) => `<option value="${n}" ${S.arkCounts.detailPer === n ? 'selected' : ''}>${n}</option>`).join('')}
-                </select>å¼ 
+                </select>张
               </label>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
-              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">å‡ºå›¾é£Žæ ¼
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
                 <select id="arkPhotoStyle" style="margin:0 4px">
-                  <option value="auto" ${(S.arkCounts.photoStyle || 'auto') === 'auto' ? 'selected' : ''}>è‡ªåŠ¨éšæœºï¼ˆæ¯æ¬¾ç»Ÿä¸€é£Žæ ¼ï¼‰</option>
-                  <option value="flatlay" ${S.arkCounts.photoStyle === 'flatlay' ? 'selected' : ''}>å…¨å¹³é“ºæŒ‚æ‹ï¼ˆæ— æ¨¡ç‰¹ï¼‰</option>
-                  <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>å…¨ç´ äººæ¨¡ç‰¹éšæ‰‹æ‹</option>
+                  <option value="auto" ${(S.arkCounts.photoStyle || 'auto') === 'auto' ? 'selected' : ''}>自动随机（每款统一风格）</option>
+                  <option value="flatlay" ${S.arkCounts.photoStyle === 'flatlay' ? 'selected' : ''}>全平铺挂拍（无模特）</option>
+                  <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>全素人模特随手拍</option>
                 </select>
               </label>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
               <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
                 <input type="checkbox" id="arkSimpleSku" ${S.arkCounts.simpleSku ? 'checked' : ''}>
-                æœ‰ç®€é…ç‰ˆï¼ˆä½Žä»· SKU å¼•æµï¼Œå¤šå‡º 1 å¼ ï¼‰
+                有简配版（低价 SKU 引流，多出 1 张）
               </label>
-              <input id="arkSimpleNote" type="text" value="${esc(S.arkCounts.simpleNote)}" placeholder="ç®€é…å·®å¼‚ï¼Œä¾‹å¦‚ï¼šä¸å¸¦ä¸å¸¦" style="flex:1;min-width:140px">
+              <input id="arkSimpleNote" type="text" value="${esc(S.arkCounts.simpleNote)}" placeholder="简配差异，例如：不带丝带" style="flex:1;min-width:140px">
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
               <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
                 <input type="checkbox" id="arkNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
-                ä¸å¸¦è£…é¥°ï¼ˆåªç”Ÿæˆè¡£æœæœ¬ä½“ï¼Œå…¨éƒ¨å›¾éƒ½ç”Ÿæ•ˆï¼‰
+                不带装饰（只生成衣服本体，全部图都生效）
               </label>
-              <input id="arkAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="è¦åŽ»æŽ‰çš„è£…é¥°ï¼Œä¾‹å¦‚ï¼šä¸å¸¦ã€è´è¶ç»“" style="flex:1;min-width:140px">
+              <input id="arkAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结" style="flex:1;min-width:140px">
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
               <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
                 <input type="checkbox" id="arkAntiCompare" ${S.arkCounts.antiCompare ? 'checked' : ''}>
-                é˜²æ¯”ä»·æ¨¡å¼ï¼ˆæ¢è§’åº¦/é®æŒ¡1/3/æ¢æž„å›¾ï¼Œè®©å¹³å°è®¤ä¸å‡ºæ˜¯åŒæ¬¾ï¼‰
+                防比价模式（换角度/遮挡1/3/换构图，让平台认不出是同款）
               </label>
             </div>
             <div style="font-size:12px;color:var(--ink-3);line-height:1.6;margin:-4px 0 10px">
-              é˜²æ¯”ä»·åŽŸç†ï¼šå¹³å°ä¼šæ¯”å¯¹ä¸»å›¾ã€SKUå›¾ã€SKUæ–‡å­—ï¼ˆæƒé‡æœ€é«˜ï¼‰ã€æ ‡é¢˜ã€å±žæ€§ï¼Œç›¸åŒç‰¹å¾è¶…é˜ˆå€¼å°±åˆ¤åŒæ¬¾ã€æŠ¥æ´»åŠ¨è¢«åŽ‹ä»·ã€‚SKU å›¾ç›´æŽ¥ç”¨ç”Ÿæˆå¥½çš„ä¸»å›¾å°±è¡Œï¼Œä¸ç”¨å¦å¤–èŠ±é’±ç”Ÿæˆï¼›SKU æ–‡å­—ä¼šè‡ªåŠ¨åšå˜ä½“ã€‚<br>
-              æ–°å“æ ‡ï¼ˆæœè£…ç±»ç›®æœ‰æ•ˆæœŸ 30 å¤©ï¼‰ï¼šéœ€åº—é“ºè¿‘ 90 å¤© DSR ä¸‰é¡¹é«˜äºŽåŒè¡Œï¼Œä¸”å±žæ€§å¡«å…¨ã€å›¾ç‰‡åŽŸåˆ›ï¼Œç”±å¹³å°è‡ªåŠ¨åˆ¤å®šï¼Œæ— æ³•æ‰‹åŠ¨æŠ¥åã€‚
+              防比价原理：平台会比对主图、SKU图、SKU文字（权重最高）、标题、属性，相同特征超阈值就判同款、报活动被压价。SKU 图直接用生成好的主图就行，不用另外花钱生成；SKU 文字会自动做变体。<br>
+              新品标（服装类目有效期 30 天）：需店铺近 90 天 DSR 三项高于同行，且属性填全、图片原创，由平台自动判定，无法手动报名。
             </div>
             <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
               ${S.arkPendingJobs && S.arkPendingJobs.length ? `
-                <button class="btn primary" id="arkContinueBtn">ç»§ç»­ç”Ÿæˆå‰©ä½™ ${S.arkPendingJobs.length} å¼ </button>
-                <button class="btn sm" id="arkRestartBtn">ä¸¢æŽ‰é¢„è§ˆï¼Œé‡æ–°å‡º</button>
+                <button class="btn primary" id="arkContinueBtn">继续生成剩余 ${S.arkPendingJobs.length} 张</button>
+                <button class="btn sm" id="arkRestartBtn">丢掉预览，重新出</button>
               ` : `
-                <button class="btn primary" id="arkGenBtn">å…ˆç”Ÿæˆ 1 å¼ é¢„è§ˆï¼ˆçº¦ 0.1~1 å…ƒï¼‰</button>
-                ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">æ¸…ç©º</button>` : ''}
+                <button class="btn primary" id="arkGenBtn">先生成 1 张预览（约 0.1~1 元）</button>
+                ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空</button>` : ''}
               `}
             </div>
-            <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (S.arkPendingJobs && S.arkPendingJobs.length ? 'é¢„è§ˆå›¾å·²å‡ºï¼Œæ»¡æ„å°±ç‚¹ã€Œç»§ç»­ç”Ÿæˆã€ï¼Œä¸æ»¡æ„å°±ã€Œä¸¢æŽ‰é¢„è§ˆï¼Œé‡æ–°å‡ºã€' : (aiImgs.length ? 'å·²ç”Ÿæˆ ' + aiImgs.length + ' å¼ ' : 'å»ºè®®å…ˆå‡º 1 å¼ çœ‹çœ‹äººè„¸å’Œé£Žæ ¼ï¼Œæ»¡æ„äº†å†æ‰¹é‡å‡ºï¼Œçœå¾—æµªè´¹é’±')))}</div>
+            <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (S.arkPendingJobs && S.arkPendingJobs.length ? '预览图已出，满意就点「继续生成」，不满意就「丢掉预览，重新出」' : (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张' : '建议先出 1 张看看人脸和风格，满意了再批量出，省得浪费钱')))}</div>
             ${aiImgs.length ? `<div class="row" style="margin-bottom:10px">
-                <button class="btn sm primary" id="arkDlAll">å…¨éƒ¨ä¸‹è½½ï¼ˆ${aiImgs.length} å¼ ï¼‰</button>
-                <span class="sub" style="font-size:12px;color:var(--ink-3)">æ‰“åŒ…æˆ 1 ä¸ª zip ä¸‹è½½ï¼Œä¸ä¼šä¸€å¼ å¼ å¼¹çª—</span>
+                <button class="btn sm primary" id="arkDlAll">全部下载（${aiImgs.length} 张）</button>
+                <span class="sub" style="font-size:12px;color:var(--ink-3)">打包成 1 个 zip 下载，不会一张张弹窗</span>
               </div><div class="canvas-grid">${aiImgs.map((it) => `
               <div class="canvas-card">
                 <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
                 <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span>
-                  <a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">ä¸‹è½½</a></div>
+                  <a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">下载</a></div>
               </div>`).join('')}</div>` : ''}
           ` : `
-            <div class="tbl-empty" style="margin-bottom:12px">è¿˜æ²¡å¡«ç«å±±æ–¹èˆŸ Keyï¼Œä¸èƒ½ç›´æŽ¥å‡ºå›¾ã€‚</div>
-            <button class="btn" id="arkGoSettings">åŽ»è®¾ç½®å¡« Key</button>
+            <div class="tbl-empty" style="margin-bottom:12px">还没填火山方舟 Key，不能直接出图。</div>
+            <button class="btn" id="arkGoSettings">去设置填 Key</button>
           `}
         </div>
       </div>`;
@@ -1311,31 +1311,31 @@ function renderStudioResult() {
     const videoVariants = buildJimengVideoPrompts(S.studioInput);
     body = `
       <div class="card">
-        <div class="card-head"><h3>å³æ¢¦å›¾ç‰‡æç¤ºè¯</h3><span class="sub">å…è´¹ï¼Œå¤åˆ¶çš„è¶Šå°‘è¶Šå¥½ç”¨</span></div>
+        <div class="card-head"><h3>即梦图片提示词</h3><span class="sub">免费，复制的越少越好用</span></div>
         <div class="card-body">
-          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">å³æ¢¦é€‰ã€Œå›¾ç”Ÿå›¾ã€ï¼Œä¸Šä¼ åŒä¸€å¼ å®žæ‹å›¾ï¼Œç²˜è´´ä¸‹é¢ä»»æ„ä¸€æ¡å³å¯ã€‚</p>
+          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生图」，上传同一张实拍图，粘贴下面任意一条即可。</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:13px">
-            <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">å‡ºå›¾é£Žæ ¼
+            <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
               <select id="jimengPhotoStyle" style="margin:0 4px">
-                <option value="blend" ${(S.arkCounts.photoStyle || 'blend') === 'blend' ? 'selected' : ''}>èžåˆæŽ¨èï¼ˆç§è‰æ°›å›´ + ä¸»å›¾è´¨æ„Ÿï¼‰</option>
-                <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>çº¯ç”Ÿæ´»ç§è‰</option>
-                <option value="studio" ${S.arkCounts.photoStyle === 'studio' ? 'selected' : ''}>çº¯ç”µå•†å®žæ‹ä¸»å›¾</option>
+                <option value="blend" ${(S.arkCounts.photoStyle || 'blend') === 'blend' ? 'selected' : ''}>融合推荐（种草氛围 + 主图质感）</option>
+                <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>纯生活种草</option>
+                <option value="studio" ${S.arkCounts.photoStyle === 'studio' ? 'selected' : ''}>纯电商实拍主图</option>
               </select>
             </label>
             <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
               <input type="checkbox" id="jimengNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
-              ä¸å¸¦è£…é¥°ï¼ˆåªå–è¡£æœæœ¬ä½“ï¼‰
+              不带装饰（只卖衣服本体）
             </label>
-            <input id="jimengAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="è¦åŽ»æŽ‰çš„è£…é¥°ï¼Œä¾‹å¦‚ï¼šä¸å¸¦ã€è´è¶ç»“" style="flex:1;min-width:140px" ${S.arkCounts.noAccessory ? '' : 'disabled'}>
+            <input id="jimengAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结" style="flex:1;min-width:140px" ${S.arkCounts.noAccessory ? '' : 'disabled'}>
           </div>
-          ${S.studioImage ? '' : `<div class="tbl-empty" style="margin-bottom:12px">è¯·å…ˆä¸Šä¼ å•†å“å›¾</div>`}
+          ${S.studioImage ? '' : `<div class="tbl-empty" style="margin-bottom:12px">请先上传商品图</div>`}
           <div class="copy-list">
             ${variants.map((v, i) => `
               <div class="copy-block">
                 <div class="cb-head">
                   <span><strong>${i + 1}. ${esc(v.name)}</strong></span>
                   <span class="spacer"></span>
-                  <button class="btn sm primary" data-copy="${esc(v.prompt)}">å¤åˆ¶æç¤ºè¯</button>
+                  <button class="btn sm primary" data-copy="${esc(v.prompt)}">复制提示词</button>
                 </div>
                 <pre>${esc(v.prompt)}</pre>
               </div>`).join('')}
@@ -1344,16 +1344,16 @@ function renderStudioResult() {
       </div>
 
       <div class="card" style="margin-top:16px">
-        <div class="card-head"><h3>å³æ¢¦è§†é¢‘æç¤ºè¯</h3><span class="sub">5 ç§’ Â· 1:1</span></div>
+        <div class="card-head"><h3>即梦视频提示词</h3><span class="sub">5 秒 · 1:1</span></div>
         <div class="card-body">
-          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">å³æ¢¦é€‰ã€Œå›¾ç”Ÿè§†é¢‘ã€ï¼Œæ—¶é•¿ 5 ç§’ã€æ¯”ä¾‹ 1:1ï¼Œç²˜è´´ä¸‹é¢è¿™æ¡ã€‚</p>
+          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生视频」，时长 5 秒、比例 1:1，粘贴下面这条。</p>
           <div class="copy-list">
             ${videoVariants.map((v, i) => `
               <div class="copy-block">
                 <div class="cb-head">
                   <span><strong>${i + 1}. ${esc(v.name)}</strong></span>
                   <span class="spacer"></span>
-                  <button class="btn sm primary" data-copy="${esc(v.prompt)}">å¤åˆ¶æç¤ºè¯</button>
+                  <button class="btn sm primary" data-copy="${esc(v.prompt)}">复制提示词</button>
                 </div>
                 <pre>${esc(v.prompt)}</pre>
               </div>`).join('')}
@@ -1366,29 +1366,29 @@ function renderStudioResult() {
     body = `<div class="copy-list">${kit.detail.sections.map((s) => `
       <div class="copy-block">
         <div class="cb-head"><span>${esc(s.title)}</span><span class="spacer"></span>
-        <button class="btn sm" data-copy="${esc(s.lines.join('\n'))}">å¤åˆ¶</button></div>
+        <button class="btn sm" data-copy="${esc(s.lines.join('\n'))}">复制</button></div>
         <pre>${esc(s.lines.join('\n'))}</pre>
       </div>`).join('')}
-      <button class="btn block" data-copy="${esc(detailToText(kit))}">å¤åˆ¶æ•´ç¯‡è¯¦æƒ…é¡µæ–‡æ¡ˆ</button></div>`;
+      <button class="btn block" data-copy="${esc(detailToText(kit))}">复制整篇详情页文案</button></div>`;
   }
 
   if (tab === 'attrs') {
-    body = `<div class="card"><div class="card-head"><h3>æ‹¼å¤šå¤šå•†å“å±žæ€§</h3><span class="sub">ä¸Šæž¶æ—¶ç…§å¡«</span></div>
+    body = `<div class="card"><div class="card-head"><h3>拼多多商品属性</h3><span class="sub">上架时照填</span></div>
       <div class="table-wrap"><table class="tbl">
-        <thead><tr><th>å±žæ€§</th><th>å¡«å†™å€¼</th></tr></thead>
+        <thead><tr><th>属性</th><th>填写值</th></tr></thead>
         <tbody>${kit.attrs.map(([k, v]) => `<tr><td style="color:var(--ink-2)">${esc(k)}</td><td><strong>${esc(v)}</strong></td></tr>`).join('')}</tbody>
       </table></div>
       <div class="card-body" style="border-top:1px solid var(--line)">
-        <button class="btn sm" data-copy="${esc(kit.attrs.map(([k, v]) => k + 'ï¼š' + v).join('\n'))}">å¤åˆ¶å…¨éƒ¨å±žæ€§</button>
-        <p style="font-size:12px;color:var(--ink-3);margin-top:10px">å­—æ®µä¸Žæ‹¼å¤šå¤šå¥³è£…æ¯›è¡£å‘å¸ƒé¡µä¸€è‡´ï¼ˆå“ç‰Œã€ç©¿ç€æ–¹å¼ã€åŽšè–„ã€è¡£é•¿ã€é¢†åž‹ã€è¢–é•¿ã€è¢–åž‹ã€æœè£…ç‰ˆåž‹ã€å›¾æ¡ˆã€ä¸»é¢æ–™æˆåˆ†ã€æˆåˆ†å«é‡ã€é¢æ–™ä¿—ç§°ã€é€‚ç”¨å¹´é¾„ã€æµè¡Œå…ƒç´ ã€æ˜¯å¦åŠ ç»’ã€ä¸Šå¸‚æ—¶èŠ‚ã€ä¸»é£Žæ ¼ã€é£Žæ ¼ï¼‰ã€‚æˆåˆ†å«é‡æ˜¯è‰ç¨¿å€¼ï¼ŒåŠ¡å¿…æŒ‰åŠç‰Œå®žé™…ç™¾åˆ†æ¯”æ”¹ï¼Œå¹³å°ä¼šæŠ½æ£€ã€‚</p>
+        <button class="btn sm" data-copy="${esc(kit.attrs.map(([k, v]) => k + '：' + v).join('\n'))}">复制全部属性</button>
+        <p style="font-size:12px;color:var(--ink-3);margin-top:10px">字段与拼多多女装毛衣发布页一致（品牌、穿着方式、厚薄、衣长、领型、袖长、袖型、服装版型、图案、主面料成分、成分含量、面料俗称、适用年龄、流行元素、是否加绒、上市时节、主风格、风格）。成分含量是草稿值，务必按吊牌实际百分比改，平台会抽检。</p>
       </div></div>`;
   }
 
   return `
     <div class="card">
       <div class="card-head">
-        <h3>ç”Ÿæˆç»“æžœ</h3><span class="sub">${new Date(kit.generatedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
-        <div style="margin-left:auto"><button class="btn sm" id="saveMaterial">ä¿å­˜åˆ°ç´ æåº“</button></div>
+        <h3>生成结果</h3><span class="sub">${new Date(kit.generatedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+        <div style="margin-left:auto"><button class="btn sm" id="saveMaterial">保存到素材库</button></div>
       </div>
       <div class="card-body">
         <div class="result-tabs">${tabs.map(([k, label]) => `<button class="${tab === k ? 'active' : ''}" data-tab="${k}">${label}</button>`).join('')}</div>
@@ -1421,7 +1421,7 @@ function bindStudio() {
       S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
       renderRoute();
       bindRoute();
-      toast('å·²æ·»åŠ é¢œè‰²ï¼š' + v);
+      toast('已添加颜色：' + v);
     };
   }
 
@@ -1436,12 +1436,12 @@ function bindStudio() {
       let added = 0;
       for (let f = 0; f < files.length; f++) {
         const file = files[f];
-        if (file.size > 10 * 1024 * 1024) { toast(file.name + ' å¤ªå¤§ï¼Œè·³è¿‡'); continue; }
+        if (file.size > 10 * 1024 * 1024) { toast(file.name + ' 太大，跳过'); continue; }
         try {
           const { img, dataUrl } = await loadImageFromFile(file);
           S.swapImages.push({ img, dataUrl, aiUrl: toAiJpeg(img, 1500) });
           added++;
-        } catch (_) { toast(file.name + ' è¯»å–å¤±è´¥ï¼Œè·³è¿‡'); }
+        } catch (_) { toast(file.name + ' 读取失败，跳过'); }
       }
       if (added) {
         S.swapStatus = '';
@@ -1465,10 +1465,10 @@ function bindStudio() {
     fileInput.onchange = async () => {
       const file = fileInput.files && fileInput.files[0];
       if (!file) return;
-      if (file.size > 10 * 1024 * 1024) { toast('å›¾ç‰‡å¤ªå¤§ï¼Œè¯·åŽ‹ç¼©åˆ° 10MB ä»¥å†…'); return; }
+      if (file.size > 10 * 1024 * 1024) { toast('图片太大，请压缩到 10MB 以内'); return; }
       try {
         const { img, dataUrl } = await loadImageFromFile(file);
-        // ç»™ AI ç”¨çš„å›¾ï¼šç»Ÿä¸€è½¬æˆ JPEGï¼Œæœ€é•¿è¾¹ 1500ï¼Œæ‹¼å›¾å¤šé¢œè‰²ä¹Ÿèƒ½çœ‹æ¸…
+        // 给 AI 用的图：统一转成 JPEG，最长边 1500，拼图多颜色也能看清
         const aiUrl = toAiJpeg(img, 1500);
         S.studioImage = { img, dataUrl, aiUrl, assetUrl: null };
         S.studioAiImages = [];
@@ -1479,16 +1479,16 @@ function bindStudio() {
         S.aiStatus = '';
         S.arkStatus = '';
         S.studioResultTab = 'ark';
-        // å…ˆç”¨å½“å‰æ ‡ç­¾ç”Ÿæˆä¸€ç‰ˆï¼Œä¿è¯ã€Œç”Ÿæˆæ¨¡ç‰¹å›¾ã€æŒ‰é’®ç«‹åˆ»å¯è§
+        // 先用当前标签生成一版，保证「生成模特图」按钮立刻可见
         S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
         renderRoute();
         bindRoute();
-        // é…äº† Key å°±è‡ªåŠ¨è¯†åˆ«é£Žæ ¼ï¼Œæ²¡é…å°±ç­‰ç”¨æˆ·æ‰‹åŠ¨é€‰æ ‡ç­¾
+        // 配了 Key 就自动识别风格，没配就等用户手动选标签
         if (S.data && S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey) {
           await autoRecognize();
         }
       } catch (_) {
-        toast('å›¾ç‰‡è¯»å–å¤±è´¥');
+        toast('图片读取失败');
       }
     };
   }
@@ -1528,12 +1528,12 @@ function bindStudio() {
       const eInp = $('#stuExtra');
       if (pInp) S.studioInput.price = pInp.value;
       if (eInp) S.studioInput.extra = eInp.value;
-      if (!S.studioImage) { toast('å…ˆä¸Šä¼ ä¸€å¼ å•†å“å›¾'); return; }
+      if (!S.studioImage) { toast('先上传一张商品图'); return; }
       S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price));
       S.studioResultTab = 'titles';
       renderRoute();
       bindRoute();
-      toast('ç´ æå·²ç”Ÿæˆ');
+      toast('素材已生成');
     };
   }
 
@@ -1555,12 +1555,12 @@ function bindStudio() {
       <div class="canvas-card">
         <img src="${x.c.toDataURL('image/png')}" alt="${x.label}">
         <div class="cc-foot"><span>${x.label}</span><span style="margin-left:auto"></span>
-          <button class="btn sm" data-dl="${x.key}">ä¸‹è½½</button></div>
+          <button class="btn sm" data-dl="${x.key}">下载</button></div>
       </div>`).join('');
     $$('#view [data-dl]').forEach((b) => {
       b.onclick = () => {
         const item = images.find((x) => x.key === b.dataset.dl);
-        if (item) downloadCanvas(item.c, item.label.replace(/[Â·\s]/g, '_') + '.png');
+        if (item) downloadCanvas(item.c, item.label.replace(/[·\s]/g, '_') + '.png');
       };
     });
     const dlAll = $('#dlAll');
@@ -1568,7 +1568,7 @@ function bindStudio() {
     const dlDetail = $('#dlDetail');
     if (dlDetail) dlDetail.onclick = () => {
       const d = buildDetailImage(S.studioImage.img, S.studioKit, input);
-      downloadCanvas(d.c, 'è¯¦æƒ…é•¿å›¾.png');
+      downloadCanvas(d.c, '详情长图.png');
     };
   }
 
@@ -1648,7 +1648,7 @@ function bindStudio() {
     const imgs = (S.studioAiImages || []).slice();
     if (!imgs.length) return;
     const stamp = new Date().toLocaleString('zh-CN').replace(/[\/\s:]/g, '-');
-    downloadAsZip(imgs, `æ¯›è¡£ç´ æ_${stamp}.zip`);
+    downloadAsZip(imgs, `毛衣素材_${stamp}.zip`);
   };
   const arkGoSettings = $('#arkGoSettings');
   if (arkGoSettings) arkGoSettings.onclick = () => {
@@ -1663,7 +1663,7 @@ async function autoRecognize() {
   S.studioResultTab = 'ark';
   const startedAt = Date.now();
   const tick = () => {
-    S.aiStatus = 'æ­£åœ¨è¯†åˆ«æ‹¼å¤šå¤šå±žæ€§ï¼ˆæè´¨ã€å›¾æ¡ˆã€é¢†åž‹ã€ç‰ˆåž‹ã€è¡£é•¿ã€è¢–åž‹ã€é£Žæ ¼ã€é¢œè‰²ï¼‰â€¦ï¼ˆå·²è¯†åˆ« ' + Math.round((Date.now() - startedAt) / 1000) + ' ç§’ï¼‰';
+    S.aiStatus = '正在识别拼多多属性（材质、图案、领型、版型、衣长、袖型、风格、颜色）…（已识别 ' + Math.round((Date.now() - startedAt) / 1000) + ' 秒）';
     setAiStatus(S.aiStatus);
   };
   tick();
@@ -1684,9 +1684,9 @@ async function autoRecognize() {
     }
     if (!r) throw lastErr;
     const s = r.style;
-    // æ¨¡åž‹å¶å°”æŠŠæ•°ç»„è¿”å›žæˆå­—ç¬¦ä¸²ï¼Œè¿™é‡Œç»Ÿä¸€æ•´ç†
+    // 模型偶尔把数组返回成字符串，这里统一整理
     ['materials', 'crafts', 'styles', 'audience', 'colors', 'sizes', 'scene'].forEach((k) => {
-      if (typeof s[k] === 'string') s[k] = s[k].split(/[,ï¼Œã€\/\s]+/).filter(Boolean);
+      if (typeof s[k] === 'string') s[k] = s[k].split(/[,，、\/\s]+/).filter(Boolean);
     });
     if (Array.isArray(s.colors)) s.colors = Array.from(new Set(s.colors.map((c) => String(c).trim()).filter(Boolean))).slice(0, 12);
     if (Array.isArray(s.grid) && s.grid.length) {
@@ -1695,10 +1695,10 @@ async function autoRecognize() {
     }
     if (Array.isArray(s.styles) && s.styles.length > 1) s.styles = [s.styles[0]];
     if (!Array.isArray(s.styles) || !s.styles.length) {
-      s.styles = [s.subStyle || 'æ…µæ‡’é£Ž'];
+      s.styles = [s.subStyle || '慵懒风'];
     }
     if (!Array.isArray(s.crafts) || !s.crafts.length) {
-      s.crafts = [s.pattern && s.pattern !== 'çº¯è‰²' ? s.pattern : (s.materials && /ç¾Šæ¯›|ç¾Šç»’|é©¬æµ·æ¯›/.test(s.materials.join('')) ? 'éº»èŠ±ç¼–ç»‡' : 'å‘æ¡')];
+      s.crafts = [s.pattern && s.pattern !== '纯色' ? s.pattern : (s.materials && /羊毛|羊绒|马海毛/.test(s.materials.join('')) ? '麻花编织' : '坑条')];
     }
     const map = ['category','materials','crafts','neck','fit','styles','audience','weight','season','colors','sizes','scene',
       'pattern','wearStyle','fiber','age','fleece','mainStyle','subStyle','length','sleeveLen','sleeveType','elements'];
@@ -1708,12 +1708,12 @@ async function autoRecognize() {
     S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
     S.studioResultTab = 'ark';
     const colN = (S.studioInput.colors || []).length;
-    S.aiStatus = 'âœ… è¯†åˆ«æˆåŠŸï¼š' + (colN ? `è®¤å‡º ${colN} ä¸ªé¢œè‰²ï¼ˆ${(S.studioInput.colors || []).join('ã€')}ï¼‰` : 'å·²å¡«å¥½å±žæ€§');
+    S.aiStatus = '✅ 识别成功：' + (colN ? `认出 ${colN} 个颜色（${(S.studioInput.colors || []).join('、')}）` : '已填好属性');
     renderRoute();
     bindRoute();
-    toast('è¯†åˆ«å®Œæˆï¼Œå±žæ€§å·²è‡ªåŠ¨å¡«å¥½');
+    toast('识别完成，属性已自动填好');
   } catch (e) {
-    S.aiStatus = 'âŒ è¯†åˆ«å¤±è´¥ï¼š' + ((e.body && e.body.message) || e.message);
+    S.aiStatus = '❌ 识别失败：' + ((e.body && e.body.message) || e.message);
     renderRoute();
     bindRoute();
   } finally {
@@ -1721,10 +1721,10 @@ async function autoRecognize() {
   }
 }
 
-// å¦†å®¹ä¸Žçš®è‚¤çš„ç»Ÿä¸€è¦æ±‚ï¼šç´ äººçœŸå®žæ„Ÿï¼Œåˆ»æ„é¿å¼€ç½‘çº¢/AI å¡‘æ–™æ„Ÿ
-const FACE_QUALITY = 'ç´ é¢œæ„Ÿåº•å¦†ï¼šåº•å¦†è½»è–„æŽ¥è¿‘ç´ é¢œã€ä¿ç•™çœŸå®žçš®è‚¤çº¹ç†ï¼Œè…®çº¢æžæ·¡å‡ ä¹Žçœ‹ä¸è§ã€å”‡è‰²è‡ªç„¶å¹¶ä¿ç•™å”‡çº¹ã€ä¸ç”»æµ“çœ¼çº¿ä¸æˆ´å‡ç«æ¯›ã€çœ¼å‘¨æœ‰è‡ªç„¶å§èš•ï¼›çš®è‚¤ç™½çš™ä½†å¯è§ç»†å°æ¯›å­”å’Œç»†å¾®ç»’æ¯›ã€æœ‰è½»å¾®è‚¤è‰²ä¸å‡å’Œä¸€ç‚¹ç‚¹ç—˜å°æˆ–é›€æ–‘ã€ä¸æ˜¯ç£¨çš®å‡é¢ä¸æ˜¯å¡‘æ–™æ„Ÿï¼›çœ‰å½¢è‡ªç„¶æœ‰å°‘é‡æ‚æ¯›ã€ä¸æ˜¯æµ“çœ‰ï¼›ä¸æ˜¯ç½‘çº¢è„¸ä¸æ˜¯æ•´å®¹è„¸ã€å·¦å³è„¸ç•¥æœ‰ä¸å¯¹ç§°ã€äº”å®˜ä¸è¿½æ±‚å®Œç¾Žï¼›å¤´å‘æ˜¯çœŸå®žå‘ä¸ä¸æ˜¯ä¸€æ•´ç‰‡è‰²å—ï¼šèƒ½çœ‹å‡ºå‘ä¸èµ°å‘å’Œå±‚æ¬¡ã€å‘ç¼è‡ªç„¶ã€å‘é™…çº¿æœ‰å°ç¢Žå‘ã€å‡ æ ¹é£žæ•£çš„æ¯›èºå‘ä¸ã€å‘æ ¹åˆ°å‘æ¢¢æœ‰è½»å¾®æ·±æµ…å˜åŒ–ï¼›å¤´å‘æ•´ä½“å“‘å…‰è´¨æ„Ÿï¼Œå®¤å†…å…‰ä¸‹åªæœ‰å‘ä¸è¾¹ç¼˜ä¸€ç‚¹ç‚¹è‡ªç„¶åå…‰ï¼Œä¸è¦å¤§é¢ç§¯é«˜å…‰ã€ä¸è¦æ²¹äº®åå…‰ã€ä¸è¦äº®æˆå¡‘æ–™ä¸ã€ä¸è¦å‡å‘æ„Ÿã€ä¸è¦å¤´ç›”æ„Ÿ';
+// 妆容与皮肤的统一要求：素人真实感，刻意避开网红/AI 塑料感
+const FACE_QUALITY = '素颜感底妆：底妆轻薄接近素颜、保留真实皮肤纹理，腮红极淡几乎看不见、唇色自然并保留唇纹、不画浓眼线不戴假睫毛、眼周有自然卧蚕；皮肤白皙但可见细小毛孔和细微绒毛、有轻微肤色不均和一点点痘印或雀斑、不是磨皮假面不是塑料感；眉形自然有少量杂毛、不是浓眉；不是网红脸不是整容脸、左右脸略有不对称、五官不追求完美；头发是真实发丝不是一整片色块：能看出发丝走向和层次、发缝自然、发际线有小碎发、几根飞散的毛躁发丝、发根到发梢有轻微深浅变化；头发整体哑光质感，室内光下只有发丝边缘一点点自然反光，不要大面积高光、不要油亮反光、不要亮成塑料丝、不要假发感、不要头盔感';
 
-// å½“å‰è¿™ä¸€æ¬¾å•†å“ç”¨å“ªä½æ¨¡ç‰¹ï¼šæ–°å•†å“é‡æ–°éšæœºï¼ŒåŒå•†å“å„é¢œè‰²ä¿æŒä¸€è‡´
+// 当前这一款商品用哪位模特：新商品重新随机，同商品各颜色保持一致
 function arkIdentity() {
   if (!S.arkIdentity) S.arkIdentity = ARK_IDENTITIES[Math.floor(Math.random() * ARK_IDENTITIES.length)];
   return S.arkIdentity;
@@ -1740,346 +1740,346 @@ function arkLightSetup() {
 function arkFaceSpec(style) {
   const studio = (style || S.arkCounts.photoStyle || 'blend') === 'studio';
   const quality = studio
-    ? 'çœŸå®žç´ äººæ„Ÿï¼Œä¸æ˜¯ç½‘çº¢è„¸ï¼šäº”å®˜è‡ªç„¶ï¼Œå·¦å³è„¸æœ‰è½»å¾®ä¸å¯¹ç§°ï¼Œçœ¼ç›å¤§å°æ­£å¸¸ï¼Œé¼»å­å’Œå˜´å”‡ä¸è¿½æ±‚å®Œç¾Žï¼›åº•å¦†è½»è–„æŽ¥è¿‘ç´ é¢œï¼Œä¿ç•™çœŸå®žçš®è‚¤çº¹ç†ã€ç»†å°æ¯›å­”å’Œè½»å¾®è‚¤è‰²ä¸å‡ï¼Œä¸è¦æ°´å…‰è‚Œä¸è¦å‡ç«æ¯›ä¸è¦æµ“çœ¼çº¿ï¼›å¤´å‘è‡ªç„¶ï¼Œæœ‰å‡ æ ¹ç¢Žå‘ï¼Œå‘è‰²æŒ‰èº«ä»½æè¿°'
+    ? '真实素人感，不是网红脸：五官自然，左右脸有轻微不对称，眼睛大小正常，鼻子和嘴唇不追求完美；底妆轻薄接近素颜，保留真实皮肤纹理、细小毛孔和轻微肤色不均，不要水光肌不要假睫毛不要浓眼线；头发自然，有几根碎发，发色按身份描述'
     : FACE_QUALITY;
-  return `æ¨¡ç‰¹ï¼š${arkIdentity()}ï¼›${quality}ï¼›åŒä¸€ä¸ªå•†å“çš„æ‰€æœ‰é¢œè‰²å›¾å¿…é¡»æ˜¯åŒä¸€ä½æ¨¡ç‰¹ã€åŒä¸€å¼ è„¸`;
+  return `模特：${arkIdentity()}；${quality}；同一个商品的所有颜色图必须是同一位模特、同一张脸`;
 }
 
 function arkStyleInfo() {
   const i = S.studioInput || {};
-  const styles = (i.styles || []).filter(Boolean).join('ã€') || 'ç®€çº¦é€šå‹¤';
-  const aud = (i.audience || []).filter(Boolean).join('ã€') || 'å¥³å£«';
-  const scene = (i.scene || []).filter(Boolean).join('ã€') || 'æ—¥å¸¸';
-  return `æ•´ä½“é£Žæ ¼ï¼š${styles}ï¼›ç›®æ ‡äººç¾¤ï¼š${aud}ï¼›ç©¿æ­åœºæ™¯ï¼š${scene}`;
+  const styles = (i.styles || []).filter(Boolean).join('、') || '简约通勤';
+  const aud = (i.audience || []).filter(Boolean).join('、') || '女士';
+  const scene = (i.scene || []).filter(Boolean).join('、') || '日常';
+  return `整体风格：${styles}；目标人群：${aud}；穿搭场景：${scene}`;
 }
 
 async function swapGenerate() {
-  if (!S.studioImage) { toast('å…ˆåœ¨ä¸Šé¢ä¸Šä¼ ä½ çš„è¡£æœå®žæ‹å›¾'); return; }
-  if (!S.swapImages.length) { toast('å…ˆä¸Šä¼ è‡³å°‘ä¸€å¼ æ¨¡ç‰¹å§¿åŠ¿å›¾'); return; }
+  if (!S.studioImage) { toast('先在上面上传你的衣服实拍图'); return; }
+  if (!S.swapImages.length) { toast('先上传至少一张模特姿势图'); return; }
   const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
-  if (!ai.apiKey) { toast('å…ˆåŽ»ã€Œè®¾ç½®ã€é‡Œå¡«ç«å±±æ–¹èˆŸ Key'); return; }
+  if (!ai.apiKey) { toast('先去「设置」里填火山方舟 Key'); return; }
   const n = S.swapImages.length;
   const low = (n * 0.1).toFixed(1);
-  if (!confirm(`å¯¹ ${n} å¼ å‚è€ƒå›¾å„å‡º 1 å¼ æ¢è£…å›¾ï¼Œå…± ${n} å¼ ï¼Œçº¦ ${low}~${n} å…ƒï¼Œä»Žä½ çš„æ–¹èˆŸä½™é¢æ‰£ã€‚ç»§ç»­å—ï¼Ÿ`)) return;
+  if (!confirm(`对 ${n} 张参考图各出 1 张换装图，共 ${n} 张，约 ${low}~${n} 元，从你的方舟余额扣。继续吗？`)) return;
   const btn = $('#swapBtn');
   const startedAt = Date.now();
   const timer = setInterval(() => {
     const el = $('#swapStatus');
-    if (el) el.textContent = `æ¢è£…ä¸­â€¦å·²ç­‰ ${Math.round((Date.now() - startedAt) / 1000)} ç§’ï¼Œåˆ«å…³é¡µé¢`;
+    if (el) el.textContent = `换装中…已等 ${Math.round((Date.now() - startedAt) / 1000)} 秒，别关页面`;
   }, 1000);
-  S.swapStatus = `æ­£åœ¨æ¢è£…ï¼ˆ1/${n}ï¼‰â€¦`;
-  if (btn) { btn.disabled = true; btn.textContent = `æ¢è£…ä¸­â€¦ï¼ˆ0/${n}ï¼‰`; }
+  S.swapStatus = `正在换装（1/${n}）…`;
+  if (btn) { btn.disabled = true; btn.textContent = `换装中…（0/${n}）`; }
   renderRoute();
   bindRoute();
 
-  // æ¢è£…å¿…é¡»ä¿ç•™å‚è€ƒå›¾1çš„å§¿åŠ¿å’ŒèƒŒæ™¯ï¼Œæ‰€ä»¥è¿™é‡Œä¸å¸¦ç”Ÿæ´»æ–¹å¼æ”¶å°¾è¯­
+  // 换装必须保留参考图1的姿势和背景，所以这里不带生活方式收尾语
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
   const swapTail = S.arkCounts.noAccessory
-    ? `ï¼Œé¢œè‰²ã€æè´¨çº¹ç†ã€èŠ±çº¹ã€çº½æ‰£ã€å£è¢‹å¿…é¡»ä¸Žå‚è€ƒå›¾2å®Œå…¨ä¸€è‡´ï¼Œä½†ä¸è¦ç”Ÿæˆ${S.arkCounts.accessoryList || 'ä¸å¸¦ã€è´è¶ç»“ç­‰è£…é¥°'}ï¼Œåªä¿ç•™è¡£æœæœ¬ä½“`
-    : 'ï¼Œé¢œè‰²ã€æè´¨çº¹ç†ã€èŠ±çº¹ã€çº½æ‰£ã€å£è¢‹ã€è£…é¥°å¿…é¡»ä¸Žå‚è€ƒå›¾2å®Œå…¨ä¸€è‡´';
+    ? `，颜色、材质纹理、花纹、纽扣、口袋必须与参考图2完全一致，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
+    : '，颜色、材质纹理、花纹、纽扣、口袋、装饰必须与参考图2完全一致';
   let done = 0;
   for (let i = 0; i < n; i++) {
     try {
       const ref = S.swapImages[i];
-      S.swapStatus = `æ­£åœ¨æ¢è£…ç¬¬ ${i + 1}/${n} å¼ â€¦`;
+      S.swapStatus = `正在换装第 ${i + 1}/${n} 张…`;
       const el = $('#swapStatus');
       if (el) el.textContent = S.swapStatus;
       const r = await api('/api/ai/generate', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: SWAP_PROMPT + swapTail + 'ã€‚çœŸå®žç”Ÿæ´»äººåƒæ‘„å½±ï¼šçš®è‚¤æœ‰çœŸå®žçº¹ç†å’Œç»†ç¢Žå‘ä¸ï¼Œä¸ç£¨çš®ä¸å¡‘æ–™æ„Ÿï¼Œéž 3D æ¸²æŸ“éžæ’ç”»ï¼ŒæŸ”å’Œè‡ªç„¶å…‰æœ‰è‡ªç„¶é˜´å½±ï¼ŒèƒŒæ™¯ä¿ç•™å‚è€ƒå›¾1çš„åœºæ™¯æ°›å›´ï¼›æ— æ°´å°ã€æ— æ–‡å­—ã€æ—  logo',
+          prompt: SWAP_PROMPT + swapTail + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景保留参考图1的场景氛围；无水印、无文字、无 logo',
           images: [ref.aiUrl, garment],
           size: '1024x1536',
           negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands'
         })
       });
       const raw = r.dataUrl || r.url;
-      if (!raw) throw new Error('æ–¹èˆŸæ²¡è¿”å›žå›¾ç‰‡');
+      if (!raw) throw new Error('方舟没返回图片');
       const url = await gradePhoto(raw);
-      S.studioAiImages.unshift({ url, label: `æ¢è£…å›¾ï¼ˆå‚è€ƒå›¾ ${i + 1}ï¼‰` });
+      S.studioAiImages.unshift({ url, label: `换装图（参考图 ${i + 1}）` });
       cacheImageNow(url);
       done++;
-      if (btn) btn.textContent = `æ¢è£…ä¸­â€¦ï¼ˆ${done}/${n}ï¼‰`;
+      if (btn) btn.textContent = `换装中…（${done}/${n}）`;
       renderRoute();
       bindRoute();
     } catch (e) {
-      S.swapStatus = `ç¬¬ ${i + 1} å¼ å¤±è´¥ï¼š${(e.body && e.body.message) || e.message}ã€‚å·²æˆåŠŸ ${done} å¼ ï¼Œå¤±è´¥çš„ä¸æ‰£é’±ã€‚`;
+      S.swapStatus = `第 ${i + 1} 张失败：${(e.body && e.body.message) || e.message}。已成功 ${done} 张，失败的不扣钱。`;
       renderRoute();
       bindRoute();
       break;
     }
   }
   clearInterval(timer);
-  if (btn) { btn.disabled = false; btn.textContent = S.swapImages.length ? 'ä¸€é”®å…¨éƒ¨æ¢è£…ï¼ˆ' + S.swapImages.length + ' å¼ ï¼‰' : 'æ¢è£…ç”Ÿæˆï¼ˆæ”¶è´¹ï¼‰'; }
+  if (btn) { btn.disabled = false; btn.textContent = S.swapImages.length ? '一键全部换装（' + S.swapImages.length + ' 张）' : '换装生成（收费）'; }
   if (done === n) {
-    S.swapStatus = `âœ… å…¨éƒ¨å®Œæˆï¼Œå…± ${n} å¼ ï¼Œå›¾åœ¨ä¸‹é¢`;
-    toast('æ¢è£…å®Œæˆ');
+    S.swapStatus = `✅ 全部完成，共 ${n} 张，图在下面`;
+    toast('换装完成');
   }
   renderRoute();
   bindRoute();
 }
 
-const ARK_PHOTO_LIFE = 'çœŸå®žæ‰‹æœºå®žæ‹ã€ä¸æ˜¯æ£šæ‹æµ·æŠ¥ï¼š__LIGHT__ï¼›æ‰‹æœºåŽç½®ä¸»æ‘„ __LENS__ æ‹æ‘„ï¼Œæœ‰ç»†å¾®èƒ¶ç‰‡é¢—ç²’ï¼›ä¸­æ™¯ååŠèº«æž„å›¾ã€é•œå¤´ç•¥å¾®åŽé€€ï¼Œäººç‰©å’Œæ¯›è¡£å ç”»é¢ 60%~75%ï¼Œå¤´éƒ¨ä¸Šæ–¹ç•™å‡ºç©ºé—´ã€ä¸è¦æŠŠè„¸é¡¶åˆ°ç”»é¢é¡¶éƒ¨ï¼Œè£¤å­åªéœ²ä¸€ç‚¹ï¼Œä¸æ‹å…¨èº«ä¸æ‹éž‹ï¼›èƒŒæ™¯æ˜¯çœŸå®žç”Ÿæ´»åœºæ™¯çš„è‡ªç„¶æµ…æ™¯æ·±ï¼Œè¿‘å¤„å¢™é¢æ¡Œæ¤…çª—æ¡†ç»¿æ¤èƒ½çœ‹å‡ºå½¢çŠ¶å’Œæè´¨ï¼Œè¿œå¤„é€æ¸æŸ”åŒ–ï¼Œä¸æ˜¯ç³Šæˆä¸€ç‰‡å¥¶æ²¹ï¼›çš®è‚¤æœ‰çœŸå®žè´¨æ„Ÿï¼šå¯è§ç»†å°æ¯›å­”å’Œç»’æ¯›ã€è½»å¾®è‚¤è‰²ä¸å‡ã€çœ¼ä¸‹å’Œé¼»ç¿¼æœ‰è‡ªç„¶é˜´å½±ï¼Œä¸æ˜¯ç£¨çš®ä¸æ˜¯å¡‘æ–™ï¼›æ¯›è¡£æ¯›ç»’è“¬æ¾æŸ”è½¯ã€ç»’æ„Ÿæ¸…æ™°å¯è§ï¼Œé¢æ–™å¹²å‡€å¹³æ•´æ²¡æœ‰èµ·çƒè„æ—§ï¼Œæœ‰è‡ªç„¶è¤¶çš±å’ŒåŽšåº¦ï¼Œçº½æ‰£è´¨æ„ŸçœŸå®žï¼›æ¨¡ç‰¹è¡¨æƒ…è‡ªç„¶æ”¾æ¾ã€åƒæœ‹å‹éšæ‰‹æŠ“æ‹çš„ä¸€çž¬é—´ï¼Œæž„å›¾ç•¥å¾®ä¸å®Œç¾Žï¼›å¤´å‘å“‘å…‰è‡ªç„¶ã€æœ‰ç¢Žå‘å’Œå±‚æ¬¡ï¼›åªå‡ºçŽ°ä¸¤åªæ‰‹ã€äº”æŒ‡æ•°é‡æ­£ç¡®ã€æ‰‹æŒ‡ç»“æž„è‡ªç„¶ï¼›æœè£…é¢œè‰²ã€èŠ±çº¹ã€æè´¨ã€çº½æ‰£ã€å£è¢‹ä¸Žå‚è€ƒå›¾å®Œå…¨ä¸€è‡´ï¼›æ— æ°´å°ã€æ— æ–‡å­—ã€æ—  logoï¼›ä¸è¦è¿‡åº¦ç£¨çš®ã€ä¸è¦å¡‘æ–™æ„Ÿã€ä¸è¦æµ·æŠ¥æ„Ÿã€ä¸è¦æ’ç”»æˆ– 3D æ¸²æŸ“æ„Ÿã€ä¸è¦æš–æ©™æ»¤é•œ';
+const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机后置主摄 __LENS__ 拍摄，有细微胶片颗粒；中景偏半身构图、镜头略微后退，人物和毛衣占画面 60%~75%，头部上方留出空间、不要把脸顶到画面顶部，裤子只露一点，不拍全身不拍鞋；背景是真实生活场景的自然浅景深，近处墙面桌椅窗框绿植能看出形状和材质，远处逐渐柔化，不是糊成一片奶油；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；毛衣毛绒蓬松柔软、绒感清晰可见，面料干净平整没有起球脏旧，有自然褶皱和厚度，纽扣质感真实；模特表情自然放松、像朋友随手抓拍的一瞬间，构图略微不完美；头发哑光自然、有碎发和层次；只出现两只手、五指数量正确、手指结构自然；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要过度磨皮、不要塑料感、不要海报感、不要插画或 3D 渲染感、不要暖橙滤镜';
 
-// æ¯ä¸ªå•†å“éšæœºä¸€ä½æ¨¡ç‰¹ï¼ˆè„¸åž‹/å‘åž‹/èº«é«˜/å¹´çºªéƒ½ä¸åŒï¼‰ï¼ŒåŒä¸€å•†å“çš„å„é¢œè‰²ä»å…±ç”¨åŒä¸€å¼ è„¸
+// 每个商品随机一位模特（脸型/发型/身高/年纪都不同），同一商品的各颜色仍共用同一张脸
 const ARK_IDENTITIES = [
-  '23 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€é¼»æ¢ç§€æ°”ã€å•çœ¼çš®å†…åŒï¼Œæ£•é»‘è‰²ä¸­é•¿å‘å¾®å·ã€é½çœ‰ç¢Žåˆ˜æµ·ã€å‘æ¢¢åˆšè¿‡è‚©ï¼Œèº«é«˜ 163cmã€èº«å½¢çº¤ç»†',
-  '25 å²äºšæ´²å¥³ç”Ÿï¼Œå°åœ†è„¸ã€çœ¼ç›ååœ†ã€è‹¹æžœè‚Œæ˜Žæ˜¾ï¼Œæ·±æ£•è‰²å¤§æ³¢æµªé•¿å·å‘ã€æ³•å¼ç©ºæ°”åˆ˜æµ·ã€å‘é‡è“¬æ¾ï¼Œèº«é«˜ 168cmã€èº«æåŒ€ç§°',
-  '22 å²äºšæ´²å¥³ç”Ÿï¼Œç“œå­è„¸ã€çœ¼å°¾ç•¥å¾®ä¸Šæ‰¬ã€å”‡å½¢å°å·§ï¼Œé»‘è‰²é•¿ç›´å‘ä¸­åˆ†ã€å‘å°¾å¾®å†…æ‰£ï¼Œèº«é«˜ 170cmã€èº«å½¢é«˜æŒ‘åç˜¦',
-  '26 å²äºšæ´²å¥³ç”Ÿï¼Œè„¸åž‹åé•¿ã€äº”å®˜ç«‹ä½“ã€é¼»å¤´å°å·§ï¼Œæ —æ£•è‰²çŸ­é”éª¨å‘å¸¦è½»å¾®å†…æ‰£ã€å…«å­—åˆ˜æµ·ï¼Œèº«é«˜ 165cmã€èº«æè‹—æ¡',
-  '24 å²äºšæ´²å¥³ç”Ÿï¼Œè„¸é¢Šæœ‰ç‚¹å©´å„¿è‚¥ã€åœ†åœ†çš„çœ¼ç›ã€ç¬‘èµ·æ¥æœ‰å§èš•ï¼Œæ·±æ —è‰²å¤§æ³¢æµªåŠèƒ¸é•¿å‘ã€ä¾§åˆ†åˆ˜æµ·ï¼Œèº«é«˜ 160cmã€èº«å½¢å¨‡å°',
-  '27 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€é¼»æ¢é«˜ã€çœ¼åž‹åç»†é•¿ï¼Œå†·æ£•è‰²é¡ºç›´é•¿å‘ã€ä¸­åˆ†ã€å‡ ç¼•ç¢Žå‘ï¼Œèº«é«˜ 172cmã€æ°”è´¨åæˆç†Ÿ',
-  '21 å²äºšæ´²å¥³ç”Ÿï¼Œå°å°ä¸€å¼ è„¸ã€çœ¼ç›å¤§è€Œåœ†ã€å˜´å”‡é¥±æ»¡ï¼Œå¥¶èŒ¶æ£•å¾®å·é•¿å‘ã€æ¼«ç”»åˆ˜æµ·ã€å‘æ¢¢è“¬æ¾ï¼Œèº«é«˜ 158cmã€èº«å½¢å°å·§',
-  '25 å²äºšæ´²å¥³ç”Ÿï¼Œé¢§éª¨ç•¥é«˜ã€é¢éƒ¨çº¿æ¡æ¸…æ¥šã€ä¸‹é¢Œçº¿åˆ©è½ï¼Œé»‘èŒ¶è‰²å¾®å·è¿‡è‚©å‘ã€ååˆ†ï¼Œèº«é«˜ 166cmã€èº«å½¢åŒ€ç§°',
-  '23 å²äºšæ´²å¥³ç”Ÿï¼Œè„¸åž‹æŸ”å’Œã€çœ¼è·ç•¥å®½ã€çœ¼ç›æ¸…äº®ï¼Œé»‘è‰²å¤§æ³¢æµªé•¿å·å‘ã€ç©ºæ°”åˆ˜æµ·ï¼Œèº«é«˜ 164cmã€èº«æåŒ€ç§°',
-  '28 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€çœ¼ç¥žæ¸©å©‰ã€å”‡å½¢è–„è€Œæ¸…æ™°ï¼Œæ·±æ£•è‰²ä½Žç›˜å‘ã€ä¸¤ä¾§å‡ ç¼•ç¢Žå‘ï¼Œèº«é«˜ 162cmã€æ°”è´¨çŸ¥æ€§',
-  '24 å²äºšæ´²å¥³ç”Ÿï¼Œå°æ–¹è„¸åæŸ”ã€çœ¼å°¾ç•¥ä¸‹åž‚ã€é¼»å­å°å·§ï¼Œé»‘è‰²é•¿ç›´å‘ä½Žé©¬å°¾ã€é¢å‰ç¢Žå‘ï¼Œèº«é«˜ 169cmã€èº«å½¢ä¿®é•¿',
-  '22 å²äºšæ´²å¥³ç”Ÿï¼Œåœ†æ¶¦å¨ƒå¨ƒè„¸ã€çœ¼ç›ç•¥åœ†ã€å§èš•è‡ªç„¶ï¼Œæµ…æ£•è‰²é½è‚©å¾®å·å‘ã€ç¢Žåˆ˜æµ·ï¼Œèº«é«˜ 161cmã€èº«å½¢çº¤ç»†',
-  '29 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€çœ¼çªç¨æ·±ã€å”‡è‰²åæµ…ï¼Œæ·±æ£•è‰²é•¿ç›´å‘ä½Žå‘é«»ã€é¬“è§’ç¢Žå‘ï¼Œèº«é«˜ 167cmã€æ°”è´¨å®‰é™',
-  '23 å²äºšæ´²å¥³ç”Ÿï¼Œè„¸åž‹æ¸…ç˜¦ã€é¢§éª¨æŸ”å’Œã€çœ¼ç›å†…åŒï¼Œé»‘è‰²åŠè…°é•¿ç›´å‘åŠæ‰Žã€å‰é¢ç•™ä¸¤ç¼•ç¢Žå‘ï¼Œèº«é«˜ 171cmã€èº«å½¢åç˜¦',
-  '26 å²äºšæ´²å¥³ç”Ÿï¼Œåœ†è„¸ã€é¼»å¤´ç•¥åœ†ã€å˜´å”‡é¥±æ»¡ï¼Œçº¢æ£•è‰²å¤§å·å‘åŠèƒ¸ã€æ–œåˆ†åˆ˜æµ·ï¼Œèº«é«˜ 165cmã€å¾®èƒ–åŒ€ç§°',
-  '24 å²äºšæ´²å¥³ç”Ÿï¼Œè±å½¢è„¸åæŸ”ã€çœ¼åž‹ç»†é•¿ã€é¼»æ¢ç›´ï¼Œç„¦ç³–æ£•è‰²ä¸­é•¿å¾®å·å‘ã€ä¸­åˆ†ã€å‘å°¾å¤–ç¿»ï¼Œèº«é«˜ 164cmã€èº«å½¢åŒ€ç§°',
-  '25 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€çš®è‚¤åç™½ã€åŒçœ¼çš®æ¸…æ¥šï¼Œé»‘è‰²æ³¢æ³¢å¤´çŸ­å‘ã€é½åˆ˜æµ·ï¼Œèº«é«˜ 158cmã€èº«å½¢å¨‡å°',
-  '22 å²äºšæ´²å¥³ç”Ÿï¼Œå°åœ†è„¸ã€çœ¼ç›åœ†è€Œäº®ã€å§èš•æ˜Žæ˜¾ï¼Œç°æ£•è‰²é½è‚©å·å‘ã€ç¢Žåˆ˜æµ·ï¼Œèº«é«˜ 162cmã€èº«å½¢çº¤ç»†',
-  '27 å²äºšæ´²å¥³ç”Ÿï¼Œè„¸åž‹åçª„ã€ä¸‹å·´å°å·§ã€çœ¼ç¥žæ¸…å†·ï¼Œé»‘è‰²é•¿å‘ä¸­åˆ†é…çç å‘å¤¹ï¼Œèº«é«˜ 170cmã€èº«å½¢é«˜æŒ‘',
-  '24 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€çœ¼ç›åœ†ã€å§èš•æ˜Žæ˜¾ï¼Œäºšéº»æ£•è‰²é½è‚©ç¾Šæ¯›å·ã€ä¸­åˆ†ï¼Œèº«é«˜ 165cmã€èº«å½¢åŒ€ç§°',
-  '22 å²äºšæ´²å¥³ç”Ÿï¼Œå°åœ†è„¸ã€çš®è‚¤åç™½ã€å•çœ¼çš®ï¼Œé»‘è‰²é«˜é©¬å°¾ã€é¢å‰ç¢Žå‘ï¼Œèº«é«˜ 163cmã€èº«å½¢çº¤ç»†',
-  '26 å²äºšæ´²å¥³ç”Ÿï¼Œçª„é•¿è„¸ã€é¼»æ¢æŒºã€å”‡å½¢è–„ï¼Œæ·±æ£•è‰²ä½Žä¸¸å­å¤´ã€é¬“è§’ç¢Žå‘ï¼Œèº«é«˜ 168cmã€æ°”è´¨å¹²å‡€',
-  '23 å²äºšæ´²å¥³ç”Ÿï¼Œå¿ƒå½¢è„¸ã€ä¸‹å·´å°–ã€çœ¼ç›å†…åŒï¼Œé»‘è‰²é½è€³çŸ­å‘ã€ç¢Žåˆ˜æµ·ï¼Œèº«é«˜ 161cmã€èº«å½¢å°å·§',
-  '25 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€çœ¼è·ç•¥çª„ã€é¼»å¤´å°å·§ï¼Œå¥¶èŒ¶è‰²ä¸­é•¿ç›´å‘ã€å…«å­—åˆ˜æµ·ï¼Œèº«é«˜ 167cmã€é•¿è…¿åŒ€ç§°',
-  '24 å²äºšæ´²å¥³ç”Ÿï¼Œè„¸åž‹æŸ”å’Œã€è‹¹æžœè‚Œã€ç¬‘èµ·æ¥æœ‰æ¢¨æ¶¡ï¼Œæ·±æ£•è‰²ä¾§ç¼–å‘ã€å‘å°¾å¾®å·ï¼Œèº«é«˜ 162cmã€èº«å½¢çº¤ç»†',
-  '28 å²äºšæ´²å¥³ç”Ÿï¼Œé¢§éª¨çº¿æ¡æŸ”å’Œã€çœ¼åž‹ç»†é•¿ã€æ°”è´¨æ¸©å©‰ï¼Œé»‘èŒ¶è‰²ä½Žé©¬å°¾ã€ä¸­åˆ†ï¼Œèº«é«˜ 166cmã€èº«å½¢ä¿®é•¿',
-  '21 å²äºšæ´²å¥³ç”Ÿï¼Œå¨ƒå¨ƒè„¸ã€çœ¼ç›å¤§è€Œåœ†ã€å”‡å½¢é¥±æ»¡ï¼Œæ£•é»‘è‰²åŒéº»èŠ±è¾«ã€ç©ºæ°”åˆ˜æµ·ï¼Œèº«é«˜ 159cmã€èº«å½¢å¨‡å°',
-  '27 å²äºšæ´²å¥³ç”Ÿï¼Œè„¸åž‹ç«‹ä½“ã€é¼»æ¢ç›´ã€ä¸‹é¢Œçº¿æ¸…æ¥šï¼Œå†·æ£•è‰²åŠè‚©å¤–ç¿»å·å‘ã€ååˆ†ï¼Œèº«é«˜ 171cmã€èº«å½¢é«˜ç˜¦',
-  '23 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€çœ¼å°¾ç•¥ä¸Šæ‰¬ã€å§èš•è‡ªç„¶ï¼Œé»‘è‰²é•¿ç›´å‘åŠæ‰Žã€ç•™ä¸¤ç¼•ç¢Žå‘ï¼Œèº«é«˜ 164cmã€åŒ€ç§°',
-  '25 å²äºšæ´²å¥³ç”Ÿï¼Œå°æ–¹è„¸åæŸ”ã€é¼»å­ç§€æ°”ã€å˜´å”‡é¥±æ»¡ï¼Œæ —æ£•è‰²ç¾Šæ¯›å·çŸ­å‘ã€æ³•å¼åˆ˜æµ·ï¼Œèº«é«˜ 160cmã€å¾®èƒ–å¯çˆ±',
-  '26 å²äºšæ´²å¥³ç”Ÿï¼Œè„¸åž‹æ¸…ç˜¦ã€çœ¼çªå¾®æ·±ã€çœ¼ç¥žæ¸©æŸ”ï¼Œæ·±æ£•è‰²ä¸­é•¿å¾®å·å‘ã€ä¾§åˆ†åˆ«åœ¨è€³åŽï¼Œèº«é«˜ 169cmã€èº«å½¢çº¤ç»†',
-  '22 å²äºšæ´²å¥³ç”Ÿï¼Œç“œå­è„¸ã€åŒçœ¼çš®æ¸…æ¥šã€çš®è‚¤ç™½çš™ï¼Œé»‘è‰²é«˜é¢…é¡¶ä¸¸å­å¤´ã€ç¢Žå‘ä¿®é¥°è„¸åž‹ï¼Œèº«é«˜ 162cmã€èº«å½¢å°å·§',
-  '29 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€äº”å®˜èˆ’å±•ã€å”‡è‰²è‡ªç„¶ï¼Œç„¦ç³–æ£•å¤§æ³¢æµªé•¿å‘ã€ä¸­åˆ†ï¼Œèº«é«˜ 168cmã€æ°”è´¨æˆç†ŸçŸ¥æ€§',
-  '24 å²äºšæ´²å¥³ç”Ÿï¼Œè„¸åž‹ååœ†ã€çœ¼ç›æ¸…äº®ã€é¼»å°–å¾®ç¿˜ï¼Œé»‘è‰²æ³¢æ³¢å¤´å¸¦å†…æ‰£ã€é½çœ‰åˆ˜æµ·ï¼Œèº«é«˜ 161cmã€èº«å½¢åŒ€ç§°',
-  '27 å²äºšæ´²å¥³ç”Ÿï¼Œè±å½¢è„¸ã€çœ¼åž‹ç»†é•¿ã€é”éª¨æ˜Žæ˜¾ï¼Œæ·±æ£•åé»‘é•¿ç›´å‘ã€ä½Žå‘é«»ã€è€³è¾¹ç•™ç¢Žå‘ï¼Œèº«é«˜ 170cmã€èº«å½¢é«˜æŒ‘',
-  '23 å²äºšæ´²å¥³ç”Ÿï¼Œé¹…è›‹è„¸ã€å§èš•æ˜Žæ˜¾ã€ç¬‘èµ·æ¥å¾ˆç”œï¼Œæµ…èŒ¶è‰²é½èƒ¸å·å‘ã€ç©ºæ°”åˆ˜æµ·ï¼Œèº«é«˜ 165cmã€èº«å½¢è‹—æ¡'
+  '23 岁亚洲女生，鹅蛋脸、鼻梁秀气、单眼皮内双，棕黑色中长发微卷、齐眉碎刘海、发梢刚过肩，身高 163cm、身形纤细',
+  '25 岁亚洲女生，小圆脸、眼睛偏圆、苹果肌明显，深棕色大波浪长卷发、法式空气刘海、发量蓬松，身高 168cm、身材匀称',
+  '22 岁亚洲女生，瓜子脸、眼尾略微上扬、唇形小巧，黑色长直发中分、发尾微内扣，身高 170cm、身形高挑偏瘦',
+  '26 岁亚洲女生，脸型偏长、五官立体、鼻头小巧，栗棕色短锁骨发带轻微内扣、八字刘海，身高 165cm、身材苗条',
+  '24 岁亚洲女生，脸颊有点婴儿肥、圆圆的眼睛、笑起来有卧蚕，深栗色大波浪及胸长发、侧分刘海，身高 160cm、身形娇小',
+  '27 岁亚洲女生，鹅蛋脸、鼻梁高、眼型偏细长，冷棕色顺直长发、中分、几缕碎发，身高 172cm、气质偏成熟',
+  '21 岁亚洲女生，小小一张脸、眼睛大而圆、嘴唇饱满，奶茶棕微卷长发、漫画刘海、发梢蓬松，身高 158cm、身形小巧',
+  '25 岁亚洲女生，颧骨略高、面部线条清楚、下颌线利落，黑茶色微卷过肩发、偏分，身高 166cm、身形匀称',
+  '23 岁亚洲女生，脸型柔和、眼距略宽、眼睛清亮，黑色大波浪长卷发、空气刘海，身高 164cm、身材匀称',
+  '28 岁亚洲女生，鹅蛋脸、眼神温婉、唇形薄而清晰，深棕色低盘发、两侧几缕碎发，身高 162cm、气质知性',
+  '24 岁亚洲女生，小方脸偏柔、眼尾略下垂、鼻子小巧，黑色长直发低马尾、额前碎发，身高 169cm、身形修长',
+  '22 岁亚洲女生，圆润娃娃脸、眼睛略圆、卧蚕自然，浅棕色齐肩微卷发、碎刘海，身高 161cm、身形纤细',
+  '29 岁亚洲女生，鹅蛋脸、眼窝稍深、唇色偏浅，深棕色长直发低发髻、鬓角碎发，身高 167cm、气质安静',
+  '23 岁亚洲女生，脸型清瘦、颧骨柔和、眼睛内双，黑色及腰长直发半扎、前面留两缕碎发，身高 171cm、身形偏瘦',
+  '26 岁亚洲女生，圆脸、鼻头略圆、嘴唇饱满，红棕色大卷发及胸、斜分刘海，身高 165cm、微胖匀称',
+  '24 岁亚洲女生，菱形脸偏柔、眼型细长、鼻梁直，焦糖棕色中长微卷发、中分、发尾外翻，身高 164cm、身形匀称',
+  '25 岁亚洲女生，鹅蛋脸、皮肤偏白、双眼皮清楚，黑色波波头短发、齐刘海，身高 158cm、身形娇小',
+  '22 岁亚洲女生，小圆脸、眼睛圆而亮、卧蚕明显，灰棕色齐肩卷发、碎刘海，身高 162cm、身形纤细',
+  '27 岁亚洲女生，脸型偏窄、下巴小巧、眼神清冷，黑色长发中分配珍珠发夹，身高 170cm、身形高挑',
+  '24 岁亚洲女生，鹅蛋脸、眼睛圆、卧蚕明显，亚麻棕色齐肩羊毛卷、中分，身高 165cm、身形匀称',
+  '22 岁亚洲女生，小圆脸、皮肤偏白、单眼皮，黑色高马尾、额前碎发，身高 163cm、身形纤细',
+  '26 岁亚洲女生，窄长脸、鼻梁挺、唇形薄，深棕色低丸子头、鬓角碎发，身高 168cm、气质干净',
+  '23 岁亚洲女生，心形脸、下巴尖、眼睛内双，黑色齐耳短发、碎刘海，身高 161cm、身形小巧',
+  '25 岁亚洲女生，鹅蛋脸、眼距略窄、鼻头小巧，奶茶色中长直发、八字刘海，身高 167cm、长腿匀称',
+  '24 岁亚洲女生，脸型柔和、苹果肌、笑起来有梨涡，深棕色侧编发、发尾微卷，身高 162cm、身形纤细',
+  '28 岁亚洲女生，颧骨线条柔和、眼型细长、气质温婉，黑茶色低马尾、中分，身高 166cm、身形修长',
+  '21 岁亚洲女生，娃娃脸、眼睛大而圆、唇形饱满，棕黑色双麻花辫、空气刘海，身高 159cm、身形娇小',
+  '27 岁亚洲女生，脸型立体、鼻梁直、下颌线清楚，冷棕色及肩外翻卷发、偏分，身高 171cm、身形高瘦',
+  '23 岁亚洲女生，鹅蛋脸、眼尾略上扬、卧蚕自然，黑色长直发半扎、留两缕碎发，身高 164cm、匀称',
+  '25 岁亚洲女生，小方脸偏柔、鼻子秀气、嘴唇饱满，栗棕色羊毛卷短发、法式刘海，身高 160cm、微胖可爱',
+  '26 岁亚洲女生，脸型清瘦、眼窝微深、眼神温柔，深棕色中长微卷发、侧分别在耳后，身高 169cm、身形纤细',
+  '22 岁亚洲女生，瓜子脸、双眼皮清楚、皮肤白皙，黑色高颅顶丸子头、碎发修饰脸型，身高 162cm、身形小巧',
+  '29 岁亚洲女生，鹅蛋脸、五官舒展、唇色自然，焦糖棕大波浪长发、中分，身高 168cm、气质成熟知性',
+  '24 岁亚洲女生，脸型偏圆、眼睛清亮、鼻尖微翘，黑色波波头带内扣、齐眉刘海，身高 161cm、身形匀称',
+  '27 岁亚洲女生，菱形脸、眼型细长、锁骨明显，深棕偏黑长直发、低发髻、耳边留碎发，身高 170cm、身形高挑',
+  '23 岁亚洲女生，鹅蛋脸、卧蚕明显、笑起来很甜，浅茶色齐胸卷发、空气刘海，身高 165cm、身形苗条'
 ];
 
-// ç¯å…‰å’Œé•œå¤´çš„ç»†å¾®å·®å¼‚ï¼Œä¿è¯ä¸åŒå•†å“èƒŒæ™¯ä¸Žæ°›å›´ä¸æ’ž
+// 灯光和镜头的细微差异，保证不同商品背景与氛围不撞
 const ARK_LIGHTS = [
-  'ä»Žä¸€ä¾§çª—æˆ·ç…§è¿›æ¥çš„æŸ”å’Œè‡ªç„¶å…‰ï¼Œé˜´å½±æŸ”å’Œè¿‡æ¸¡è‡ªç„¶',
-  'é˜´å¤©æ¼«å°„çš„æ—¥å…‰ï¼Œæ˜Žäº®å‡åŒ€ã€é¢œè‰²çœŸå®žä¸åè‰²',
-  'æ¸…æ™¨ä¾§é€†å…‰ï¼Œå‘ä¸æœ‰æŸ”å’Œè½®å»“å…‰ï¼Œé¢éƒ¨æœ‰è‡ªç„¶è¡¥å…‰',
-  'é»„é‡‘æ—¶åˆ»çš„ä¾§å…‰ï¼Œé˜³å…‰ä»Žä¾§é¢45åº¦ç…§å…¥ï¼Œå…‰çº¿æ¸©æš–ä½†ä¸å‘æ©˜',
-  'å’–å•¡é¦†çª—è¾¹æ—¥å…‰ï¼ŒèƒŒæ™¯æœ‰æŸ”å’Œå…‰æ–‘ï¼Œä¸»å…‰è‡ªç„¶æŸ”å’Œ',
-  'ä¸Šåˆæ˜Žäº®çš„è‡ªç„¶å…‰ï¼Œåå†·ç™½ã€å¹²å‡€é€šé€',
-  'çº±å¸˜æŸ”åŒ–åŽçš„æ—¥å…‰ï¼Œå…‰çº¿æŸ”å’Œå‘äº®ï¼Œæ•´ä½“æ¸…çˆ½',
-  'å®¤å†…é¡¶ç¯åŠ çª—è¾¹æ—¥å…‰æ··åˆï¼Œæ˜Žäº®è‡ªç„¶ã€é¢œè‰²å‡†ç¡®'
+  '从一侧窗户照进来的柔和自然光，阴影柔和过渡自然',
+  '阴天漫射的日光，明亮均匀、颜色真实不偏色',
+  '清晨侧逆光，发丝有柔和轮廓光，面部有自然补光',
+  '黄金时刻的侧光，阳光从侧面45度照入，光线温暖但不发橘',
+  '咖啡馆窗边日光，背景有柔和光斑，主光自然柔和',
+  '上午明亮的自然光，偏冷白、干净通透',
+  '纱帘柔化后的日光，光线柔和发亮，整体清爽',
+  '室内顶灯加窗边日光混合，明亮自然、颜色准确'
 ];
 const ARK_LENSES = ['50mm f/2.0', '85mm f/2.0', '35mm f/2.8', '50mm f/2.8'];
-const ARK_WBS = ['çœŸå®žè‡ªç„¶è‰²å½©ï¼Œè‚¤è‰²é€šé€è‡ªç„¶', 'ä¸­æ€§ç™½å¹³è¡¡ï¼Œé¢œè‰²å‡†ç¡®ä¸åé»„', 'è½»å¾®åå†·ç™½ï¼Œå¹²å‡€é€šé€', 'è‡ªç„¶æ—¥å…‰ç™½å¹³è¡¡ï¼Œè‚¤è‰²é€šé€'];
+const ARK_WBS = ['真实自然色彩，肤色通透自然', '中性白平衡，颜色准确不偏黄', '轻微偏冷白，干净通透', '自然日光白平衡，肤色通透'];
 
 
-const ARK_PHOTO_STUDIO = 'çœŸå®žç”µå•†å•†å“å®žæ‹ï¼Œä¸æ˜¯æµ·æŠ¥ã€ä¸æ˜¯å°çº¢ä¹¦ç§è‰å›¾ï¼šæ˜Žäº®å‡åŒ€çš„æŸ”å…‰ï¼Œä¸­æ€§ç™½å¹³è¡¡ï¼Œè‚¤è‰²è‡ªç„¶ä¸åé»„ä¸åæ©™ï¼›èƒŒæ™¯åªæœ‰ä¸€ä¸ªé¢œè‰²ã€å¹³æ•´å¹²å‡€ï¼Œæ²¡æœ‰æ‚ç‰©é“å…·æ–‡å­—å’Œ logoï¼ŒèƒŒæ™¯åœ¨æ¸…æ™°å¯¹ç„¦å†…ä¸è¦è™šåŒ–ç³ŠæŽ‰ï¼›é•œå¤´ 50mm f/4ï¼Œäººç‰©å’Œè¡£æœéƒ½æ¸…æ™°ï¼Œé’ˆç»‡çº¹ç†ã€ç»’æ¯›ã€çº½æ‰£ã€èµ°çº¿ã€å£è¢‹è¾¹ç¼˜éƒ½çœ‹å¾—æ¸…ï¼›æ¨¡ç‰¹çœŸå®žç´ äººæ„Ÿï¼Œäº”å®˜è‡ªç„¶ã€å·¦å³è„¸è½»å¾®ä¸å¯¹ç§°ã€çš®è‚¤æœ‰çœŸå®žæ¯›å­”å’Œç»†å¾®è‚¤è‰²ä¸å‡ã€å˜´å”‡æœ‰è‡ªç„¶å”‡çº¹ï¼Œä¸æ˜¯ç½‘çº¢è„¸ä¸æ˜¯æ•´å®¹è„¸ä¸æ˜¯ 3D å»ºæ¨¡è„¸ï¼›è¡¨æƒ…è‡ªç„¶çœ‹é•œå¤´ï¼›ä¸­æ™¯ååŠèº«æž„å›¾ã€é•œå¤´ç•¥å¾®åŽé€€ï¼Œä¸Šè¡£å ç”»é¢ 60%~78%ï¼Œå¤´éƒ¨ä¸Šæ–¹ç•™ç©ºé—´ï¼Œè£¤å­åªéœ²ä¸€ç‚¹ï¼Œä¸æ‹å…¨èº«ä¸æ‹éž‹ï¼›å§¿åŠ¿è‡ªç„¶æ”¾æ¾ï¼Œè‚©è†€å¾®ä¾§ï¼ŒåŒæ‰‹è‡ªç„¶ä¸æ‘†æ‹ï¼›æœè£…é¢œè‰²ã€èŠ±çº¹ã€æè´¨ã€çº½æ‰£ã€å£è¢‹ä¸Žå‚è€ƒå›¾å®Œå…¨ä¸€è‡´ï¼›æ— æ°´å°ã€æ— æ–‡å­—ã€æ—  logoï¼›ä¸è¦æš–æ©™æ»¤é•œã€ä¸è¦è¿‡åº¦ç£¨çš®ã€ä¸è¦å¡‘æ–™æ„Ÿã€ä¸è¦æ’ç”»æˆ– 3D æ¸²æŸ“æ„Ÿ';
+const ARK_PHOTO_STUDIO = '真实电商商品实拍，不是海报、不是小红书种草图：明亮均匀的柔光，中性白平衡，肤色自然不偏黄不偏橙；背景只有一个颜色、平整干净，没有杂物道具文字和 logo，背景在清晰对焦内不要虚化糊掉；镜头 50mm f/4，人物和衣服都清晰，针织纹理、绒毛、纽扣、走线、口袋边缘都看得清；模特真实素人感，五官自然、左右脸轻微不对称、皮肤有真实毛孔和细微肤色不均、嘴唇有自然唇纹，不是网红脸不是整容脸不是 3D 建模脸；表情自然看镜头；中景偏半身构图、镜头略微后退，上衣占画面 60%~78%，头部上方留空间，裤子只露一点，不拍全身不拍鞋；姿势自然放松，肩膀微侧，双手自然不摆拍；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要暖橙滤镜、不要过度磨皮、不要塑料感、不要插画或 3D 渲染感';
 
 const ARK_PHOTO = ARK_PHOTO_LIFE;
 
-const SWAP_PROMPT = 'å‚è€ƒå›¾1æ˜¯æ¨¡ç‰¹å§¿åŠ¿å’Œæž„å›¾ï¼Œå‚è€ƒå›¾2æ˜¯æˆ‘è¦å–çš„è¡£æœå®žæ‹ã€‚è¯·ç”Ÿæˆä¸€å¼ å…¨æ–°ç…§ç‰‡ï¼šå®Œå…¨ä¿ç•™å‚è€ƒå›¾1çš„å§¿åŠ¿ã€é•œå¤´è§’åº¦ã€æž„å›¾å’ŒèƒŒæ™¯æ°›å›´ï¼›æŠŠäººç‰©è„¸æ¢æˆä¸€ä½å…¨æ–°çš„ã€ä¸Žå‚è€ƒå›¾1ä¸åŒçš„äºšæ´²å¹´è½»å¥³æ€§ï¼Œç²¾è‡´å°ç“œå­è„¸ã€å¤§çœ¼ç›åŒçœ¼çš®ã€é¼»æ¢æŒºç§€ã€å”‡å½¢å°å·§ã€çš®è‚¤ç™½çš™ã€ä¼ªç´ é¢œå¦†ï¼Œç¬¦åˆå½“ä¸‹æµè¡Œå®¡ç¾Žï¼Œä¸èƒ½æ˜¯å‚è€ƒå›¾1åŽŸå›¾çš„è„¸ï¼›æŠŠèº«ä¸Šçš„è¡£æœæ¢æˆå‚è€ƒå›¾2è¿™ä»¶';
+const SWAP_PROMPT = '参考图1是模特姿势和构图，参考图2是我要卖的衣服实拍。请生成一张全新照片：完全保留参考图1的姿势、镜头角度、构图和背景氛围；把人物脸换成一位全新的、与参考图1不同的亚洲年轻女性，精致小瓜子脸、大眼睛双眼皮、鼻梁挺秀、唇形小巧、皮肤白皙、伪素颜妆，符合当下流行审美，不能是参考图1原图的脸；把身上的衣服换成参考图2这件';
 
-/* ===== ç”Ÿæ´»ç§è‰ï¼šå§¿åŠ¿æ±  + åœºæ™¯æ± ï¼ˆæŒ‰é£Žæ ¼è‡ªåŠ¨åŒ¹é…ï¼Œéšæœºä¸é‡å¤ï¼‰ ===== */
+/* ===== 生活种草：姿势池 + 场景池（按风格自动匹配，随机不重复） ===== */
 const LIFE_POSES = [
-  'ååœ¨æœ¨æ¡Œæ—ï¼Œä¸€åªæ‰‹æ’‘ç€ä¸‹å·´ï¼Œå¦ä¸€åªæ‰‹æ”¾åœ¨æ¡Œé¢ä¸Šæ‰¶ç€çŽ»ç’ƒæ¯ï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ååœ¨æ²™å‘ä¸Šï¼Œä¸€åªæ‰‹æ’‘ç€è„¸é¢Šï¼Œå¦ä¸€åªæ‰‹æ”¾åœ¨è…¿ä¸Šï¼Œèº«ä½“å¾®å¾®ä¾§å‘é•œå¤´',
-  'ååœ¨æ¡Œè¾¹ï¼Œä¸€åªæ‰‹æ‰¶ç€æ¯å­ï¼Œå¦ä¸€åªæ‰‹è‡ªç„¶æ­åœ¨æ¡Œæ²¿ï¼Œè‚©è†€æ”¾æ¾',
-  'ä¾§èº«é åœ¨æ²™å‘èƒŒä¸Šï¼Œä¸€åªæ‰‹æ­åœ¨æ‰¶æ‰‹ä¸Šï¼Œå¤´å¾®å¾®ä¾§å‘é•œå¤´',
-  'ååœ¨æ¤…å­ä¸Šï¼Œèº«ä½“å‰å€¾ï¼ŒåŒæ‰‹æ§ç€æ¯å­ï¼Œè§†çº¿ä»Žæ¯å­ä¸ŠæŠ¬èµ·çœ‹å‘é•œå¤´',
-  'ååœ¨æ²™å‘ä¸ŠåŒè…¿äº¤å ï¼Œä¸€åªæ‰‹æ’‘åœ¨èº«åŽï¼Œå¦ä¸€åªæ‰‹æ”¾åœ¨è†ç›–ä¸Š',
-  'åŠèººåœ¨æ²™å‘ä¸Šï¼Œä¸€åªæ‰‹æ’‘ç€å¤´ï¼Œå¦ä¸€åªæ‰‹æ­åœ¨æŠ±æž•ä¸Šï¼Œæ…µæ‡’çœ‹å‘é•œå¤´',
-  'è·ªååœ¨æ²™å‘æˆ–åœ°æ¯¯ä¸Šï¼Œä¸€åªæ‰‹æ’‘ç€åœ°é¢ï¼Œèº«ä½“å¾®ä¾§çœ‹å‘é•œå¤´',
-  'ååœ¨åœ°æ¿ä¸ŠèƒŒé æ²™å‘ï¼ŒæŠ±è†ï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ç«™åœ¨çª—è¾¹ï¼Œä¸€åªæ‰‹æ‰¶çª—æ¡†ï¼Œä¾§è„¸çœ‹å‘çª—å¤–ï¼Œä¸ŠåŠèº«å æ»¡ç”»é¢',
-  'ç«™åœ¨è¡£æŸœå‰ï¼Œä¸€åªæ‰‹ç¿»æŸœé—¨ï¼Œå¦ä¸€åªæ‰‹è½»æ­è¡£æž¶ï¼Œå›žå¤´çœ‹å‘é•œå¤´',
-  'å¯¹ç€å…¨èº«é•œä¸¾æ‰‹æœºè‡ªæ‹ï¼Œæ‰‹æœºæŒ¡ä½åŠå¼ è„¸ï¼Œå¦ä¸€åªæ‰‹è‡ªç„¶åž‚ç€',
-  'é åœ¨å¢™è¾¹ï¼ŒåŒæ‰‹æŠ±è‡‚ï¼Œä¾§å¤´çœ‹å‘é•œå¤´',
-  'ååœ¨é«˜è„šå‡³ä¸Šï¼ŒåŒæ‰‹äº¤å æ”¾åœ¨æ¡Œé¢ä¸Šï¼Œèº«ä½“å‰å€¾',
-  'ååœ¨æ¡Œå‰ï¼ŒåŒæ‰‹æ§ç€çº¸æ¯å’–å•¡ï¼Œèº«ä½“å¾®å¾®å‰å€¾ï¼ŒæŠ¬èµ·çœ¼ç›çœ‹å‘é•œå¤´',
-  'æŠ¬æ‰‹æŠŠå¤´å‘åˆ«åˆ°è€³åŽï¼Œè„¸æ­£å¯¹é•œå¤´ï¼Œå¾®å¾®ä¾§å¤´',
-  'ååœ¨åºŠè¾¹ï¼Œä¸€åªæ‰‹æ’‘ç€åºŠæ²¿ï¼Œå¦ä¸€åªæ‰‹æ”¾åœ¨è…¿ä¸Šï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ååœ¨é¤æ¡Œæ—ï¼Œä¸€åªæ‰‹æ‰˜ç€è„¸ï¼Œå¦ä¸€åªæ‰‹ç”¨å‹ºå­æ…åŠ¨æ¯å­ï¼Œçœ¼ç›çœ‹å‘é•œå¤´',
-  'ååœ¨å’–å•¡åº—çª—è¾¹ï¼Œæ‰‹è‚˜æ’‘åœ¨æ¡Œä¸Šï¼Œæ‰‹æŒ‡è½»è½»æŠµç€ä¸‹å·´ï¼Œç›´è§†é•œå¤´',
-  'ä¾§èº«ç«™ç€ï¼Œä¸€åªæ‰‹è½»æè¡£æ‘†å±•ç¤ºä¸‹æ‘†ï¼Œè„¸è½¬å‘é•œå¤´',
-  'åŒæ‰‹æŠ±ç€æ¯å­é è¿‘èƒ¸å£ï¼Œè‚©è†€æ”¾æ¾ï¼Œçœ‹å‘é•œå¤´è‡ªç„¶å¾®ç¬‘',
-  'ååœ¨æ²™å‘ä¸ŠæŠ±ç€æŠ±æž•ï¼Œä¸‹å·´è½»è½»æ­åœ¨æŠ±æž•ä¸Š',
-  'è½¬èº«ç¦»å¼€çš„çž¬é—´å›žå¤´ï¼Œåªæ‹è‚©è†€ä»¥ä¸Šåˆ°è…°éƒ¨ï¼Œå¤´å‘æœ‰åŠ¨æ€',
-  'ååœ¨çª—å°è¾¹ï¼Œä¸€åªæ‰‹æ‰¶çª—æ²¿ï¼Œä¾§è„¸çœ‹å‘è¿œå¤„',
-  'ååœ¨å’–å•¡åº—æœ¨è´¨å§å°å‰ï¼Œä¸€åªæ‰‹æ­åœ¨å§å°è¾¹ç¼˜ï¼Œå¦ä¸€åªæ‰‹æ‰˜ç€æ‹¿é“æ¯ï¼Œå›žå¤´çœ‹å‘é•œå¤´',
-  'è¹²åœ¨èŠ±åº—é—¨å£ï¼Œä¸€åªæ‰‹è½»ç¢°èŠ±æŸï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ååœ¨ä¹¦åº—åœ°æ¿ä¸ŠèƒŒé ä¹¦æž¶ï¼Œä¸€åªæ‰‹æ‹¿ç€ä¹¦ï¼ŒæŠ¬å¤´çœ‹å‘é•œå¤´',
-  'ç«™åœ¨åœ°é“å£æ‰‹æ‰¶æ æ†ï¼Œä¾§èº«çœ‹å‘é•œå¤´ï¼Œå¤´å‘è¢«é£Žå¹èµ·',
-  'ååœ¨å…¬å›­é•¿æ¤…ä¸Šï¼Œä¸€åªæ‰‹æ­åœ¨æ¤…èƒŒä¸Šï¼Œå¦ä¸€åªæ‰‹æ”¾åœ¨è…¿ä¸Šï¼Œçœ‹å‘è¿œå¤„å†è½¬å›žé•œå¤´',
-  'ç«™åœ¨å¤å¤è¡£æž¶å‰ï¼Œä¸€åªæ‰‹è½»æ‘¸è¡£æž¶ä¸Šçš„è¡£æœï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ååœ¨åœ°æ¯¯ä¸Šï¼ŒåŒè…¿ç›˜èµ·ï¼Œä¸€åªæ‰‹æ’‘åœ¨èº«åŽï¼Œèº«ä½“å¾®å€¾çœ‹å‘é•œå¤´',
-  'ç«™åœ¨è½åœ°çª—æ—ï¼Œä¸€åªæ‰‹è½»æ‰¶çª—æ¡†ï¼Œä¾§è„¸è®©å…‰æ‰“åœ¨è„¸ä¸Š',
-  'ååœ¨é¤æ¡Œæ—åˆ‡è›‹ç³•ï¼Œä¸€åªæ‰‹æ‹¿åˆ€ï¼Œå¦ä¸€åªæ‰‹æ‰¶ç›˜ï¼ŒæŠ¬å¤´çœ‹å‘é•œå¤´',
-  'ååœ¨æ²™å‘ä¸Šï¼Œä¸€åªæ‰‹æ­åœ¨æ²™å‘é èƒŒä¸Šï¼Œå¦ä¸€åªæ‰‹è‡ªç„¶åž‚ç€ï¼Œæ…µæ‡’æ­ªå¤´',
-  'ç«™åœ¨ç»¿æ¤å¢™å‰ï¼Œä¸€åªæ‰‹æ’©å¤´å‘ï¼Œä¾§èº«çœ‹å‘é•œå¤´',
-  'ååœ¨å’–å•¡åº—è§’è½ï¼Œæ‰‹è‚˜æ’‘åœ¨å°æ¡Œä¸Šï¼Œæ‰‹æ‰˜è…®ï¼Œå¾®å¾®å˜Ÿå˜´çœ‹å‘é•œå¤´',
-  'ååœ¨æ¥¼æ¢¯å°é˜¶ä¸Šï¼Œä¸€åªæ‰‹æ­åœ¨è†ç›–ä¸Šï¼Œå¦ä¸€åªæ‰‹æ’‘åœ¨å°é˜¶ä¸Šï¼Œçœ‹å‘é•œå¤´',
-  'ç«™åœ¨è¯•è¡£é•œå‰æ•´ç†è¡£é¢†ï¼Œä»Žé•œå­é‡Œçœ‹å‘é•œå¤´',
-  'ååœ¨éœ²å°æ æ†æ—ï¼Œä¸€åªæ‰‹æ‰¶æ æ†ï¼Œå¦ä¸€åªæ‰‹ä¸¾ç€æ¯å­ï¼Œçœ‹å‘é•œå¤´',
-  'ååœ¨åºŠä¸ŠèƒŒé åºŠå¤´ï¼ŒåŒè…¿å¼¯æ›²ï¼Œä¸€åªæ‰‹æ­åœ¨è†ç›–ä¸Šï¼Œçœ‹å‘é•œå¤´',
-  'ç«™åœ¨ä¾¿åˆ©åº—å†·è—æŸœå‰ï¼Œä¸€åªæ‰‹æ‹¿ç€é¥®æ–™ï¼Œå›žå¤´çœ‹å‘é•œå¤´',
-  'ååœ¨ç”œå“åº—çª—è¾¹ï¼Œä¸€åªæ‰‹æ‹¿ç€å‰å­ï¼Œé¢å‰æœ‰è›‹ç³•ï¼Œçœ‹å‘é•œå¤´',
-  'é åœ¨è·¯ç¯æ†æ—ï¼Œä¸€åªæ‰‹æ’å£è¢‹ï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ååœ¨å¤å¤çš®æ²™å‘ä¸Šï¼Œä¸€åªæ‰‹æ­åœ¨æ‰¶æ‰‹ä¸Šï¼Œå¦ä¸€åªæ‰‹æ”¾åœ¨è…¿ä¸Šï¼Œæ…µæ‡’çœ‹å‘é•œå¤´',
-  'ç«™åœ¨èŠ±æž¶å‰ï¼Œä¸€åªæ‰‹è½»æ‰¶èŠ±æž¶ï¼Œä¾§è„¸è®©å…‰æ‰“åœ¨æ¯›è¡£ä¸Š',
-  'ååœ¨é£˜çª—ä¸Šï¼ŒåŒè…¿ä¼¸ç›´ï¼Œä¸€åªæ‰‹æ’‘åœ¨èº«åŽï¼Œçœ‹å‘é•œå¤´',
-  'ç«™åœ¨æ—‹è½¬æ¥¼æ¢¯ä¸Šï¼Œä¸€åªæ‰‹æ‰¶æ‰¶æ‰‹ï¼Œå›žå¤´çœ‹å‘é•œå¤´',
-  'ååœ¨éœ²è¥æ¤…ä¸Šï¼Œä¸€åªæ‰‹æ­åœ¨æ¤…èƒŒä¸Šï¼Œå¦ä¸€åªæ‰‹æ‹¿æ¯å­ï¼Œçœ‹å‘é•œå¤´',
-  'ååœ¨æµ´ç¼¸è¾¹ç¼˜ï¼ˆå¹²çš„ï¼‰ï¼Œä¸€åªæ‰‹æ­åœ¨æµ´ç¼¸æ²¿ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™åœ¨é˜³å°æ™¾è¡£æž¶æ—ï¼Œä¸€åªæ‰‹æ‹¿ç€è¡£æž¶ï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ååœ¨å’–å•¡åº—çª—è¾¹ï¼ŒåŒæ‰‹æ§ç€æ¯å­æ”¾åœ¨æ¡Œä¸Šï¼Œå¾®å¾®ä½Žå¤´çœ‹ç€æ¯å­å†æŠ¬çœ¼',
-  'ç«™åœ¨èŠ±åº—æŸœå°å‰ï¼Œä¸€åªæ‰‹è½»æ‰˜ä¸€æŸèŠ±ï¼Œä¾§èº«çœ‹å‘é•œå¤´',
-  'ååœ¨æ²™å‘æ‰¶æ‰‹ä¸Šï¼Œä¸€åªæ‰‹æ‰¶ç€é èƒŒï¼Œå¦ä¸€åªæ‰‹è‡ªç„¶åž‚ç€ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™åœ¨ä¹¦åº—ä¹¦æž¶é—´ï¼Œä¸€åªæ‰‹æŠ½å‡ºä¸€æœ¬ä¹¦ï¼Œèº«ä½“ä¾§è½¬çœ‹å‘é•œå¤´',
-  'ååœ¨æœ¨è´¨å°é˜¶ä¸Šï¼Œæ‰‹è‚˜æ’‘åœ¨è†ç›–ä¸Šï¼Œæ‰‹æ‰˜è…®çœ‹å‘é•œå¤´',
-  'é åœ¨è½åœ°çª—è¾¹ï¼Œä¸€åªæ‰‹è½»ç¢°çª—å¸˜ï¼Œä¾§è„¸è®©å…‰è½åœ¨è„¸ä¾§',
-  'ååœ¨é¤æ¤…ä¸Šï¼Œä¸€åªæ‰‹æ­åœ¨æ¤…èƒŒï¼Œå¦ä¸€åªæ‰‹æ”¾æ¡Œé¢ï¼Œæ­£è„¸çœ‹å‘é•œå¤´',
-  'ç«™åœ¨è¡£æŸœé•œå‰ï¼Œä¸€åªæ‰‹æ•´ç†è¢–å£ï¼Œä»Žé•œä¸­çœ‹å‘é•œå¤´',
-  'ååœ¨é˜³å…‰ä¸‹çš„é£˜çª—ä¸Šï¼Œä¸€åªæ‰‹æ’‘åœ¨çª—å°ï¼Œå¦ä¸€åªæ‰‹æ”¾åœ¨è…¿ä¸Šï¼Œçœ‹å‘é•œå¤´',
-  'ç«™åœ¨å’–å•¡åº—é—¨å£ï¼Œä¸€åªæ‰‹æŽ¨é—¨ï¼Œå›žå¤´çœ‹å‘é•œå¤´',
-  'ååœ¨ç”œå“åº—çª—è¾¹ï¼Œä¸€åªæ‰‹ç”¨å°å‰å­åˆ‡è›‹ç³•ï¼Œè§†çº¿çœ‹å‘é•œå¤´',
-  'ç«™åœ¨æ¥¼æ¢¯è½¬è§’ï¼Œä¸€åªæ‰‹æ‰¶æ‰¶æ‰‹ï¼Œèº«ä½“å¾®ä¾§çœ‹å‘é•œå¤´',
-  'ååœ¨æ²™å‘å‰çš„åœ°æ¯¯ä¸Šï¼ŒåŒæ‰‹æŠ±è†ï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ç«™åœ¨ç™½è‰²å¢™é¢å‰ï¼Œä¸€åªæ‰‹æŠŠå¤´å‘æ‹¨åˆ°è‚©åŽï¼Œè„¸æ­£å¯¹é•œå¤´',
-  'ååœ¨çª—è¾¹çš„çŸ®å‡³ä¸Šï¼Œä¸€åªæ‰‹æ­åœ¨è†ä¸Šï¼Œæ‰‹è‚˜æ’‘ç€å°æ¡Œçœ‹å‘é•œå¤´',
-  'ç«™åœ¨é˜³å°æ æ†æ—ï¼Œä¸€åªæ‰‹æ‰¶ç€æ æ†ï¼Œå¦ä¸€åªæ‰‹æ”¾åœ¨å£è¢‹ï¼Œçœ‹å‘è¿œå¤„å†å›žå¤´',
-  'ååœ¨åŒ–å¦†é•œå‰ï¼Œä¸€åªæ‰‹æ‹¿ç€å£çº¢ï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ç«™åœ¨æŒ‚æ»¡è¡£æœçš„è¡£æž¶æ—ï¼Œä¸€åªæ‰‹è½»æè¡£æž¶ä¸Šçš„æ¯›è¡£ï¼Œè„¸è½¬å‘é•œå¤´',
-  'ååœ¨ä¹¦åº—é˜¶æ¢¯ä¸Šï¼Œä¹¦æ”¾åœ¨è…¿ä¸Šï¼Œä¸€åªæ‰‹æ‰¶ç€ä¹¦é¡µï¼ŒæŠ¬å¤´çœ‹å‘é•œå¤´',
-  'ç«™åœ¨åŽ¨æˆ¿å°é¢å‰ï¼Œä¸€åªæ‰‹æ‰¶ç€å°é¢ï¼Œå›žèº«çœ‹å‘é•œå¤´',
-  'ååœ¨çª—è¾¹é«˜è„šå‡³ä¸Šï¼Œæ‰‹é‡Œæ¡ç€ä¸€æ¯çƒ­é¥®ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™ç›´åŠèº«ï¼ŒåŒæ‰‹ç¼©è¿›æ¯›è¡£è¢–å£é‡Œåªéœ²å‡ºæŒ‡å°–ï¼Œè‚©è†€æ”¾æ¾ï¼Œå¾®å¾®æ­ªå¤´çœ‹å‘é•œå¤´',
-  'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹æ’ç‰›ä»”è£¤å£è¢‹ï¼Œå¦ä¸€åªæ‰‹æ‹Žå°æ–¹åŒ…ï¼Œèº«ä½“å¾®ä¾§çœ‹å‘é•œå¤´',
-  'å¯¹ç€é•œå­ä¸¾æ‰‹æœºè‡ªæ‹ï¼Œæ‰‹æœºæŒ¡ä½åŠå¼ è„¸ï¼Œå¦ä¸€åªæ‰‹æ’åœ¨å£è¢‹é‡Œ',
-  'ååœ¨è½¦å†…é©¾é©¶åº§ï¼Œèº«ä½“ä¾§å‘é•œå¤´ï¼Œä¸€åªæ‰‹æ‰¶æ–¹å‘ç›˜ï¼Œå¦ä¸€åªæ‰‹æ­åœ¨è…¿ä¸Š',
-  'é åœ¨è½¦é—¨è¾¹ï¼Œä¸€åªæ‰‹æ‹¿ç€æ‰‹æœºï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ç«™åœ¨æœºåœºå€™æœºåŽ…ï¼Œä¸€åªæ‰‹æ‰¶è¡ŒæŽç®±æ‹‰æ†ï¼Œå¦ä¸€åªæ‰‹æ•´ç†å›´å·¾ï¼Œå›žå¤´çœ‹å‘é•œå¤´',
-  'ç«™åœ¨å•†åœºæ‰¶æ¢¯ä¸Šï¼Œèº«ä½“ä¾§è½¬å›žå¤´çœ‹å‘é•œå¤´ï¼Œå¤´å‘æœ‰åŠ¨æ€',
-  'ç«™åœ¨ç”µæ¢¯å£ä½Žå¤´çœ‹æ‰‹æœºï¼Œè‹¥æœ‰æ‰€è§‰æŠ¬å¤´çœ‹å‘é•œå¤´',
-  'èµ°åœ¨è¡—å¤´æ–‘é©¬çº¿ä¸Šï¼Œè¾¹èµ°è¾¹å›žå¤´çœ‹å‘é•œå¤´ï¼ŒæŠ“æ‹åŠ¨æ€',
-  'ç«™åœ¨å¤©æ¡¥ä¸Šï¼Œä¸€åªæ‰‹æ‰¶æ æ†ï¼Œä¾§è„¸çœ‹å‘è¿œå¤„å†å›žå¤´',
-  'é åœ¨æ°´æ³¥å¢™è¾¹ï¼ŒåŒæ‰‹æ’å…œï¼Œä¸€æ¡è…¿å¾®æ›²ï¼Œè§†çº¿çœ‹å‘é•œå¤´',
-  'è¹²åœ¨è¡—è¾¹å°é˜¶ä¸Šï¼Œä¸€åªæ‰‹æ’‘è†ç›–ï¼Œå¦ä¸€åªæ‰‹æ‰˜è…®çœ‹å‘é•œå¤´',
-  'ååœ¨å°é˜¶ä¸Šï¼Œä¸€åªæ‰‹æ‹¿æ‰‹æœºæŒ¡åœ¨ä¸‹å·´å‰ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™ç«‹åŠèº«ï¼ŒåŒæ‰‹æŠ±è‡‚ï¼Œè‚©è†€ä¸€é«˜ä¸€ä½Žï¼Œå†·æ·¡çœ‹å‘é•œå¤´',
-  'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹è½»è½»æ‹‰é¢†å£ï¼Œå±•ç¤ºé¢†åž‹ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹æ•´ç†è¢–å£ï¼Œä½Žå¤´çœ‹è¢–å£å†æŠ¬çœ¼',
-  'ç«™ç«‹åŠèº«ï¼ŒåŒæ‰‹æ§ç€è„¸é¢Šï¼Œæ‰‹è‚˜æ”¶åœ¨èƒ¸å‰ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹ä¸¾åˆ°é¢å‰æŒ¡é˜³å…‰ï¼Œçœ¯çœ¼çœ‹å‘é•œå¤´',
-  'ç«™ç«‹åŠèº«ï¼Œä¾§èº«å›žçœ¸ï¼Œä¸€åªæ‰‹æŠŠå¤´å‘æ‹¨åˆ°è€³åŽ',
-  'ååœ¨å’–å•¡é¦†é«˜è„šå‡³ä¸Šï¼ŒåŒè…¿äº¤å ï¼Œä¸€åªæ‰‹æ’‘åœ¨å‡³é¢ï¼Œå¦ä¸€åªæ‰‹æ”¾è…¿ä¸Š',
-  'ååœ¨é¤åŽ…å¡åº§é‡Œï¼Œä¸€åªæ‰‹æ‰˜è…®ï¼Œå¦ä¸€åªæ‰‹æ­åœ¨æ¡Œæ²¿ï¼Œçœ‹å‘é•œå¤´',
-  'ååœ¨è½¦å†…å‰¯é©¾é©¶ï¼Œç³»ç€å®‰å…¨å¸¦ï¼Œèº«ä½“å¾®ä¾§çœ‹å‘é•œå¤´',
-  'ç«™åœ¨å•†åœºå¥³è£…åº—çš„æŒ‚è¡£æ†æ—ï¼Œä¸€åªæ‰‹è½»æ‰¶è¡£æž¶ï¼Œå¦ä¸€åªæ‰‹æ’å…œ',
-  'ç«™åœ¨æœè£…åº—é•œå­å‰ï¼Œä¸€åªæ‰‹æ•´ç†æ¯›è¡£ä¸‹æ‘†ï¼Œä»Žé•œä¸­çœ‹å‘é•œå¤´',
-  'ååœ¨è¯•è¡£é—´å¤–çš„é•¿å‡³ä¸Šï¼Œä¸€æ¡è…¿æ­åœ¨å¦ä¸€æ¡è…¿ä¸Šï¼Œçœ‹å‘é•œå¤´',
-  'ååœ¨åœ°æ¯¯ä¸Šï¼Œä¸€åªæ‰‹æ’‘åœ°ï¼Œå¦ä¸€åªæ‰‹æ­åœ¨è†ç›–ä¸Šï¼Œèº«ä½“ä¾§å€¾',
-  'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹æ’å…œï¼Œå¦ä¸€åªæ‰‹æ‹¿ç€æ‰‹æœºåž‚åœ¨èº«ä¾§',
-  'ç«™ç«‹åŠèº«ï¼ŒåŒæ‰‹æ§ç€çƒ­å’–å•¡æ¯é è¿‘èƒ¸å£ï¼Œå¾®å¾®ä½Žå¤´å†æŠ¬çœ¼',
-  'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹æ‹Žç€è´­ç‰©è¢‹ï¼Œå¦ä¸€åªæ‰‹æ‹¨å¤´å‘ï¼Œçœ‹å‘é•œå¤´ä¾§é¢',
-  'ç«™åœ¨é›ªæ™¯è¡—è¾¹ï¼ŒåŒæ‰‹æ’å…œï¼Œç¼©ç€è‚©è†€ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™åœ¨æµ·è¾¹æ æ†æ—ï¼Œä¸€åªæ‰‹åŽ‹ä½è¢«é£Žå¹èµ·çš„å¤´å‘ï¼Œä¾§è„¸çœ‹å‘é•œå¤´',
-  'ååœ¨æˆ·å¤–éœ²è¥æ¤…ä¸Šï¼ŒåŒæ‰‹æ§ç€é©¬å…‹æ¯ï¼Œè…¿äº¤å ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™åœ¨åœ°é“è½¦åŽ¢é‡Œï¼Œä¸€åªæ‰‹æ‰¶åŠçŽ¯ï¼Œå¦ä¸€åªæ‰‹æ’å…œï¼Œçœ‹å‘é•œå¤´',
-  'ååœ¨ä¹¦åº—çª—å°ï¼Œä¸€æ¡è…¿åž‚ä¸‹ï¼Œä¸€åªæ‰‹æ‰¶çª—æ¡†ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹èƒŒåœ¨èº«åŽï¼Œå¦ä¸€åªæ‰‹è½»ç¢°è€³çŽ¯ï¼Œçœ‹å‘é•œå¤´',
-  'ç«™ç«‹åŠèº«ï¼Œå¾®å¾®ä»°å¤´çœ‹å‘é•œå¤´ï¼Œå˜´å”‡è‡ªç„¶å¾®å¼ ',
-  'ç«™ç«‹åŠèº«ï¼Œä½Žå¤´çœ‹æ‰‹æœºï¼Œå¤´å‘åž‚ä¸‹æ¥é®ä½ä¸€ç‚¹ä¾§è„¸',
-  'ååœ¨åœ°æ¿ä¸Šï¼Œä¸€æ¡è…¿ä¼¸ç›´ä¸€æ¡è…¿å¼¯æ›²ï¼Œä¸€åªæ‰‹æ’‘åœ°çœ‹å‘é•œå¤´',
-  'ç«™åœ¨æ¥¼æ¢¯ä¸Šï¼Œä¸€åªæ‰‹æ‰¶æ‰¶æ‰‹ï¼Œèº«ä½“å‰å€¾çœ‹å‘é•œå¤´',
-  'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹æ‹¿ç€å¸½å­åž‚åœ¨èº«ä¾§ï¼Œå¦ä¸€åªæ‰‹æ’å…œ'
+  '坐在木桌旁，一只手撑着下巴，另一只手放在桌面上扶着玻璃杯，侧脸看向镜头',
+  '坐在沙发上，一只手撑着脸颊，另一只手放在腿上，身体微微侧向镜头',
+  '坐在桌边，一只手扶着杯子，另一只手自然搭在桌沿，肩膀放松',
+  '侧身靠在沙发背上，一只手搭在扶手上，头微微侧向镜头',
+  '坐在椅子上，身体前倾，双手捧着杯子，视线从杯子上抬起看向镜头',
+  '坐在沙发上双腿交叠，一只手撑在身后，另一只手放在膝盖上',
+  '半躺在沙发上，一只手撑着头，另一只手搭在抱枕上，慵懒看向镜头',
+  '跪坐在沙发或地毯上，一只手撑着地面，身体微侧看向镜头',
+  '坐在地板上背靠沙发，抱膝，侧脸看向镜头',
+  '站在窗边，一只手扶窗框，侧脸看向窗外，上半身占满画面',
+  '站在衣柜前，一只手翻柜门，另一只手轻搭衣架，回头看向镜头',
+  '对着全身镜举手机自拍，手机挡住半张脸，另一只手自然垂着',
+  '靠在墙边，双手抱臂，侧头看向镜头',
+  '坐在高脚凳上，双手交叠放在桌面上，身体前倾',
+  '坐在桌前，双手捧着纸杯咖啡，身体微微前倾，抬起眼睛看向镜头',
+  '抬手把头发别到耳后，脸正对镜头，微微侧头',
+  '坐在床边，一只手撑着床沿，另一只手放在腿上，侧脸看向镜头',
+  '坐在餐桌旁，一只手托着脸，另一只手用勺子搅动杯子，眼睛看向镜头',
+  '坐在咖啡店窗边，手肘撑在桌上，手指轻轻抵着下巴，直视镜头',
+  '侧身站着，一只手轻提衣摆展示下摆，脸转向镜头',
+  '双手抱着杯子靠近胸口，肩膀放松，看向镜头自然微笑',
+  '坐在沙发上抱着抱枕，下巴轻轻搭在抱枕上',
+  '转身离开的瞬间回头，只拍肩膀以上到腰部，头发有动态',
+  '坐在窗台边，一只手扶窗沿，侧脸看向远处',
+  '坐在咖啡店木质吧台前，一只手搭在吧台边缘，另一只手托着拿铁杯，回头看向镜头',
+  '蹲在花店门口，一只手轻碰花束，侧脸看向镜头',
+  '坐在书店地板上背靠书架，一只手拿着书，抬头看向镜头',
+  '站在地铁口手扶栏杆，侧身看向镜头，头发被风吹起',
+  '坐在公园长椅上，一只手搭在椅背上，另一只手放在腿上，看向远处再转回镜头',
+  '站在复古衣架前，一只手轻摸衣架上的衣服，侧脸看向镜头',
+  '坐在地毯上，双腿盘起，一只手撑在身后，身体微倾看向镜头',
+  '站在落地窗旁，一只手轻扶窗框，侧脸让光打在脸上',
+  '坐在餐桌旁切蛋糕，一只手拿刀，另一只手扶盘，抬头看向镜头',
+  '坐在沙发上，一只手搭在沙发靠背上，另一只手自然垂着，慵懒歪头',
+  '站在绿植墙前，一只手撩头发，侧身看向镜头',
+  '坐在咖啡店角落，手肘撑在小桌上，手托腮，微微嘟嘴看向镜头',
+  '坐在楼梯台阶上，一只手搭在膝盖上，另一只手撑在台阶上，看向镜头',
+  '站在试衣镜前整理衣领，从镜子里看向镜头',
+  '坐在露台栏杆旁，一只手扶栏杆，另一只手举着杯子，看向镜头',
+  '坐在床上背靠床头，双腿弯曲，一只手搭在膝盖上，看向镜头',
+  '站在便利店冷藏柜前，一只手拿着饮料，回头看向镜头',
+  '坐在甜品店窗边，一只手拿着叉子，面前有蛋糕，看向镜头',
+  '靠在路灯杆旁，一只手插口袋，侧脸看向镜头',
+  '坐在复古皮沙发上，一只手搭在扶手上，另一只手放在腿上，慵懒看向镜头',
+  '站在花架前，一只手轻扶花架，侧脸让光打在毛衣上',
+  '坐在飘窗上，双腿伸直，一只手撑在身后，看向镜头',
+  '站在旋转楼梯上，一只手扶扶手，回头看向镜头',
+  '坐在露营椅上，一只手搭在椅背上，另一只手拿杯子，看向镜头',
+  '坐在浴缸边缘（干的），一只手搭在浴缸沿，看向镜头',
+  '站在阳台晾衣架旁，一只手拿着衣架，侧脸看向镜头',
+  '坐在咖啡店窗边，双手捧着杯子放在桌上，微微低头看着杯子再抬眼',
+  '站在花店柜台前，一只手轻托一束花，侧身看向镜头',
+  '坐在沙发扶手上，一只手扶着靠背，另一只手自然垂着，看向镜头',
+  '站在书店书架间，一只手抽出一本书，身体侧转看向镜头',
+  '坐在木质台阶上，手肘撑在膝盖上，手托腮看向镜头',
+  '靠在落地窗边，一只手轻碰窗帘，侧脸让光落在脸侧',
+  '坐在餐椅上，一只手搭在椅背，另一只手放桌面，正脸看向镜头',
+  '站在衣柜镜前，一只手整理袖口，从镜中看向镜头',
+  '坐在阳光下的飘窗上，一只手撑在窗台，另一只手放在腿上，看向镜头',
+  '站在咖啡店门口，一只手推门，回头看向镜头',
+  '坐在甜品店窗边，一只手用小叉子切蛋糕，视线看向镜头',
+  '站在楼梯转角，一只手扶扶手，身体微侧看向镜头',
+  '坐在沙发前的地毯上，双手抱膝，侧脸看向镜头',
+  '站在白色墙面前，一只手把头发拨到肩后，脸正对镜头',
+  '坐在窗边的矮凳上，一只手搭在膝上，手肘撑着小桌看向镜头',
+  '站在阳台栏杆旁，一只手扶着栏杆，另一只手放在口袋，看向远处再回头',
+  '坐在化妆镜前，一只手拿着口红，侧脸看向镜头',
+  '站在挂满衣服的衣架旁，一只手轻提衣架上的毛衣，脸转向镜头',
+  '坐在书店阶梯上，书放在腿上，一只手扶着书页，抬头看向镜头',
+  '站在厨房台面前，一只手扶着台面，回身看向镜头',
+  '坐在窗边高脚凳上，手里握着一杯热饮，看向镜头',
+  '站直半身，双手缩进毛衣袖口里只露出指尖，肩膀放松，微微歪头看向镜头',
+  '站立半身，一只手插牛仔裤口袋，另一只手拎小方包，身体微侧看向镜头',
+  '对着镜子举手机自拍，手机挡住半张脸，另一只手插在口袋里',
+  '坐在车内驾驶座，身体侧向镜头，一只手扶方向盘，另一只手搭在腿上',
+  '靠在车门边，一只手拿着手机，侧脸看向镜头',
+  '站在机场候机厅，一只手扶行李箱拉杆，另一只手整理围巾，回头看向镜头',
+  '站在商场扶梯上，身体侧转回头看向镜头，头发有动态',
+  '站在电梯口低头看手机，若有所觉抬头看向镜头',
+  '走在街头斑马线上，边走边回头看向镜头，抓拍动态',
+  '站在天桥上，一只手扶栏杆，侧脸看向远处再回头',
+  '靠在水泥墙边，双手插兜，一条腿微曲，视线看向镜头',
+  '蹲在街边台阶上，一只手撑膝盖，另一只手托腮看向镜头',
+  '坐在台阶上，一只手拿手机挡在下巴前，看向镜头',
+  '站立半身，双手抱臂，肩膀一高一低，冷淡看向镜头',
+  '站立半身，一只手轻轻拉领口，展示领型，看向镜头',
+  '站立半身，一只手整理袖口，低头看袖口再抬眼',
+  '站立半身，双手捧着脸颊，手肘收在胸前，看向镜头',
+  '站立半身，一只手举到额前挡阳光，眯眼看向镜头',
+  '站立半身，侧身回眸，一只手把头发拨到耳后',
+  '坐在咖啡馆高脚凳上，双腿交叠，一只手撑在凳面，另一只手放腿上',
+  '坐在餐厅卡座里，一只手托腮，另一只手搭在桌沿，看向镜头',
+  '坐在车内副驾驶，系着安全带，身体微侧看向镜头',
+  '站在商场女装店的挂衣杆旁，一只手轻扶衣架，另一只手插兜',
+  '站在服装店镜子前，一只手整理毛衣下摆，从镜中看向镜头',
+  '坐在试衣间外的长凳上，一条腿搭在另一条腿上，看向镜头',
+  '坐在地毯上，一只手撑地，另一只手搭在膝盖上，身体侧倾',
+  '站立半身，一只手插兜，另一只手拿着手机垂在身侧',
+  '站立半身，双手捧着热咖啡杯靠近胸口，微微低头再抬眼',
+  '站立半身，一只手拎着购物袋，另一只手拨头发，看向镜头侧面',
+  '站在雪景街边，双手插兜，缩着肩膀，看向镜头',
+  '站在海边栏杆旁，一只手压住被风吹起的头发，侧脸看向镜头',
+  '坐在户外露营椅上，双手捧着马克杯，腿交叠，看向镜头',
+  '站在地铁车厢里，一只手扶吊环，另一只手插兜，看向镜头',
+  '坐在书店窗台，一条腿垂下，一只手扶窗框，看向镜头',
+  '站立半身，一只手背在身后，另一只手轻碰耳环，看向镜头',
+  '站立半身，微微仰头看向镜头，嘴唇自然微张',
+  '站立半身，低头看手机，头发垂下来遮住一点侧脸',
+  '坐在地板上，一条腿伸直一条腿弯曲，一只手撑地看向镜头',
+  '站在楼梯上，一只手扶扶手，身体前倾看向镜头',
+  '站立半身，一只手拿着帽子垂在身侧，另一只手插兜'
 ];
 
-// åœºæ™¯å¸¦é£Žæ ¼æ ‡ç­¾ï¼Œç”Ÿæˆæ—¶åªæŒ‘å’Œè¯†åˆ«å‡ºçš„é£Žæ ¼åŒ¹é…çš„ã€‚èƒŒæ™¯è¦æ¸…æ™°å¯è¾¨ï¼Œä¸è¦ç³ŠæŽ‰
+// 场景带风格标签，生成时只挑和识别出的风格匹配的。背景要清晰可辨，不要糊掉
 const LIFE_SCENES = [
-  { t: 'éŸ©ç³»å’–å•¡é¦†å†…ï¼Œæœ¨è´¨å§å°å’Œç™½è‰²ç“·ç –å¢™ï¼Œæš–é»„åŠç¯ï¼Œæ¡Œä¸Šæœ‰çº¸æ¯å’–å•¡å’Œä¸€å—è›‹ç³•ï¼ŒèƒŒæ™¯çš„å’–å•¡æœºã€èœå•æ¿ã€ç»¿æ¤éƒ½æ¸…æ™°å¯è¾¨ï¼Œæ•´ä½“æ˜Žäº®æ¸©æš–', s: ['éŸ©ç‰ˆ', 'insé£Ž', 'æ¸©æŸ”é£Ž', 'é€šå‹¤'] },
-  { t: 'å’–å•¡é¦†é çª—åº§ä½ï¼Œæœ¨è´¨æ¡Œé¢ã€æ‹¿é“æ¯å’Œæœ¨æ‰˜ç›˜ï¼Œçª—å¤–è¡—æ™¯æ˜Žäº®æ¸…æ¥šï¼Œæš–å…‰æ‰“åœ¨æ¡Œé¢å’Œæ¯›è¡£ä¸Š', s: ['éŸ©ç‰ˆ', 'é€šå‹¤', 'insé£Ž'] },
-  { t: 'å’–å•¡é¦†é•œå­å‰ï¼Œé•œé¢é‡Œèƒ½çœ‹åˆ°åº—å†…çš„æœ¨è´¨æŸœå°ã€åŠç¯å’Œç“·ç –å¢™ï¼Œæš–å…‰å……è¶³ï¼Œé•œè¾¹æ¡†æ˜¯æ·±è‰²æœ¨è´¨ï¼ŒèƒŒæ™¯ç»†èŠ‚æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'insé£Ž'] },
-  { t: 'ç±³è‰²å¢™é¢å’Œç™½è‰²ç½®ç‰©æž¶çš„å±…å®¶è§’è½ï¼Œæš–è‰²è½åœ°ç¯å…‰ï¼ŒèƒŒæ™¯æœ‰ç»¿æ¤ã€æ¯å­å’Œæ‚ç‰©ï¼Œæ˜Žäº®æœ‰ç”Ÿæ´»æ°”æ¯ï¼Œç»†èŠ‚æ¸…æ¥š', s: ['æ…µæ‡’é£Ž', 'æ¸©æŸ”é£Ž', 'insé£Ž'] },
-  { t: 'å§å®¤åºŠè¾¹ï¼Œæµ…è‰²åºŠå“å’Œé’ˆç»‡æ¯›æ¯¯ï¼Œæ™¨å…‰æ˜Žäº®æŸ”å’Œï¼Œçª—æœ‰ç™½è‰²çº±å¸˜ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ—¥ç³»', 'æ…µæ‡’é£Ž', 'æ¸©æŸ”é£Ž'] },
-  { t: 'çª—è¾¹å§å®¤ï¼Œæµ…è‰²çº±å¸˜é€å…‰ï¼Œæµ…æœ¨åœ°æ¿ï¼Œæ˜Žäº®è‡ªç„¶å…‰ï¼Œçª—å°æœ‰å°ç›†æ ½ï¼ŒèƒŒæ™¯æ¸…æ™°', s: ['æ—¥ç³»', 'æ¸©æŸ”é£Ž', 'æ³•å¼'] },
-  { t: 'å¤å¤æœ¨è´¨è¡£æž¶å‰ï¼Œæš–é»„ç¯å…‰ï¼ŒèƒŒæ™¯æŒ‚ç€æµ…è‰²è¡£æœå’Œé’ˆç»‡å•å“ï¼Œç»†èŠ‚æ¸…æ¥š', s: ['å¤å¤', 'æ³•å¼', 'æ…µæ‡’é£Ž'] },
-  { t: 'å¤å¤å’–å•¡é¦†ï¼Œæ·±è‰²æœ¨è´¨å¢™æ¿ã€é»„é“œåŠç¯å’Œçš®æ²™å‘ï¼Œå¤§çª—æ—¥å…‰å……è¶³æ˜Žäº®ï¼Œæš–é‡‘è‰²è°ƒï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['å¤å¤', 'æ³•å¼', 'æ…µæ‡’é£Ž'] },
-  { t: 'æ ¡å›­å›¾ä¹¦é¦†é çª—ä½ç½®ï¼ŒæˆæŽ’ä¹¦æœ¬å’Œæœ¨è´¨ä¹¦æž¶ï¼Œå¤§çª—æ—¥å…‰å¾ˆäº®ï¼Œæ¡Œé¢æœ‰æš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['å­¦é™¢é£Ž', 'å¤å¤'] },
-  { t: 'æ•™å­¦æ¥¼èµ°å»Šï¼Œç»¿æ ‘èƒŒæ™¯ï¼Œæ˜Žäº®è‡ªç„¶å…‰ï¼Œç™½å¢™å’Œæœ¨æ‰¶æ‰‹ï¼ŒèƒŒæ™¯æ¸…æ™°', s: ['å­¦é™¢é£Ž', 'æ—¥ç³»'] },
-  { t: 'å†™å­—æ¥¼çŽ»ç’ƒå¹•å¢™èµ°å»Šï¼Œç®€æ´çŽ°ä»£ï¼Œæ˜Žäº®è‡ªç„¶å…‰ï¼Œè¿œå¤„ç»¿æ¤æ¸…æ¥š', s: ['é€šå‹¤'] },
-  { t: 'è¡—è¾¹ç»¿æ¤å¢™å‰ï¼ŒåŸŽå¸‚è¡—æ‹ï¼Œæ—¥å…‰æŸ”å’Œï¼ŒèƒŒæ™¯æœ‰å’–å•¡åº—æ‹›ç‰Œæ¸…æ¥šå¯è¾¨', s: ['éŸ©ç‰ˆ', 'insé£Ž'] },
-  { t: 'ç§‹æ—¥è¡—æ™¯ï¼Œè½å¶å’Œè¡—é“ï¼Œæš–é»„æ—¥å…‰ï¼ŒèƒŒæ™¯æœ‰åº—é“ºæ©±çª—æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'é€šå‹¤', 'æ³•å¼'] },
-  { t: 'èŠ±åº—é—¨å£ï¼ŒèŠ±æŸå’Œç»¿æ¤ï¼Œæš–å…‰ï¼Œæœ¨è´¨é—¨æ¡†ï¼ŒçŽ»ç’ƒçª—é€è¿›æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ¸©æŸ”é£Ž', 'æ³•å¼', 'æ—¥ç³»'] },
-  { t: 'ä¹¦åº—é çª—è¿‡é“ï¼Œæœ¨è´¨ä¹¦æž¶å’Œæ˜Žäº®é˜…è¯»åŒºï¼Œçª—è¾¹æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['å­¦é™¢é£Ž', 'å¤å¤', 'æ¸©æŸ”é£Ž'] },
-  { t: 'åœ°é“å£æˆ–æ–‘é©¬çº¿ï¼ŒåŸŽå¸‚æ—¥å¸¸èƒŒæ™¯ï¼Œæ˜Žäº®è‡ªç„¶å…‰ï¼Œè¿œå¤„è¡Œäººæ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'é€šå‹¤'] },
-  { t: 'ç™½å¤©éœ²å°ï¼Œæ˜Žäº®æ—¥å…‰ã€ç™½è‰²æ æ†å’Œç»¿æ¤ï¼Œè¿œå¤„åŸŽå¸‚æ¸…æ¥šï¼Œæš–è°ƒ', s: ['insé£Ž', 'éŸ©ç‰ˆ'] },
-  { t: 'æžç®€å±…å®¶è§’è½ï¼Œç™½å¢™ã€æµ…æœ¨åœ°æ¿ã€ä¸€ç›†ç»¿æ¤ï¼Œæ˜Žäº®çª—æˆ·å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'æ—¥ç³»'] },
-  { t: 'æ²™å‘æ—ï¼Œç±³è‰²æŠ±æž•å’Œé’ˆç»‡æ¯›æ¯¯ï¼Œæš–è‰²ç¯å…‰ï¼Œæœ¨è´¨è¾¹å‡ ä¸Šæœ‰æ¯å­ï¼Œçª—å¤–æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ…µæ‡’é£Ž', 'æ¸©æŸ”é£Ž'] },
-  { t: 'æ‰“å¼€çš„è¡£æŸœå‰ï¼Œæ•´é½æŒ‚ç€çš„æµ…è‰²è¡£æœï¼Œæš–å…‰ï¼Œæœ¨è´¨æŸœä½“æ¸…æ¥š', s: ['æ…µæ‡’é£Ž', 'é€šå‹¤', 'insé£Ž'] },
-  { t: 'å…¨èº«é•œå‰ï¼Œé•œé¢åå…‰ï¼Œæˆ¿é—´ä¸€è§’æœ‰ç»¿æ¤å’Œæœ¨è´¨è¡£æž¶ï¼Œæ˜Žäº®æ¸©æš–ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'éŸ©ç‰ˆ'] },
-  { t: 'æœ¨è´¨é¤æ¡Œæ—ï¼Œæµ…è‰²é¤å…·ã€ç»¿æ¤å’Œçº¸æ¯å’–å•¡ï¼Œæ—¥é—´æ˜Žäº®æŸ”å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ—¥ç³»', 'æ¸©æŸ”é£Ž'] },
-  { t: 'è½åœ°çª—å‰çš„åœ°æ¯¯ä¸Šï¼Œçª—å¤–åŸŽå¸‚æ˜Žäº®ï¼Œå®¤å†…æš–å…‰ï¼Œæœ‰æŠ±æž•ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'æ—¥ç³»', 'éŸ©ç‰ˆ'] },
-  { t: 'ç™½å¤©è¡—è¾¹å’–å•¡åº—é—¨å£ï¼Œæµ…è‰²å¢™é¢ã€æœ¨è´¨é—¨çª—å’Œç»¿æ¤ï¼Œæ—¥å…‰å……è¶³ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'insé£Ž'] },
-  { t: 'å…¬å›­é•¿æ¤…ï¼Œç»¿æ ‘å’ŒæŸ”å’Œæ—¥å…‰ï¼Œæœ¨è´¨é•¿æ¤…ï¼ŒèƒŒæ™¯æœ‰æ•£æ­¥çš„äººæ¸…æ¥š', s: ['æ—¥ç³»', 'å­¦é™¢é£Ž', 'æ¸©æŸ”é£Ž'] },
-  { t: 'ç”œå“åº—åº—å†…ï¼Œæœ¨è´¨æ¡Œæ¤…ã€çŽ»ç’ƒæŸœé‡Œçš„è›‹ç³•ã€æš–é»„åŠç¯ï¼Œæ˜Žäº®æ¸©æš–ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'insé£Ž', 'æ¸©æŸ”é£Ž'] },
-  { t: 'ä¾¿åˆ©åº—å†·è—æŸœå‰ï¼Œæ˜Žäº®å†·ç™½å…‰ï¼Œè´§æž¶ä¸Šé¥®æ–™æ¸…æ¥šï¼ŒèƒŒæ™¯æ¸…æ™°', s: ['é€šå‹¤', 'insé£Ž'] },
-  { t: 'æ°‘å®¿å®¢åŽ…ï¼Œå¸ƒè‰ºæ²™å‘ã€åŽŸæœ¨èŒ¶å‡ ã€æš–é»„è½åœ°ç¯ï¼Œçª—å¤–æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ…µæ‡’é£Ž', 'æ¸©æŸ”é£Ž', 'insé£Ž'] },
-  { t: 'å¤å¤æ—‹è½¬æ¥¼æ¢¯ï¼Œæœ¨è´¨æ‰¶æ‰‹å’Œé“è‰ºæ æ†ï¼Œæš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['å¤å¤', 'æ³•å¼'] },
-  { t: 'éœ²è¥é£Žé˜³å°ï¼ŒæŠ˜å æ¤…ã€å°æ¡Œã€ç»¿æ¤ï¼Œæ˜Žäº®æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'éŸ©ç‰ˆ'] },
-  { t: 'å©šçº±åº—è¯•è¡£é•œå‰ï¼Œæš–å…‰ï¼Œé•œé¢åå…‰æ¸…æ¥š', s: ['æ³•å¼', 'æ¸©æŸ”é£Ž'] },
-  { t: 'è‰ºæœ¯å±•è§ˆé¦†èµ°å»Šï¼Œç™½å¢™ã€æœ¨åœ°æ¿ã€è¿œå¤„ç”»ä½œï¼Œæ˜Žäº®æŸ”å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ³•å¼', 'insé£Ž'] },
-  { t: 'é¢åŒ…åº—æŸœå°å‰ï¼ŒçŽ»ç’ƒæŸœé‡Œçš„é¢åŒ…ã€æš–é»„ç¯å…‰ã€æœ¨è´¨è£…ä¿®ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'æ¸©æŸ”é£Ž'] },
-  { t: 'æ—§ç‰©å¸‚é›†æ‘Šä½å‰ï¼Œæœ¨æ¡Œã€é™¶ç“·æ¯ã€ç»¿æ¤ï¼Œæš–å…‰ï¼ŒèƒŒæ™¯æœ‰ç”Ÿæ´»æ‚ç‰©æ¸…æ¥š', s: ['å¤å¤', 'æ…µæ‡’é£Ž'] },
-  { t: 'ç‘œä¼½åž«æ—çš„å±…å®¶è§’è½ï¼Œæµ…è‰²åœ°æ¯¯ã€ç»¿æ¤ã€æš–è‰²ç¯å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'æ¸©æŸ”é£Ž'] },
-  { t: 'é…’åº—æˆ¿é—´çª—è¾¹ï¼Œçº±å¸˜ã€å¤§åºŠã€æš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ³•å¼', 'æ¸©æŸ”é£Ž'] },
-  { t: 'å¤å¤ç†å‘åº—ç­‰å€™åŒºï¼Œçš®æ¤…ã€ç»¿æ¤ã€æš–é»„åŠç¯ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['å¤å¤', 'insé£Ž'] },
-  { t: 'æµ·è¾¹å’–å•¡åº—éœ²å°ï¼Œç™½è‰²æ æ†ã€ç»¿æ¤ã€è¿œå¤„æµ·é¢æ˜Žäº®ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'insé£Ž'] },
-  { t: 'æ—§ä¹¦åº—äºŒæ¥¼ï¼Œæ»¡å¢™ä¹¦æž¶ã€æœ¨åœ°æ¿ã€æš–å…‰å°ç¯ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['å¤å¤', 'å­¦é™¢é£Ž'] },
-  { t: 'ç¤¾åŒºä¾¿åˆ©åº—é—¨å£ï¼Œè‡ªåŠ¨é—¨ã€æš–è‰²ç¯å…‰ã€è´§æž¶ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['é€šå‹¤', 'æ—¥ç³»'] },
-  { t: 'æ—¥å¼æ¦»æ¦»ç±³æˆ¿é—´ï¼Œè‰å¸­ã€éšœå­é—¨ã€æš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ—¥ç³»', 'æ¸©æŸ”é£Ž'] },
-  { t: 'ç”»å®¤ä¸€è§’ï¼Œç”»æž¶ã€é¢œæ–™ã€æš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ³•å¼', 'insé£Ž'] },
-  { t: 'èŠ±åº—å†…éƒ¨ï¼ŒèŠ±æž¶ä¸Šæ»¡æ˜¯é²œèŠ±ã€æš–å…‰ã€æœ¨åœ°æ¿ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ¸©æŸ”é£Ž', 'æ³•å¼', 'æ—¥ç³»'] },
-  { t: 'å’–å•¡åº—å§å°æ—çš„é«˜è„šå‡³ï¼Œé»„é“œç¯ã€æœ¨è´¨å°é¢ã€èƒŒæ™¯å’–å•¡å™¨å…·æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'insé£Ž', 'é€šå‹¤'] },
-  { t: 'åŒ—æ¬§é£Žå®¢åŽ…ï¼Œæµ…è‰²æ²™å‘ã€æœ¨è´¨èŒ¶å‡ ã€ç»¿æ¤ã€å¤§çª—æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'æ—¥ç³»'] },
-  { t: 'å¤å¤ç…§ç›¸é¦†ï¼Œæš–è‰²èƒŒæ™¯å¸ƒã€æœ¨è´¨é“å…·ã€æš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['å¤å¤', 'æ³•å¼'] },
-  { t: 'éŸ©å¼ç”œå“å’–å•¡åº—äºŒæ¥¼ï¼Œç™½è‰²å¢™é¢ã€æœ¨è´¨æ¡Œæ¤…ã€ç”œå“æŸœã€æš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥šæ˜Žäº®', s: ['éŸ©ç‰ˆ', 'insé£Ž', 'æ¸©æŸ”é£Ž'] },
-  { t: 'å®¶å±…åº—æ ·æ¿é—´å®¢åŽ…ï¼Œæµ…è‰²å¸ƒè‰ºæ²™å‘ã€æœ¨èŒ¶å‡ ã€å¹²èŠ±å’Œç»¿æ¤ï¼Œæ˜Žäº®æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'æ…µæ‡’é£Ž'] },
-  { t: 'èŠ±è‰ºå·¥ä½œå®¤ï¼ŒæˆæŽ’èŠ±æ¡¶å’Œæœ¨è´¨é•¿æ¡Œï¼Œè‡ªç„¶å…‰ä»Žçª—è¿›æ¥ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ¸©æŸ”é£Ž', 'æ³•å¼', 'æ—¥ç³»'] },
-  { t: 'è€æ´‹æˆ¿æ¥¼æ¢¯é—´ï¼Œæœ¨è´¨æ¥¼æ¢¯ã€ç™½å¢™ã€ç»¿æ¤ï¼Œæš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ³•å¼', 'å¤å¤'] },
-  { t: 'å•†åœºå¥³è£…åŒºè¯•è¡£é—´å¤–ï¼Œæµ…è‰²å¢™é¢å’ŒæŒ‚è¡£æ†ï¼Œæ˜Žäº®ç¯å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['é€šå‹¤', 'éŸ©ç‰ˆ'] },
-  { t: 'æ—©åˆé¤åº—é çª—å¡åº§ï¼Œè—¤ç¼–æ¤…ã€æœ¨è´¨æ¡Œã€çª—å¤–è¡—æ™¯ï¼Œæ˜Žäº®æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'éŸ©ç‰ˆ', 'æ¸©æŸ”é£Ž'] },
-  { t: 'å­¦æ ¡æ•™å®¤çª—è¾¹ï¼Œæœ¨è´¨è¯¾æ¡Œã€é»‘æ¿å’Œçª—å¤–ç»¿æ ‘ï¼Œæ—¥å…‰æ˜Žäº®ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['å­¦é™¢é£Ž', 'æ—¥ç³»'] },
-  { t: 'å’–å•¡åº—éœ²å°ï¼Œæœ¨è´¨å›´æ ã€ç»¿æ¤ã€è—¤æ¤…å’Œé®é˜³ä¼žï¼Œæ˜Žäº®æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'insé£Ž'] },
-  { t: 'æ–‡åˆ›å¸‚é›†æ‘Šä½ï¼Œæœ¨è´¨è´§æž¶ã€æ‰‹ä½œæ‘†ä»¶ã€æš–é»„ç¯ä¸²ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'å¤å¤'] },
-  { t: 'æ—¥æ–™åº—é—¨å£ï¼Œæœ¨è´¨æŽ¨æ‹‰é—¨ã€ç¯ç¬¼ã€æš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ—¥ç³»', 'æ¸©æŸ”é£Ž'] },
-  { t: 'ç¾Žæœ¯é¦†ç™½å¢™å±•åŽ…ï¼Œç”»ä½œå’ŒæŸ”å…‰å°„ç¯ï¼Œæ˜Žäº®å¹²å‡€ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ³•å¼', 'insé£Ž'] },
-  { t: 'å†¬æ—¥è¡—è§’é¢åŒ…åº—ï¼Œæœ¨è´¨é—¨é¢ã€æš–é»„æ©±çª—ç¯ã€è·¯è¾¹è¡—æ™¯ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'æ¸©æŸ”é£Ž', 'å¤å¤'] },
-  { t: 'é˜³å°èŠ±æž¶æ—ï¼Œè—¤æ¤…ã€å°åœ†æ¡Œã€ç™½è‰²èŠ±ç›†å’Œç»¿æ¤ï¼ŒåˆåŽæ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'æ¸©æŸ”é£Ž', 'æ—¥ç³»'] },
-  { t: 'ç§å®¶è½¦å†…ï¼Œç±³è‰²çœŸçš®åº§æ¤…å’Œæš–è‰²æ°›å›´ç¯ï¼Œè½¦çª—å¤–æ˜¯åœ°ä¸‹è½¦åº“æˆ–è¡—æ™¯ï¼Œå…‰çº¿æŸ”å’Œï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'insé£Ž', 'æ¸©æŸ”é£Ž'] },
-  { t: 'æœºåœºå€™æœºå¤§åŽ…ï¼Œè½åœ°çª—ã€è¡ŒæŽè½¦å’Œè¿œå¤„èˆªç­ä¿¡æ¯å±ï¼Œç™½å¤©æ˜Žäº®ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['é€šå‹¤', 'éŸ©ç‰ˆ', 'insé£Ž'] },
-  { t: 'åœ°é“è½¦åŽ¢å†…ï¼Œæµ…è‰²åº§æ¤…å’Œæ‰¶æ‰‹ï¼Œè½¦åŽ¢ç¯å…‰æ˜Žäº®ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['é€šå‹¤', 'æ—¥ç³»', 'éŸ©ç‰ˆ'] },
-  { t: 'å•†åœºå¥³è£…åŒºæ‰¶æ¢¯æ—ï¼Œæµ…è‰²å¢™é¢ã€æŒ‚è¡£æ†å’Œæ¨¡ç‰¹é“å…·ï¼Œç¯å…‰é€šæ˜Žï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['é€šå‹¤', 'éŸ©ç‰ˆ', 'insé£Ž'] },
-  { t: 'åœ°ä¸‹è½¦åº“ç”µæ¢¯å£ï¼Œæ°´æ³¥å¢™å’Œæš–è‰²ç¯å¸¦ï¼Œå…‰æ¯”å¹²å‡€ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'éŸ©ç‰ˆ', 'é€šå‹¤'] },
-  { t: 'åŸŽå¸‚è¡—å¤´æ–‘é©¬çº¿ï¼Œè½¦æµå’Œåº—é“ºæ‹›ç‰Œè™šåŒ–ä½†ä»å¯è¾¨è®¤ï¼Œç™½å¤©é˜³å…‰æ˜Žäº®', s: ['éŸ©ç‰ˆ', 'insé£Ž', 'é€šå‹¤'] },
-  { t: 'å¤©æ¡¥æ æ†æ—ï¼Œè¿œå¤„é«˜æ¥¼å’Œè¡—é“ï¼Œå‚æ™šåæš–æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['é€šå‹¤', 'éŸ©ç‰ˆ', 'æ³•å¼'] },
-  { t: 'è¶…å¸‚è´§æž¶é—´ï¼Œæ˜Žäº®é¡¶ç¯ï¼Œè´§æž¶å•†å“æ¸…æ¥šï¼ŒèƒŒæ™¯å¹²å‡€', s: ['æ—¥ç³»', 'é€šå‹¤'] },
-  { t: 'å’–å•¡é¦†å®¤å¤–åº§ä½ï¼Œè—¤æ¤…ã€å°åœ†æ¡Œã€é®é˜³ä¼žå’Œè¡—æ™¯ï¼ŒåˆåŽé˜³å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'éŸ©ç‰ˆ', 'æ³•å¼'] },
-  { t: 'é…’åº—å¤§å ‚ï¼Œå¤§ç†çŸ³åœ°é¢ã€æš–è‰²å£ç¯å’Œç»¿æ¤ï¼Œæ˜Žäº®å¹²å‡€ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ³•å¼', 'æ¸©æŸ”é£Ž', 'insé£Ž'] },
-  { t: 'è¡£å¸½é—´æŒ‚è¡£æ†å‰ï¼Œæœ¨è´¨æŸœä½“ã€æ•´é½æŒ‚ç€çš„ç§‹å†¬è¡£æœï¼Œæš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ…µæ‡’é£Ž', 'éŸ©ç‰ˆ', 'insé£Ž'] },
-  { t: 'å¥¶æ²¹è‰²çº¯è‰²å½±æ£šèƒŒæ™¯ï¼ŒæŸ”å’Œå‡åŒ€å¸ƒå…‰ï¼Œåœ°é¢åŒè‰²ï¼Œç”»é¢å¹²å‡€', s: ['insé£Ž', 'éŸ©ç‰ˆ', 'æ¸©æŸ”é£Ž'] },
-  { t: 'æµ…ç°æ¸å˜å½±æ£šèƒŒæ™¯ï¼ŒæŸ”å…‰ç®±å¸ƒå…‰ï¼Œå¹²å‡€ä½†æœ‰è½»å¾®å…‰å½±å±‚æ¬¡', s: ['éŸ©ç‰ˆ', 'é€šå‹¤', 'insé£Ž'] },
-  { t: 'å§å®¤åœ°æ¯¯ä¸Šï¼Œæµ…è‰²åºŠå“å’Œæ¯›æ¯¯ï¼Œçª—å¤–é˜´å¤©æŸ”å…‰ï¼Œç”»é¢æ˜Žäº®ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ…µæ‡’é£Ž', 'æ—¥ç³»', 'æ¸©æŸ”é£Ž'] },
-  { t: 'é›ªåŽçš„è¡—è¾¹ï¼Œç§¯é›ªå’Œäº®ç€çš„åº—é“ºæ©±çª—ï¼Œå†·è°ƒæ˜Žäº®ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'æ³•å¼', 'æ¸©æŸ”é£Ž'] },
-  { t: 'æµ·è¾¹æœ¨æ ˆé“ï¼Œæ æ†ã€æ²™æ»©å’Œè¿œå¤„æµ·é¢ï¼Œæ—¥å…‰å……è¶³ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'éŸ©ç‰ˆ', 'æ³•å¼'] },
-  { t: 'å°é…’é¦†å§å°ï¼Œæœ¨è´¨å°é¢ã€é»„é“œç¯å…·å’Œé…’ç“¶ï¼Œæš–é»„ç¯å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['å¤å¤', 'æ³•å¼', 'æ…µæ‡’é£Ž'] },
-  { t: 'ç”µæ¢¯é•œé¢é‡Œèƒ½çœ‹åˆ°æ¥¼é“ç¯å’Œäººç‰©å€’å½±ï¼Œæš–å…‰å¹²å‡€ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'é€šå‹¤', 'éŸ©ç‰ˆ'] },
-  { t: 'æœè£…åº—è¯•è¡£é—´å¤–ï¼Œæµ…è‰²å¢™é¢ã€æŒ‚è¡£é’©å’Œå…¨èº«é•œï¼Œç¯å…‰æ˜Žäº®ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['é€šå‹¤', 'éŸ©ç‰ˆ', 'insé£Ž'] },
-  { t: 'å†¬æ—¥å’–å•¡é¦†çª—è¾¹ï¼Œçª—å¤–é£˜é›ªï¼Œå®¤å†…æš–é»„ç¯å…‰å’Œæœ¨è´¨æ¡Œé¢ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['éŸ©ç‰ˆ', 'æ¸©æŸ”é£Ž', 'å¤å¤'] },
-  { t: 'å¥¶æ²¹é£Žå®¢åŽ…æ²™å‘æ—ï¼Œæµ…è‰²å¸ƒè‰ºæ²™å‘å’Œç¾Šæ¯›æ¯¯ï¼Œå¤§çª—æ—¥å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['insé£Ž', 'æ…µæ‡’é£Ž', 'æ¸©æŸ”é£Ž'] },
-  { t: 'æ—¥å¼è¡—é“ä¾¿åˆ©åº—é—¨å£ï¼Œè‡ªåŠ¨è´©å–æœºå’Œæš–è‰²ç¯ç®±ï¼Œå¤œé—´åæš–å…‰ï¼ŒèƒŒæ™¯æ¸…æ¥š', s: ['æ—¥ç³»', 'éŸ©ç‰ˆ'] }
+  { t: '韩系咖啡馆内，木质吧台和白色瓷砖墙，暖黄吊灯，桌上有纸杯咖啡和一块蛋糕，背景的咖啡机、菜单板、绿植都清晰可辨，整体明亮温暖', s: ['韩版', 'ins风', '温柔风', '通勤'] },
+  { t: '咖啡馆靠窗座位，木质桌面、拿铁杯和木托盘，窗外街景明亮清楚，暖光打在桌面和毛衣上', s: ['韩版', '通勤', 'ins风'] },
+  { t: '咖啡馆镜子前，镜面里能看到店内的木质柜台、吊灯和瓷砖墙，暖光充足，镜边框是深色木质，背景细节清楚', s: ['韩版', 'ins风'] },
+  { t: '米色墙面和白色置物架的居家角落，暖色落地灯光，背景有绿植、杯子和杂物，明亮有生活气息，细节清楚', s: ['慵懒风', '温柔风', 'ins风'] },
+  { t: '卧室床边，浅色床品和针织毛毯，晨光明亮柔和，窗有白色纱帘，背景清楚', s: ['日系', '慵懒风', '温柔风'] },
+  { t: '窗边卧室，浅色纱帘透光，浅木地板，明亮自然光，窗台有小盆栽，背景清晰', s: ['日系', '温柔风', '法式'] },
+  { t: '复古木质衣架前，暖黄灯光，背景挂着浅色衣服和针织单品，细节清楚', s: ['复古', '法式', '慵懒风'] },
+  { t: '复古咖啡馆，深色木质墙板、黄铜吊灯和皮沙发，大窗日光充足明亮，暖金色调，背景清楚', s: ['复古', '法式', '慵懒风'] },
+  { t: '校园图书馆靠窗位置，成排书本和木质书架，大窗日光很亮，桌面有暖光，背景清楚', s: ['学院风', '复古'] },
+  { t: '教学楼走廊，绿树背景，明亮自然光，白墙和木扶手，背景清晰', s: ['学院风', '日系'] },
+  { t: '写字楼玻璃幕墙走廊，简洁现代，明亮自然光，远处绿植清楚', s: ['通勤'] },
+  { t: '街边绿植墙前，城市街拍，日光柔和，背景有咖啡店招牌清楚可辨', s: ['韩版', 'ins风'] },
+  { t: '秋日街景，落叶和街道，暖黄日光，背景有店铺橱窗清楚', s: ['韩版', '通勤', '法式'] },
+  { t: '花店门口，花束和绿植，暖光，木质门框，玻璃窗透进日光，背景清楚', s: ['温柔风', '法式', '日系'] },
+  { t: '书店靠窗过道，木质书架和明亮阅读区，窗边日光，背景清楚', s: ['学院风', '复古', '温柔风'] },
+  { t: '地铁口或斑马线，城市日常背景，明亮自然光，远处行人清楚', s: ['韩版', '通勤'] },
+  { t: '白天露台，明亮日光、白色栏杆和绿植，远处城市清楚，暖调', s: ['ins风', '韩版'] },
+  { t: '极简居家角落，白墙、浅木地板、一盆绿植，明亮窗户光，背景清楚', s: ['ins风', '日系'] },
+  { t: '沙发旁，米色抱枕和针织毛毯，暖色灯光，木质边几上有杯子，窗外日光，背景清楚', s: ['慵懒风', '温柔风'] },
+  { t: '打开的衣柜前，整齐挂着的浅色衣服，暖光，木质柜体清楚', s: ['慵懒风', '通勤', 'ins风'] },
+  { t: '全身镜前，镜面反光，房间一角有绿植和木质衣架，明亮温暖，背景清楚', s: ['ins风', '韩版'] },
+  { t: '木质餐桌旁，浅色餐具、绿植和纸杯咖啡，日间明亮柔光，背景清楚', s: ['日系', '温柔风'] },
+  { t: '落地窗前的地毯上，窗外城市明亮，室内暖光，有抱枕，背景清楚', s: ['ins风', '日系', '韩版'] },
+  { t: '白天街边咖啡店门口，浅色墙面、木质门窗和绿植，日光充足，背景清楚', s: ['韩版', 'ins风'] },
+  { t: '公园长椅，绿树和柔和日光，木质长椅，背景有散步的人清楚', s: ['日系', '学院风', '温柔风'] },
+  { t: '甜品店店内，木质桌椅、玻璃柜里的蛋糕、暖黄吊灯，明亮温暖，背景清楚', s: ['韩版', 'ins风', '温柔风'] },
+  { t: '便利店冷藏柜前，明亮冷白光，货架上饮料清楚，背景清晰', s: ['通勤', 'ins风'] },
+  { t: '民宿客厅，布艺沙发、原木茶几、暖黄落地灯，窗外日光，背景清楚', s: ['慵懒风', '温柔风', 'ins风'] },
+  { t: '复古旋转楼梯，木质扶手和铁艺栏杆，暖光，背景清楚', s: ['复古', '法式'] },
+  { t: '露营风阳台，折叠椅、小桌、绿植，明亮日光，背景清楚', s: ['ins风', '韩版'] },
+  { t: '婚纱店试衣镜前，暖光，镜面反光清楚', s: ['法式', '温柔风'] },
+  { t: '艺术展览馆走廊，白墙、木地板、远处画作，明亮柔光，背景清楚', s: ['法式', 'ins风'] },
+  { t: '面包店柜台前，玻璃柜里的面包、暖黄灯光、木质装修，背景清楚', s: ['韩版', '温柔风'] },
+  { t: '旧物市集摊位前，木桌、陶瓷杯、绿植，暖光，背景有生活杂物清楚', s: ['复古', '慵懒风'] },
+  { t: '瑜伽垫旁的居家角落，浅色地毯、绿植、暖色灯光，背景清楚', s: ['ins风', '温柔风'] },
+  { t: '酒店房间窗边，纱帘、大床、暖光，背景清楚', s: ['法式', '温柔风'] },
+  { t: '复古理发店等候区，皮椅、绿植、暖黄吊灯，背景清楚', s: ['复古', 'ins风'] },
+  { t: '海边咖啡店露台，白色栏杆、绿植、远处海面明亮，背景清楚', s: ['韩版', 'ins风'] },
+  { t: '旧书店二楼，满墙书架、木地板、暖光台灯，背景清楚', s: ['复古', '学院风'] },
+  { t: '社区便利店门口，自动门、暖色灯光、货架，背景清楚', s: ['通勤', '日系'] },
+  { t: '日式榻榻米房间，草席、障子门、暖光，背景清楚', s: ['日系', '温柔风'] },
+  { t: '画室一角，画架、颜料、暖光，背景清楚', s: ['法式', 'ins风'] },
+  { t: '花店内部，花架上满是鲜花、暖光、木地板，背景清楚', s: ['温柔风', '法式', '日系'] },
+  { t: '咖啡店吧台旁的高脚凳，黄铜灯、木质台面、背景咖啡器具清楚', s: ['韩版', 'ins风', '通勤'] },
+  { t: '北欧风客厅，浅色沙发、木质茶几、绿植、大窗日光，背景清楚', s: ['ins风', '日系'] },
+  { t: '复古照相馆，暖色背景布、木质道具、暖光，背景清楚', s: ['复古', '法式'] },
+  { t: '韩式甜品咖啡店二楼，白色墙面、木质桌椅、甜品柜、暖光，背景清楚明亮', s: ['韩版', 'ins风', '温柔风'] },
+  { t: '家居店样板间客厅，浅色布艺沙发、木茶几、干花和绿植，明亮日光，背景清楚', s: ['ins风', '慵懒风'] },
+  { t: '花艺工作室，成排花桶和木质长桌，自然光从窗进来，背景清楚', s: ['温柔风', '法式', '日系'] },
+  { t: '老洋房楼梯间，木质楼梯、白墙、绿植，暖光，背景清楚', s: ['法式', '复古'] },
+  { t: '商场女装区试衣间外，浅色墙面和挂衣杆，明亮灯光，背景清楚', s: ['通勤', '韩版'] },
+  { t: '早午餐店靠窗卡座，藤编椅、木质桌、窗外街景，明亮日光，背景清楚', s: ['ins风', '韩版', '温柔风'] },
+  { t: '学校教室窗边，木质课桌、黑板和窗外绿树，日光明亮，背景清楚', s: ['学院风', '日系'] },
+  { t: '咖啡店露台，木质围栏、绿植、藤椅和遮阳伞，明亮日光，背景清楚', s: ['韩版', 'ins风'] },
+  { t: '文创市集摊位，木质货架、手作摆件、暖黄灯串，背景清楚', s: ['ins风', '复古'] },
+  { t: '日料店门口，木质推拉门、灯笼、暖光，背景清楚', s: ['日系', '温柔风'] },
+  { t: '美术馆白墙展厅，画作和柔光射灯，明亮干净，背景清楚', s: ['法式', 'ins风'] },
+  { t: '冬日街角面包店，木质门面、暖黄橱窗灯、路边街景，背景清楚', s: ['韩版', '温柔风', '复古'] },
+  { t: '阳台花架旁，藤椅、小圆桌、白色花盆和绿植，午后日光，背景清楚', s: ['ins风', '温柔风', '日系'] },
+  { t: '私家车内，米色真皮座椅和暖色氛围灯，车窗外是地下车库或街景，光线柔和，背景清楚', s: ['韩版', 'ins风', '温柔风'] },
+  { t: '机场候机大厅，落地窗、行李车和远处航班信息屏，白天明亮，背景清楚', s: ['通勤', '韩版', 'ins风'] },
+  { t: '地铁车厢内，浅色座椅和扶手，车厢灯光明亮，背景清楚', s: ['通勤', '日系', '韩版'] },
+  { t: '商场女装区扶梯旁，浅色墙面、挂衣杆和模特道具，灯光通明，背景清楚', s: ['通勤', '韩版', 'ins风'] },
+  { t: '地下车库电梯口，水泥墙和暖色灯带，光比干净，背景清楚', s: ['ins风', '韩版', '通勤'] },
+  { t: '城市街头斑马线，车流和店铺招牌虚化但仍可辨认，白天阳光明亮', s: ['韩版', 'ins风', '通勤'] },
+  { t: '天桥栏杆旁，远处高楼和街道，傍晚偏暖日光，背景清楚', s: ['通勤', '韩版', '法式'] },
+  { t: '超市货架间，明亮顶灯，货架商品清楚，背景干净', s: ['日系', '通勤'] },
+  { t: '咖啡馆室外座位，藤椅、小圆桌、遮阳伞和街景，午后阳光，背景清楚', s: ['ins风', '韩版', '法式'] },
+  { t: '酒店大堂，大理石地面、暖色壁灯和绿植，明亮干净，背景清楚', s: ['法式', '温柔风', 'ins风'] },
+  { t: '衣帽间挂衣杆前，木质柜体、整齐挂着的秋冬衣服，暖光，背景清楚', s: ['慵懒风', '韩版', 'ins风'] },
+  { t: '奶油色纯色影棚背景，柔和均匀布光，地面同色，画面干净', s: ['ins风', '韩版', '温柔风'] },
+  { t: '浅灰渐变影棚背景，柔光箱布光，干净但有轻微光影层次', s: ['韩版', '通勤', 'ins风'] },
+  { t: '卧室地毯上，浅色床品和毛毯，窗外阴天柔光，画面明亮，背景清楚', s: ['慵懒风', '日系', '温柔风'] },
+  { t: '雪后的街边，积雪和亮着的店铺橱窗，冷调明亮，背景清楚', s: ['韩版', '法式', '温柔风'] },
+  { t: '海边木栈道，栏杆、沙滩和远处海面，日光充足，背景清楚', s: ['ins风', '韩版', '法式'] },
+  { t: '小酒馆吧台，木质台面、黄铜灯具和酒瓶，暖黄灯光，背景清楚', s: ['复古', '法式', '慵懒风'] },
+  { t: '电梯镜面里能看到楼道灯和人物倒影，暖光干净，背景清楚', s: ['ins风', '通勤', '韩版'] },
+  { t: '服装店试衣间外，浅色墙面、挂衣钩和全身镜，灯光明亮，背景清楚', s: ['通勤', '韩版', 'ins风'] },
+  { t: '冬日咖啡馆窗边，窗外飘雪，室内暖黄灯光和木质桌面，背景清楚', s: ['韩版', '温柔风', '复古'] },
+  { t: '奶油风客厅沙发旁，浅色布艺沙发和羊毛毯，大窗日光，背景清楚', s: ['ins风', '慵懒风', '温柔风'] },
+  { t: '日式街道便利店门口，自动贩卖机和暖色灯箱，夜间偏暖光，背景清楚', s: ['日系', '韩版'] }
 ];
 
 function shuffleArr(a) {
@@ -2097,18 +2097,18 @@ function scenesForStyle(style) {
   return hit.length >= 5 ? hit : hit.concat(LIFE_SCENES.map((x) => x.t));
 }
 
-// ã€Œä¸å¸¦è£…é¥°ã€å¼€å…³ï¼šè¿”å›ž buildJimengPrompts ç”¨çš„å‚æ•°
+// 「不带装饰」开关：返回 buildJimengPrompts 用的参数
 function arkAccOpts() {
   return S.arkCounts.noAccessory
-    ? { simple: true, noAccessory: true, accessory: S.arkCounts.accessoryList || 'ä¸å¸¦ã€è•¾ä¸è´è¶ç»“ç­‰è£…é¥°' }
+    ? { simple: true, noAccessory: true, accessory: S.arkCounts.accessoryList || '丝带、蕾丝蝴蝶结等装饰' }
     : null;
 }
 
-// ç”»è´¨æ”¶å°¾è¯­ï¼šæŒ‰ã€Œå‡ºå›¾é£Žæ ¼ã€é€‰ç”Ÿæ´»ç§è‰æˆ–ç™½åº•å½±æ£šï¼›å¼€äº†ã€Œä¸å¸¦è£…é¥°ã€æ—¶åŽ»æŽ‰ã€Œè£…é¥°ä¸ŽåŽŸå›¾ä¸€è‡´ã€
+// 画质收尾语：按「出图风格」选生活种草或白底影棚；开了「不带装饰」时去掉「装饰与原图一致」
 function arkPhotoTag(style) {
   const mode = style || S.arkCounts.photoStyle || 'blend';
   const life = mode !== 'studio';
-  // å…‰ä½ä¿æŒç»Ÿä¸€ï¼Œé•œå¤´å’Œç™½å¹³è¡¡æ¯å¼ ç•¥å˜ï¼Œé¿å…æ•´æ‰¹åƒåŒä¸€å¼ å›¾å¤åˆ¶å‡ºæ¥çš„
+  // 光位保持统一，镜头和白平衡每张略变，避免整批像同一张图复制出来的
   const lens = ARK_LENSES[Math.floor(Math.random() * ARK_LENSES.length)];
   let s = life
     ? ARK_PHOTO_LIFE
@@ -2116,42 +2116,42 @@ function arkPhotoTag(style) {
         .replace('__LENS__', lens)
     : ARK_PHOTO_STUDIO;
   if (mode === 'blend') {
-    s += 'ï¼›è¿™å¼ å›¾è¦åŒæ—¶å…¼é¡¾ç”Ÿæ´»æ°›å›´å’Œå•†å“å¯å”®è´¨æ„Ÿï¼šè¡£æœæ˜¯ç»å¯¹ä¸»ä½“ï¼Œæ­£é¢æˆ–åŠä¾§é¢æœå‘é•œå¤´ã€ç‰ˆåž‹å®Œæ•´ï¼Œå ç”»é¢ 65%~80%ï¼Œé’ˆç»‡çº¹ç†ã€ç»’æ„Ÿã€çº½æ‰£ã€èµ°çº¿éƒ½æ¸…æ™°å¯è¾¨ï¼›èƒŒæ™¯ç”Ÿæ´»åŒ–ä½†ç®€æ´ã€ä¸æ‚ä¹±ä¸æŠ¢ä¸»ä½“ï¼›åƒçœŸå®žåº—é“ºæ‹çš„é«˜è´¨é‡ä¹°å®¶ç§€ï¼Œä¸æ˜¯æµ·æŠ¥ä¸æ˜¯ç²¾ä¿®å¤§ç‰‡';
+    s += '；这张图要同时兼顾生活氛围和商品可售质感：衣服是绝对主体，正面或半侧面朝向镜头、版型完整，占画面 65%~80%，针织纹理、绒感、纽扣、走线都清晰可辨；背景生活化但简洁、不杂乱不抢主体；像真实店铺拍的高质量买家秀，不是海报不是精修大片';
   }
   if (S.arkCounts.noAccessory) {
-    s = s.replace('æœè£…é¢œè‰²ã€èŠ±çº¹ã€æè´¨ã€çº½æ‰£ã€å£è¢‹ä¸Žå‚è€ƒå›¾å®Œå…¨ä¸€è‡´',
-      `æœè£…é¢œè‰²ã€èŠ±çº¹ã€æè´¨ã€çº½æ‰£ã€å£è¢‹ä¸Žå‚è€ƒå›¾å®Œå…¨ä¸€è‡´ï¼Œä½†ä¸è¦ç”Ÿæˆ${S.arkCounts.accessoryList || 'ä¸å¸¦ã€è´è¶ç»“ã€èƒ¸é’ˆç­‰'}ï¼Œåªä¿ç•™è¡£æœæœ¬ä½“`);
+    s = s.replace('服装颜色、花纹、材质、纽扣、口袋与参考图完全一致',
+      `服装颜色、花纹、材质、纽扣、口袋与参考图完全一致，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结、胸针等'}，只保留衣服本体`);
   }
   return s;
 }
 
 function arkCheckReady() {
-  if (!S.studioImage) { toast('å…ˆä¸Šä¼ ä¸€å¼ å•†å“å›¾'); return false; }
+  if (!S.studioImage) { toast('先上传一张商品图'); return false; }
   const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
-  if (!ai.apiKey) { toast('å…ˆåŽ»ã€Œè®¾ç½®ã€é‡Œå¡«ç«å±±æ–¹èˆŸçš„ API Key'); return false; }
-  if (!ai.imageModel) { toast('å…ˆåŽ»ã€Œè®¾ç½®ã€é‡Œå¡«ç”Ÿå›¾æ¨¡åž‹ ID'); return false; }
+  if (!ai.apiKey) { toast('先去「设置」里填火山方舟的 API Key'); return false; }
+  if (!ai.imageModel) { toast('先去「设置」里填生图模型 ID'); return false; }
   return true;
 }
 
 function arkBuildJobs() {
   const colors = (S.studioInput.colors || []).filter(Boolean);
-  const colorList = colors.length ? colors : ['å›¾ç‰‡æ‰€ç¤ºé¢œè‰²'];
+  const colorList = colors.length ? colors : ['图片所示颜色'];
   const mainPer = Number(S.arkCounts.mainPer) || 2;
   const detailPer = Number(S.arkCounts.detailPer) || 0;
   const mode = S.arkCounts.photoStyle || 'auto';
   const accOpts = arkAccOpts() || {};
-  const accNote = S.arkCounts.noAccessory ? `ã€‚è¡£æœä¸Šä¸è¦å‡ºçŽ°${S.arkCounts.accessoryList || 'ä¸å¸¦ã€è•¾ä¸è´è¶ç»“ç­‰è£…é¥°'}ï¼Œåªä¿ç•™è¡£æœæœ¬ä½“` : '';
+  const accNote = S.arkCounts.noAccessory ? `。衣服上不要出现${S.arkCounts.accessoryList || '丝带、蕾丝蝴蝶结等装饰'}，只保留衣服本体` : '';
   const jobs = [];
-  // æœ¬æ‰¹æ¬¡ç»Ÿä¸€é£Žæ ¼ï¼šauto æ¨¡å¼ä¸‹éšæœºé€‰ã€Œå…¨å¹³é“ºæŒ‚æ‹ã€æˆ–ã€Œå…¨ç´ äººæ¨¡ç‰¹ã€ï¼ŒåŒä¸€ä¸ªæ¬¾æ‰€æœ‰å›¾é£Žæ ¼ä¸€è‡´
+  // 本批次统一风格：auto 模式下随机选「全平铺挂拍」或「全素人模特」，同一个款所有图风格一致
   let batchMode = mode;
   if (mode === 'auto') {
     batchMode = Math.random() < 0.5 ? 'flatlay' : 'lifestyle';
   }
-  // æ•´æ‰¹æ‰“ä¹±ä¸€æ¬¡ï¼šé¢œè‰²ä¹‹é—´ã€å¼ æ•°ä¹‹é—´éƒ½ä¸é‡å¤ï¼›æ¯æ¬¡ç‚¹ç”Ÿæˆéƒ½ä¼šé‡æ–°æ‰“ä¹±
-  const styleKey = (S.studioInput.styles && S.studioInput.styles[0]) || 'æ¸©æŸ”é£Ž';
+  // 整批打乱一次：颜色之间、张数之间都不重复；每次点生成都会重新打乱
+  const styleKey = (S.studioInput.styles && S.studioInput.styles[0]) || '温柔风';
   const posePool = shuffleArr(LIFE_POSES);
   let scenePool = shuffleArr(scenesForStyle(styleKey));
-  // ä¸åŒå•†å“ä¹‹é—´å°½é‡ä¸æ’žèƒŒæ™¯ï¼šæŠŠä¸Šä¸€æ¬¾ç”¨è¿‡çš„åœºæ™¯æŒªåˆ°é˜Ÿå°¾
+  // 不同商品之间尽量不撞背景：把上一款用过的场景挪到队尾
   const recent = S.arkRecentScenes || [];
   const fresh = scenePool.filter((x) => recent.indexOf(x.t) < 0);
   const used = scenePool.filter((x) => recent.indexOf(x.t) >= 0);
@@ -2160,24 +2160,24 @@ function arkBuildJobs() {
   let startIdx = 0;
   colorList.forEach((color, colorIdx) => {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
-    const fc = color === 'å›¾ç‰‡æ‰€ç¤ºé¢œè‰²' ? '' : color;
+    const fc = color === '图片所示颜色' ? '' : color;
     for (let i = 0; i < mainPer; i++) {
       const one = buildJimengPrompts(ci, Object.assign({ count: 1, start: startIdx + i, poses: posePool, scenes: scenePool, forceColor: fc, photoStyle: batchMode, antiCompare: !!S.arkCounts.antiCompare, heroShot: i === 0 }, accOpts))[0];
-      jobs.push({ color, label: `${color} ä¸»å›¾ ${i + 1}`, prompt: one.prompt + accNote, photoStyle: batchMode });
+      jobs.push({ color, label: `${color} 主图 ${i + 1}`, prompt: one.prompt + accNote, photoStyle: batchMode });
     }
     const dv = buildJimengDetailPrompts(ci, Object.assign({}, accOpts, { forceColor: fc }));
-    for (let i = 0; i < detailPer; i++) jobs.push({ color, label: `${color} è¯¦æƒ…å›¾ ${i + 1}`, isDetail: true, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
+    for (let i = 0; i < detailPer; i++) jobs.push({ color, label: `${color} 详情图 ${i + 1}`, isDetail: true, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
     startIdx += mainPer;
   });
   if (S.arkCounts.simpleSku) {
     const ci = Object.assign({}, S.studioInput, { colors: [colorList[0]] });
-    const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || 'ä¸å¸¦ç­‰è£…é¥°', count: 1, photoStyle: batchMode })[0].prompt;
-    jobs.push({ color: colorList[0], label: 'å¼•æµå›¾ï¼ˆç®€é…ï¼‰', prompt: p });
+    const p = buildJimengPrompts(ci, { simple: true, accessory: S.arkCounts.simpleNote || '丝带等装饰', count: 1, photoStyle: batchMode })[0].prompt;
+    jobs.push({ color: colorList[0], label: '引流图（简配）', prompt: p });
   }
   return jobs;
 }
 
-/* æŠŠç”Ÿæˆå›¾é‡Œçš„å¤´éƒ¨è£å‡ºæ¥å½“äººè„¸å‚è€ƒï¼šåªä¼ æ•´å¼ å›¾ä¼šè®©æ¨¡åž‹è¿žç¬¬ä¸€å¼ çš„èƒŒæ™¯å’ŒåŠ¨ä½œä¸€èµ·æŠ„ */
+/* 把生成图里的头部裁出来当人脸参考：只传整张图会让模型连第一张的背景和动作一起抄 */
 function faceCropUrl(url) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -2203,46 +2203,46 @@ function faceCropUrl(url) {
   });
 }
 
-/* æ‰§è¡Œä¸€ç»„ jobsã€‚btnId æ˜¯è¦é”å®šçš„æŒ‰é’® idï¼›doneBase æ˜¯ä¹‹å‰å·²ç”Ÿæˆçš„å¼ æ•°ï¼ˆç”¨äºŽæ˜¾ç¤ºè¿›åº¦ï¼‰ */
+/* 执行一组 jobs。btnId 是要锁定的按钮 id；doneBase 是之前已生成的张数（用于显示进度） */
 async function arkRunJobs(jobs, btnId, doneBase) {
   const total = jobs.length;
   if (!total) return 0;
-  let phase = 'å‡†å¤‡ä¸­';
+  let phase = '准备中';
   let done = 0;
   const startedAt = Date.now();
   const lockBtn = () => {
     const b = $('#' + btnId);
-    if (b) { b.disabled = true; b.textContent = `ç”Ÿæˆä¸­â€¦ï¼ˆ${doneBase + done}/${doneBase + total}ï¼‰`; }
+    if (b) { b.disabled = true; b.textContent = `生成中…（${doneBase + done}/${doneBase + total}）`; }
   };
-  toast(`å¼€å§‹ç”Ÿæˆï¼Œå…± ${total} å¼ ï¼Œåˆ«å…³é¡µé¢â€¦`);
+  toast(`开始生成，共 ${total} 张，别关页面…`);
   const timer = setInterval(() => {
     const t = Math.round((Date.now() - startedAt) / 1000);
-    setArkStatus(`${phase}ï¼Œå·²ç­‰ ${t} ç§’ï¼Œåˆ«å…³é¡µé¢`);
+    setArkStatus(`${phase}，已等 ${t} 秒，别关页面`);
   }, 1000);
   lockBtn();
 
   const styleInfo = arkStyleInfo();
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
-  // äººè„¸å‚è€ƒåªå–å¤´éƒ¨ï¼šæ•´å¼ å›¾å½“å‚è€ƒï¼Œä¼šæŠŠç¬¬ä¸€å¼ çš„å§¿åŠ¿ã€èƒŒæ™¯ã€æž„å›¾ä¸€èµ·æŠ„è¿›åŽé¢çš„å›¾
+  // 人脸参考只取头部：整张图当参考，会把第一张的姿势、背景、构图一起抄进后面的图
   const faceRef = S.arkFaceRef ? await faceCropUrl(S.arkFaceRef) : null;
   try {
     for (let i = 0; i < total; i++) {
       const job = jobs[i];
-      phase = `æ­£åœ¨ç”Ÿæˆç¬¬ ${doneBase + i + 1}/${doneBase + total} å¼ ï¼ˆ${job.label}ï¼‰`;
-      S.arkStatus = phase + 'â€¦';
+      phase = `正在生成第 ${doneBase + i + 1}/${doneBase + total} 张（${job.label}）`;
+      S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
-      // è¯¦æƒ…å›¾æ˜¯å±€éƒ¨ç‰¹å†™ï¼Œä¸å¥—ç”¨ç”Ÿæ´»ç§è‰çš„åŠèº«æž„å›¾å’Œæ¨¡ç‰¹æè¿°ï¼Œå…å¾—åˆè¢«å¸¦æˆä¸€å¼ åŠèº«ç…§
-      let prompt = job.prompt + 'ã€‚' + styleInfo + (job.isDetail ? '' : 'ã€‚' + arkFaceSpec(job.photoStyle) + 'ã€‚' + arkPhotoTag(job.photoStyle));
-      // é¢œè‰²å¿…é¡»ä»¥è¿™ä¸€å¼ å¯¹åº”çš„é¢œè‰²ä¸ºå‡†ï¼šå‚è€ƒå›¾åªå€Ÿæ¬¾å¼ï¼Œé¢œè‰²è¦é‡æ–°ä¸Š
-      if (job.color && job.color !== 'å›¾ç‰‡æ‰€ç¤ºé¢œè‰²') {
-        prompt += `ã€‚è¿™ä¸€å¼ çš„è¡£æœå¿…é¡»æ˜¯ã€Œ${job.color}ã€ï¼šå‚è€ƒå›¾1åªç”¨æ¥å¯¹ç…§æ¬¾å¼ã€ç‰ˆåž‹ã€é’ˆç»‡çº¹ç†ã€çº½æ‰£å’Œå£è¢‹çš„ä½ç½®ï¼Œé¢œè‰²ä¸è¦ç…§æ¬å‚è€ƒå›¾ï¼Œæ•´ä»¶è¡£æœï¼ˆå«é¢†å£ã€è¢–å£ã€é—¨è¥Ÿã€å£è¢‹ï¼‰éƒ½è¦å‘ˆçŽ°${job.color}ï¼Œé¢œè‰²è¦å‡†ç¡®ã€å‡åŒ€ã€é¥±å’Œè‡ªç„¶ï¼›ä½†çº½æ‰£ä¿æŒå‚è€ƒå›¾1åŽŸæ ·ï¼šæ•°é‡ã€å¤§å°ã€ä½ç½®ã€æŽ’åˆ—é¡ºåºå’Œæ¯ä¸€é¢—çš„é¢œè‰²éƒ½ä¸å˜ï¼Œå½©è‰²çº½æ‰£æŒ‰åŽŸé¡ºåºè¿˜åŽŸï¼Œä¸èƒ½åŒè‰²åŒ–ã€ä¸èƒ½ä¸²è‰²ã€ä¸èƒ½å¢žå‡`;
+      // 详情图是局部特写，不套用生活种草的半身构图和模特描述，免得又被带成一张半身照
+      let prompt = job.prompt + '。' + styleInfo + (job.isDetail ? '' : '。' + arkFaceSpec(job.photoStyle) + '。' + arkPhotoTag(job.photoStyle));
+      // 颜色必须以这一张对应的颜色为准：参考图只借款式，颜色要重新上
+      if (job.color && job.color !== '图片所示颜色') {
+        prompt += `。这一张的衣服必须是「${job.color}」：参考图1只用来对照款式、版型、针织纹理、纽扣和口袋的位置，颜色不要照搬参考图，整件衣服（含领口、袖口、门襟、口袋）都要呈现${job.color}，颜色要准确、均匀、饱和自然；但纽扣保持参考图1原样：数量、大小、位置、排列顺序和每一颗的颜色都不变，彩色纽扣按原顺序还原，不能同色化、不能串色、不能增减`;
       } else {
-        prompt += 'ã€‚é¢œè‰²ä¸¥æ ¼ä¿æŒå‚è€ƒå›¾1çš„åŽŸè‰²ï¼Œä¸è¦æ”¹è‰²';
+        prompt += '。颜色严格保持参考图1的原色，不要改色';
       }
       const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
       if (faceRef && !job.isDetail) {
         body.images = [garment, faceRef];
-        prompt += 'ã€‚å‚è€ƒå›¾1 æ˜¯æœè£…å›¾ï¼Œåªå¯¹ç…§è¡£æœçš„æ¬¾å¼ã€ç‰ˆåž‹ã€é¢æ–™çº¹ç†ã€çº½æ‰£å’Œå£è¢‹ä½ç½®ï¼›å‚è€ƒå›¾2 åªæ˜¯æ¨¡ç‰¹çš„è„¸éƒ¨ç‰¹å†™ï¼Œåªå‚è€ƒäº”å®˜ã€è„¸åž‹ã€å‘åž‹ã€å‘è‰²å’Œå¦†å®¹ï¼Œç»å¯¹ä¸è¦å‚è€ƒå‚è€ƒå›¾2 çš„å§¿åŠ¿ã€åŠ¨ä½œã€æž„å›¾ã€èƒŒæ™¯ã€å…‰çº¿è§’åº¦å’Œè¡£æœ';
+        prompt += '。参考图1 是服装图，只对照衣服的款式、版型、面料纹理、纽扣和口袋位置；参考图2 只是模特的脸部特写，只参考五官、脸型、发型、发色和妆容，绝对不要参考参考图2 的姿势、动作、构图、背景、光线角度和衣服';
         body.prompt = prompt;
       } else {
         body.imageUrl = garment;
@@ -2252,20 +2252,20 @@ async function arkRunJobs(jobs, btnId, doneBase) {
         body: JSON.stringify(body)
       });
       const raw = r.dataUrl || r.url;
-      if (!raw) throw new Error('æ–¹èˆŸæ²¡è¿”å›žå›¾ç‰‡');
+      if (!raw) throw new Error('方舟没返回图片');
       const url = await gradePhoto(raw);
       if (!S.arkFaceRef && !job.isDetail && job.photoStyle === 'lifestyle') S.arkFaceRef = url;
       S.studioAiImages.unshift({ url, label: job.label });
       cacheImageNow(url);
       done += 1;
-      S.arkStatus = `å·²ç”Ÿæˆ ${doneBase + done}/${doneBase + total} å¼ â€¦`;
+      S.arkStatus = `已生成 ${doneBase + done}/${doneBase + total} 张…`;
       renderRoute();
       bindRoute();
       lockBtn();
     }
     return { done, ok: true };
   } catch (e) {
-    S.arkStatus = `ç¬¬ ${doneBase + done + 1} å¼ å¤±è´¥äº†ï¼š${(e.body && e.body.message) || e.message}ã€‚å·²æˆåŠŸ ${doneBase + done} å¼ ï¼Œæ²¡å‡ºæ¥çš„é‚£å¼ ä¸æ‰£é’±ã€‚`;
+    S.arkStatus = `第 ${doneBase + done + 1} 张失败了：${(e.body && e.body.message) || e.message}。已成功 ${doneBase + done} 张，没出来的那张不扣钱。`;
     renderRoute();
     bindRoute();
     return { done, ok: false };
@@ -2277,27 +2277,27 @@ async function arkRunJobs(jobs, btnId, doneBase) {
 async function arkPreviewOne() {
   try {
     if (!arkCheckReady()) return;
-    toast('å‡†å¤‡æž„å»ºä»»åŠ¡â€¦');
+    toast('准备构建任务…');
     const jobs = arkBuildJobs();
     const total = jobs.length;
-    if (!total) { toast('å¼ æ•°éƒ½æ˜¯ 0ï¼Œå…ˆé€‰ä¸€ä¸‹'); return; }
-    const msg = `å…ˆå‡º 1 å¼ é¢„è§ˆï¼ˆ${jobs[0].label}ï¼‰ï¼Œçœ‹çœ‹äººè„¸å’Œé£Žæ ¼å¯¹ä¸å¯¹ã€‚æ»¡æ„äº†å†ç»§ç»­ç”Ÿæˆå‰©ä¸‹çš„ ${total - 1} å¼ ã€‚è¿™ 1 å¼ çº¦ 0.1~1 å…ƒï¼Œä»Žä½ çš„æ–¹èˆŸä½™é¢æ‰£ã€‚ç»§ç»­å—ï¼Ÿ`;
+    if (!total) { toast('张数都是 0，先选一下'); return; }
+    const msg = `先出 1 张预览（${jobs[0].label}），看看人脸和风格对不对。满意了再继续生成剩下的 ${total - 1} 张。这 1 张约 0.1~1 元，从你的方舟余额扣。继续吗？`;
     const ok = await confirm2(msg);
-    if (!ok) { toast('å·²å–æ¶ˆ'); return; }
+    if (!ok) { toast('已取消'); return; }
 
-    toast('å¥½çš„ï¼Œå¼€å§‹ç”Ÿæˆé¢„è§ˆâ€¦');
+    toast('好的，开始生成预览…');
     S.arkPendingJobs = jobs.slice(1);
-    S.arkStatus = `æ­£åœ¨å‡ºé¢„è§ˆå›¾â€¦`;
+    S.arkStatus = `正在出预览图…`;
     renderRoute();
     bindRoute();
     const res = await arkRunJobs([jobs[0]], 'arkGenBtn', 0);
     if (res.ok) {
-      S.arkStatus = `é¢„è§ˆå›¾å·²å‡ºï¼ˆ${jobs[0].label}ï¼‰ã€‚æ»¡æ„å°±ç‚¹ã€Œç»§ç»­ç”Ÿæˆå‰©ä½™ ${S.arkPendingJobs.length} å¼ ã€ï¼Œä¸æ»¡æ„å°±ã€Œä¸¢æŽ‰é¢„è§ˆï¼Œé‡æ–°å‡ºã€ã€‚`;
+      S.arkStatus = `预览图已出（${jobs[0].label}）。满意就点「继续生成剩余 ${S.arkPendingJobs.length} 张」，不满意就「丢掉预览，重新出」。`;
       renderRoute();
       bindRoute();
-      toast('âœ… é¢„è§ˆå›¾å·²å‡º');
+      toast('✅ 预览图已出');
     } else {
-      // é¢„è§ˆå¤±è´¥ï¼šæ¸…ç©ºå¾…ç”Ÿæˆé˜Ÿåˆ—å’Œäººè„¸å‚è€ƒï¼Œè®©ç”¨æˆ·é‡æ–°å‡º
+      // 预览失败：清空待生成队列和人脸参考，让用户重新出
       S.arkPendingJobs = null;
       S.arkFaceRef = null;
       renderRoute();
@@ -2305,7 +2305,7 @@ async function arkPreviewOne() {
     }
   } catch (e) {
     console.error('arkPreviewOne error:', e);
-    toast('ç”Ÿæˆå‡ºé”™äº†ï¼š' + ((e.body && e.body.message) || e.message));
+    toast('生成出错了：' + ((e.body && e.body.message) || e.message));
   }
 }
 
@@ -2313,34 +2313,34 @@ async function arkContinueRest() {
   try {
     if (!arkCheckReady()) return;
     const jobs = S.arkPendingJobs;
-    if (!jobs || !jobs.length) { toast('æ²¡æœ‰å¾…ç”Ÿæˆçš„å›¾ï¼Œå…ˆç‚¹ã€Œå…ˆç”Ÿæˆ 1 å¼ é¢„è§ˆã€'); return; }
+    if (!jobs || !jobs.length) { toast('没有待生成的图，先点「先生成 1 张预览」'); return; }
     const total = jobs.length;
     const low = (total * 0.1).toFixed(1);
     const doneBase = S.studioAiImages.length;
-    const msg = `ç»§ç»­ç”Ÿæˆå‰©ä¸‹çš„ ${total} å¼ ï¼Œçº¦ ${low}~${total} å…ƒï¼Œä»Žä½ çš„æ–¹èˆŸä½™é¢æ‰£ã€‚ä¹‹å‰çš„é¢„è§ˆå›¾ä¼šä¿ç•™ï¼Œç»§ç»­å¾€åŽåŠ ã€‚ç»§ç»­å—ï¼Ÿ`;
+    const msg = `继续生成剩下的 ${total} 张，约 ${low}~${total} 元，从你的方舟余额扣。之前的预览图会保留，继续往后加。继续吗？`;
     const ok = await confirm2(msg);
-    if (!ok) { toast('å·²å–æ¶ˆ'); return; }
+    if (!ok) { toast('已取消'); return; }
 
-    toast('å¥½çš„ï¼Œå¼€å§‹æ‰¹é‡ç”Ÿæˆâ€¦');
-    S.arkStatus = `ç»§ç»­ç”Ÿæˆå‰©ä½™ ${total} å¼ â€¦`;
+    toast('好的，开始批量生成…');
+    S.arkStatus = `继续生成剩余 ${total} 张…`;
     renderRoute();
     bindRoute();
     const res = await arkRunJobs(jobs, 'arkContinueBtn', doneBase);
     if (res.ok) {
       S.arkPendingJobs = null;
-      S.arkStatus = `å®Œæˆï¼šæœ¬æ¬¡å…±ç”Ÿæˆ ${doneBase + total} å¼ ã€‚ç‚¹å›¾ç‰‡çœ‹å¤§å›¾ï¼Œç‚¹ã€Œä¸‹è½½ã€ä¿å­˜ã€‚`;
+      S.arkStatus = `完成：本次共生成 ${doneBase + total} 张。点图片看大图，点「下载」保存。`;
       renderRoute();
       bindRoute();
-      toast('âœ… å…¨éƒ¨ç”Ÿæˆå®Œæˆ');
+      toast('✅ 全部生成完成');
     } else {
-      // ä¸­é€”å¤±è´¥ï¼šæŠŠå·²æˆåŠŸçš„ä»Ž pending é‡ŒåŽ»æŽ‰ï¼Œå‰©ä¸‹çš„ç•™ç€è®©ç”¨æˆ·é‡è¯•
+      // 中途失败：把已成功的从 pending 里去掉，剩下的留着让用户重试
       S.arkPendingJobs = jobs.slice(res.done);
       renderRoute();
       bindRoute();
     }
   } catch (e) {
     console.error('arkContinueRest error:', e);
-    toast('ç”Ÿæˆå‡ºé”™äº†ï¼š' + ((e.body && e.body.message) || e.message));
+    toast('生成出错了：' + ((e.body && e.body.message) || e.message));
   }
 }
 
@@ -2348,7 +2348,7 @@ function arkRestartPreview() {
   S.studioAiImages = [];
   S.arkFaceRef = null;
   S.arkPendingJobs = null;
-  // é‡æ–°å‡ºé¢„è§ˆæ—¶æ¢ä¸€ä½æ¨¡ç‰¹å’Œä¸€å¥—ç¯å…‰ï¼Œé¿å…æ¯æ¬¡éƒ½æ˜¯åŒä¸€å¼ è„¸åŒä¸€ä¸ªæ¨¡å­
+  // 重新出预览时换一位模特和一套灯光，避免每次都是同一张脸同一个模子
   S.arkIdentity = null;
   S.arkLight = null;
   S.arkStatus = '';
@@ -2360,38 +2360,38 @@ async function arkCheckBalance() {
   const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
   const box = $('#arkBalanceBox');
   const btn = $('#arkBalanceBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'æŸ¥è¯¢ä¸­â€¦'; }
-  if (box) { box.style.display = 'block'; box.style.background = '#fff7e6'; box.style.borderColor = '#ffd591'; box.textContent = 'æ­£åœ¨æŸ¥ä½™é¢â€¦'; }
+  if (btn) { btn.disabled = true; btn.textContent = '查询中…'; }
+  if (box) { box.style.display = 'block'; box.style.background = '#fff7e6'; box.style.borderColor = '#ffd591'; box.textContent = '正在查余额…'; }
   try {
     const r = await api('/api/ai/balance', { method: 'POST', body: '{}' });
     if (!r.ok) {
-      if (box) { box.style.background = '#fff1f0'; box.style.borderColor = '#ffa39e'; box.textContent = 'æŸ¥ä¸äº†ï¼š' + (r.message || r.error) + 'ã€‚æ²¡å¡« AK/SK çš„è¯åŽ»ã€Œè®¾ç½®ã€é‡Œå¡«ä¸€ä¸‹ã€‚'; }
+      if (box) { box.style.background = '#fff1f0'; box.style.borderColor = '#ffa39e'; box.textContent = '查不了：' + (r.message || r.error) + '。没填 AK/SK 的话去「设置」里填一下。'; }
     } else {
       const lines = [];
-      if (r.available !== '' && r.available != null) lines.push('å¯ç”¨ä½™é¢ï¼š<b>Â¥' + r.available + '</b>');
-      if (r.cash !== '' && r.cash != null) lines.push('çŽ°é‡‘ä½™é¢ï¼šÂ¥' + r.cash);
-      if (r.frozen !== '' && r.frozen != null) lines.push('å†»ç»“é‡‘é¢ï¼šÂ¥' + r.frozen);
+      if (r.available !== '' && r.available != null) lines.push('可用余额：<b>¥' + r.available + '</b>');
+      if (r.cash !== '' && r.cash != null) lines.push('现金余额：¥' + r.cash);
+      if (r.frozen !== '' && r.frozen != null) lines.push('冻结金额：¥' + r.frozen);
       if (!lines.length && r.raw) {
-        // æŠŠåŽŸå§‹å­—æ®µé‡Œçœ‹èµ·æ¥åƒé‡‘é¢çš„åˆ—å‡ºæ¥
+        // 把原始字段里看起来像金额的列出来
         for (const k in r.raw) {
           const v = r.raw[k];
-          if (typeof v === 'string' && /^\d+(\.\d+)?$/.test(v)) lines.push(k + 'ï¼šÂ¥' + v);
+          if (typeof v === 'string' && /^\d+(\.\d+)?$/.test(v)) lines.push(k + '：¥' + v);
         }
       }
       if (box) {
         box.style.background = '#f6ffed';
         box.style.borderColor = '#b7eb8f';
-        box.innerHTML = lines.length ? lines.join('<br>') : ('æŸ¥è¯¢æˆåŠŸï¼Œä½†è¿”å›žå†…å®¹çœ‹ä¸æ‡‚ã€‚åŽŸå§‹æ•°æ®ï¼š' + JSON.stringify(r.raw).slice(0, 200));
+        box.innerHTML = lines.length ? lines.join('<br>') : ('查询成功，但返回内容看不懂。原始数据：' + JSON.stringify(r.raw).slice(0, 200));
       }
     }
   } catch (e) {
-    if (box) { box.style.background = '#fff1f0'; box.style.borderColor = '#ffa39e'; box.textContent = 'æŸ¥è¯¢å¤±è´¥ï¼š' + ((e.body && e.body.message) || e.message); }
+    if (box) { box.style.background = '#fff1f0'; box.style.borderColor = '#ffa39e'; box.textContent = '查询失败：' + ((e.body && e.body.message) || e.message); }
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'æŸ¥ä½™é¢'; }
+    if (btn) { btn.disabled = false; btn.textContent = '查余额'; }
   }
 }
 
-/* ç»™ AI ç”¨çš„åŽ‹ç¼©å›¾ï¼šæœ€é•¿è¾¹ä¸è¶…è¿‡ maxï¼Œè¿”å›ž dataURL */
+/* 给 AI 用的压缩图：最长边不超过 max，返回 dataURL */
 function shrinkDataUrl(img, max) {
   const w = img.naturalWidth || img.width;
   const h = img.naturalHeight || img.height;
@@ -2430,130 +2430,130 @@ function setArkStatus(text) {
 }
 
 function aiModelPrompt(kit, input) {
-  // å…¼å®¹æ—§è°ƒç”¨ï¼Œè¿”å›žç¬¬ä¸€ä¸ªæç¤ºè¯
+  // 兼容旧调用，返回第一个提示词
   return buildJimengPrompts(input)[0].prompt;
 }
 
-// æ ¹æ®æ ‡ç­¾ç”Ÿæˆå³æ¢¦ AI ä¸“ç”¨æç¤ºè¯ï¼ˆå›¾ç”Ÿå›¾ï¼Œä»¥ä¸Šä¼ çš„æœè£…å›¾ä¸ºå‚è€ƒï¼‰
+// 根据标签生成即梦 AI 专用提示词（图生图，以上传的服装图为参考）
 function buildJimengPrompts(input, opts) {
-  const colors = (input.colors && input.colors.length) ? input.colors.join('ã€') : 'å›¾ç‰‡æ‰€ç¤ºé¢œè‰²';
-  const category = input.category || 'æ¯›è¡£';
-  const materials = (input.materials && input.materials.length) ? input.materials.join('ã€') : '';
-  const crafts = (input.crafts && input.crafts.length) ? input.crafts.join('ã€') : '';
+  const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
+  const category = input.category || '毛衣';
+  const materials = (input.materials && input.materials.length) ? input.materials.join('、') : '';
+  const crafts = (input.crafts && input.crafts.length) ? input.crafts.join('、') : '';
   const neck = input.neck || '';
   const fit = input.fit || '';
-  const styles = (input.styles && input.styles.length) ? input.styles.join('ã€') : '';
+  const styles = (input.styles && input.styles.length) ? input.styles.join('、') : '';
   const weight = input.weight || '';
   const season = input.season || '';
 
-  // æœè£…æè¿°ï¼ˆå„ç‰ˆæœ¬å…±ç”¨ï¼‰
-  let garment = `${colors}çš„${category}`;
+  // 服装描述（各版本共用）
+  let garment = `${colors}的${category}`;
   const desc = [];
-  if (materials) desc.push(`æè´¨ä¸º${materials}`);
-  if (crafts) desc.push(`${crafts}å·¥è‰º`);
-  if (neck) desc.push(`${neck}è®¾è®¡`);
-  if (fit) desc.push(`${fit}ç‰ˆåž‹`);
+  if (materials) desc.push(`材质为${materials}`);
+  if (crafts) desc.push(`${crafts}工艺`);
+  if (neck) desc.push(`${neck}设计`);
+  if (fit) desc.push(`${fit}版型`);
   if (weight) desc.push(weight);
-  if (season) desc.push(`${season}æ¬¾`);
-  if (desc.length) garment += 'ï¼Œ' + desc.join('ï¼Œ');
-  if (styles) garment += `ï¼Œ${styles}é£Žæ ¼`;
+  if (season) desc.push(`${season}款`);
+  if (desc.length) garment += '，' + desc.join('，');
+  if (styles) garment += `，${styles}风格`;
 
-  // æ ¸å¿ƒçº¦æŸï¼šä¸¥æ ¼å‚è€ƒä¸Šä¼ çš„æœè£…å›¾ï¼ˆç®€é…ç‰ˆä¼šåŽ»æŽ‰æŒ‡å®šè£…é¥°ï¼‰
-  const accessory = (opts && opts.simple) ? (opts.accessory || 'ä¸å¸¦ç­‰è£…é¥°') : '';
+  // 核心约束：严格参考上传的服装图（简配版会去掉指定装饰）
+  const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
   const forceColor = (opts && opts.forceColor) || '';
   const colorFix = forceColor
-    ? `ï¼›é¢œè‰²å¿…é¡»åšæˆ${forceColor}ï¼šå‚è€ƒå›¾åªå¯¹ç…§æ¬¾å¼ã€ç‰ˆåž‹ã€é’ˆç»‡çº¹ç†ã€çº½æ‰£å’Œå£è¢‹ä½ç½®ï¼Œé¢œè‰²ä¸è¦ç…§æ¬åŽŸå›¾`
-    : 'ï¼Œé¢œè‰²æ·±æµ…ä¸ŽåŽŸå›¾ä¸€è‡´';
-  const buttonFix = 'ï¼›çº½æ‰£å¿…é¡»å’Œå‚è€ƒå›¾å®Œå…¨ä¸€è‡´ï¼šæ•°é‡ã€å¤§å°ã€ä½ç½®ã€æŽ’åˆ—é¡ºåºéƒ½ä¸å˜ï¼Œå‚è€ƒå›¾æ˜¯å½©è‰²çº½æ‰£çš„ï¼ˆä¾‹å¦‚é»„ã€è“ã€ç²‰ã€ç»¿ä¾æ¬¡æŽ’åˆ—ï¼‰ï¼Œè¦æŒ‰åŽŸé¡ºåºä¿ç•™æ¯ä¸€ç§é¢œè‰²ï¼Œä¸èƒ½å…¨éƒ¨åšæˆåŒè‰²ã€ä¸èƒ½ä¸²è‰²ã€ä¸èƒ½å¢žå‡çº½æ‰£ã€ä¸èƒ½æ¢ä½ç½®';
+    ? `；颜色必须做成${forceColor}：参考图只对照款式、版型、针织纹理、纽扣和口袋位置，颜色不要照搬原图`
+    : '，颜色深浅与原图一致';
+  const buttonFix = '；纽扣必须和参考图完全一致：数量、大小、位置、排列顺序都不变，参考图是彩色纽扣的（例如黄、蓝、粉、绿依次排列），要按原顺序保留每一种颜色，不能全部做成同色、不能串色、不能增减纽扣、不能换位置';
   const constraint = accessory
-    ? `ä¸¥æ ¼å‚è€ƒä¸Šä¼ çš„æœè£…å›¾ç‰‡ï¼Œä¿æŒæœè£…çš„ç‰ˆåž‹ã€æè´¨çº¹ç†å’Œä¸»ä½“è®¾è®¡100%ä¸€è‡´${colorFix}${buttonFix}ï¼Œä½†è¡£æœä¸Šä¸è¦å‡ºçŽ°${accessory}ï¼Œåªä¿ç•™è¡£æœæœ¬ä½“ï¼Œä¸è¦ä»»ä½•é™„åŠ æŒ‚é¥°ï¼›åªæ”¹å˜ç©¿ç€çš„äººå’Œåœºæ™¯`
-    : `ä¸¥æ ¼å‚è€ƒä¸Šä¼ çš„æœè£…å›¾ç‰‡ï¼Œä¿æŒæœè£…çš„èŠ±çº¹ã€å›¾æ¡ˆã€æè´¨çº¹ç†ã€çº½æ‰£ã€è£…é¥°ç­‰æ‰€æœ‰ç»†èŠ‚100%ä¸€è‡´ï¼Œä¸å¾—æ›´æ”¹æœè£…çš„æ¬¾å¼å’Œè®¾è®¡${colorFix}${buttonFix}ï¼›åªæ”¹å˜ç©¿ç€çš„äººå’Œåœºæ™¯`;
+    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}；只改变穿着的人和场景`;
 
-  // ç”»è´¨çº¦æŸï¼šæ ¸å¿ƒæ˜¯å…·ä½“ç›¸æœº + çœŸå®žå…‰çº¿ + èƒ¶ç‰‡é¢—ç²’ï¼ŒåŽ» AI å‘³
+  // 画质约束：核心是具体相机 + 真实光线 + 胶片颗粒，去 AI 味
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
   const useLife = true;
   const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
   const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features';
-  const quality = `${CAMERA}; è‡ªç„¶å…‰ä¸‹çš„çœŸå®žéšæ‰‹æ‹ï¼Œæ›å…‰æ­£å¸¸ä¸å‘ç™½ã€ä¸å¥—æ»¤é•œï¼›äººç‰©å’Œè¡£æœæ¸…æ™°å¯¹ç„¦ï¼ŒèƒŒæ™¯ä¿ç•™å¯è¾¨è¯†çœŸå®žç»†èŠ‚ã€è‡ªç„¶æµ…æ™¯æ·±ï¼›æ¯›ç»’é’ˆç»‡ç»’æ„Ÿè‡ªç„¶ã€èƒ½çœ‹åˆ°çº¤ç»´èµ°å‘ï¼›${NEG}`;
+  const quality = `${CAMERA}; 自然光下的真实随手拍，曝光正常不发白、不套滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；毛绒针织绒感自然、能看到纤维走向；${NEG}`;
 
-  // é˜²æ¯”ä»·ï¼šè®©ä¸»å›¾/å•†å“å›¾åœ¨æž„å›¾ç»“æž„ä¸Šä¸Žå¸¸è§åŒæ¬¾å›¾ä¸åŒï¼Œå¹³å°çš„åŒæ¬¾è¯†åˆ«ç½®ä¿¡åº¦ä¼šé™ä¸‹æ¥
-  // å‚è€ƒå®žæµ‹ï¼šæ¢è§’åº¦ + å•†å“è¢«é®æŒ¡çº¦ 1/3 + æ¢ä¸ªèƒŒæ™¯ç»“æž„ï¼Œä¸»å›¾é˜²æ¯”ä»·çŽ‡å¯åˆ° 95%
+  // 防比价：让主图/商品图在构图结构上与常见同款图不同，平台的同款识别置信度会降下来
+  // 参考实测：换角度 + 商品被遮挡约 1/3 + 换个背景结构，主图防比价率可到 95%
   const ANTI_STRUCT = [
-    'æž„å›¾æ•…æ„ä¸å±…ä¸­ï¼šè¡£æœä¸»ä½“åç”»é¢å·¦ä¾§ä¸‰åˆ†ä¹‹ä¸€ï¼Œå³ä¾§ç•™å‡ºçŽ¯å¢ƒç©ºç™½',
-    'æž„å›¾åç”»é¢å³ä¾§ï¼Œå·¦ä¾§æœ‰å®¶å…·æˆ–é“å…·è‡ªç„¶å…¥é•œ',
-    'æ‰‹æŒæ‹æ‘„çš„è½»å¾®å€¾æ–œæž„å›¾ï¼Œç”»é¢æ°´å¹³çº¿ä¸æ˜¯å®Œå…¨æ°´å¹³',
-    'ç•¥é«˜è§’åº¦ä¿¯æ‹ï¼Œè¡£æ‘†è¢«ç”»é¢ä¸‹è¾¹ç¼˜è£æŽ‰ä¸€éƒ¨åˆ†ï¼Œæž„å›¾ä¸å®Œæ•´',
-    'ç•¥ä½Žè§’åº¦ä»°æ‹ï¼Œå‰æ™¯æœ‰æ¡Œé¢æˆ–æ¤…èƒŒå…¥é•œã€è‡ªç„¶é®ä½è¡£æœä¸‹æ²¿',
-    'å‰æ™¯æœ‰ç»¿è‰²æžå¶æˆ–å¹²èŠ±è‡ªç„¶é®æŒ¡è¡£æœçº¦ä¸‰åˆ†ä¹‹ä¸€ï¼Œä¸»ä½“ä¸åœ¨æ­£ä¸­',
-    'å‰æ™¯æœ‰ä¸€åªæ‰‹æˆ–ä¸€åªå’–å•¡æ¯å…¥é•œï¼Œè‡ªç„¶æŒ¡ä½è¡£æœä¸€éƒ¨åˆ†',
-    'ç”»é¢è¾¹ç¼˜æœ‰çª—æ¡†æˆ–é—¨æ¡†å…¥é•œï¼ŒæŠŠæž„å›¾åˆ‡å¾—ä¸è§„æ•´',
-    'è¡£æœåªå ç”»é¢ä¸€åŠï¼Œå¦ä¸€ä¾§æ˜¯æ˜Žæ˜¾çš„çŽ¯å¢ƒç»†èŠ‚ï¼ˆä¹¦æž¶/åºŠå¤´/æ¡Œé¢ï¼‰',
-    'ç«–æž„å›¾å¯¹è§’çº¿å–æ™¯ï¼Œè¡£æœæ–œæ”¾åœ¨ç”»é¢é‡Œï¼Œä¸æ˜¯æ ‡å‡†å±…ä¸­å•†å“å›¾'
+    '构图故意不居中：衣服主体偏画面左侧三分之一，右侧留出环境空白',
+    '构图偏画面右侧，左侧有家具或道具自然入镜',
+    '手持拍摄的轻微倾斜构图，画面水平线不是完全水平',
+    '略高角度俯拍，衣摆被画面下边缘裁掉一部分，构图不完整',
+    '略低角度仰拍，前景有桌面或椅背入镜、自然遮住衣服下沿',
+    '前景有绿色枝叶或干花自然遮挡衣服约三分之一，主体不在正中',
+    '前景有一只手或一只咖啡杯入镜，自然挡住衣服一部分',
+    '画面边缘有窗框或门框入镜，把构图切得不规整',
+    '衣服只占画面一半，另一侧是明显的环境细节（书架/床头/桌面）',
+    '竖构图对角线取景，衣服斜放在画面里，不是标准居中商品图'
   ];
   const antiOn = opts && opts.antiCompare;
   const antiClause = (idx) => {
     if (!antiOn || idx == null) return '';
     const s = ANTI_STRUCT[idx % ANTI_STRUCT.length];
-    return `ï¼›è¿™å¼ å›¾çš„æž„å›¾è¦ä¸Žå¸¸è§åŒæ¬¾å•†å“å›¾æ˜Žæ˜¾ä¸åŒï¼š${s}ã€‚ä¸è¦æ­£é¢å±…ä¸­çš„æ ‡å‡†å•†å“å›¾ï¼Œæž„å›¾å’ŒèƒŒæ™¯éƒ½ä¸èƒ½å’Œå‚è€ƒå›¾æˆ–å¸¸è§åŒæ¬¾å›¾é‡å¤`;
+    return `；这张图的构图要与常见同款商品图明显不同：${s}。不要正面居中的标准商品图，构图和背景都不能和参考图或常见同款图重复`;
   };
-  // é“¾æŽ¥ç¬¬ 1 å¼ ä¸»å›¾å•ç‹¬åŠ ç ï¼šåªéœ²åŠä¾§é¢/ä¸å®Œæ•´å…¥é•œï¼ˆåŒè¡Œä¸»å›¾åŸºæœ¬éƒ½æ˜¯æ­£é¢å®Œæ•´å±•ç¤ºï¼Œè¿™æ¡æœ€èƒ½æ‹‰å¼€å·®å¼‚ï¼‰
+  // 链接第 1 张主图单独加码：只露半侧面/不完整入镜（同行主图基本都是正面完整展示，这条最能拉开差异）
   const heroOn = !!(opts && opts.heroShot && opts.antiCompare);
   const heroClause = heroOn
-    ? 'ï¼›è¿™å¼ æ˜¯é“¾æŽ¥ç¬¬ 1 å¼ ä¸»å›¾ï¼šæ¨¡ç‰¹ä¾§èº«çº¦ 45Â° åŠä¾§é¢ç«™ç«‹æˆ–åï¼Œèº«ä½“ä¸è¦æ­£å¯¹é•œå¤´ï¼Œè¡£æœåªéœ²å‡ºå¤§åŠï¼Œè¡£æ‘†æˆ–è‚©çº¿è¢«ç”»é¢ä¸Šè¾¹ç¼˜æˆ–ä¾§è¾¹è£æŽ‰ä¸€éƒ¨åˆ†ï¼Œå±žäºŽä¸å®Œæ•´æž„å›¾ï¼›ä¸è¦æ­£å¯¹é•œå¤´çš„å®Œæ•´æ­£é¢å•†å“å±•ç¤º'
+    ? '；这张是链接第 1 张主图：模特侧身约 45° 半侧面站立或坐，身体不要正对镜头，衣服只露出大半，衣摆或肩线被画面上边缘或侧边裁掉一部分，属于不完整构图；不要正对镜头的完整正面商品展示'
     : '';
 
   const base = (model, scene, antiIdx) => {
-    return `åœºæ™¯å’ŒåŠ¨ä½œå¿…é¡»æ˜¯è¿™é‡Œæè¿°çš„è¿™ä¸€å¤„ï¼š${scene}ã€‚${model}ï¼Œç©¿ç€${garment}ã€‚${quality}ã€‚${constraint}ã€‚èƒŒæ™¯ã€æˆ¿é—´ã€å¢™é¢ã€å®¶å…·éƒ½è¦æŒ‰ä¸Šé¢è¿™æ®µé‡æ–°å¸ƒç½®ï¼Œä¸è¦å¤åˆ¶å‚è€ƒå›¾é‡Œçš„èƒŒæ™¯å’ŒçŽ¯å¢ƒï¼Œä¸è¦æ²¿ç”¨å‚è€ƒå›¾çš„æž„å›¾${antiClause(antiIdx)}${heroClause}ã€‚`;
+    return `场景和动作必须是这里描述的这一处：${scene}。${model}，穿着${garment}。${quality}。${constraint}。背景、房间、墙面、家具都要按上面这段重新布置，不要复制参考图里的背景和环境，不要沿用参考图的构图${antiClause(antiIdx)}${heroClause}。`;
   };
 
-  // ç”Ÿæ´»ç§è‰åœºæ™¯ï¼šæš–è°ƒã€æœ‰ç”Ÿæ´»æ°”æ¯ï¼Œå§¿åŠ¿è‡ªç„¶æŠ“æ‹ï¼ˆå¯¹æ ‡å°çº¢ä¹¦çˆ†æ¬¾å›¾ï¼‰
-  const style0 = (input.styles && input.styles[0]) || 'æ¸©æŸ”é£Ž';
+  // 生活种草场景：暖调、有生活气息，姿势自然抓拍（对标小红书爆款图）
+  const style0 = (input.styles && input.styles[0]) || '温柔风';
   const STYLE_SCENE = {
-    æ…µæ‡’é£Ž: ['æ·¡å¦†ï¼Œè¡¨æƒ…æ”¾æ¾æ…µæ‡’', 'å±…å®¶å®¢åŽ…ï¼Œç±³è‰²å¢™é¢å’Œç™½è‰²ç½®ç‰©æž¶ï¼Œæš–è‰²è½åœ°ç¯å…‰ï¼Œå€šç€æŸœå­ä¾§èº«ç«™ç€ï¼Œä¸€åªæ‰‹è½»æŠ¬åˆ°èƒ¸å‰ï¼Œæ…µæ‡’è‡ªç„¶'],
-    éŸ©ç‰ˆ: ['æ¸…çˆ½æ°”è´¨ï¼Œæ·¡å¦†', 'éŸ©ç³»å’–å•¡åº—å®¤å†…ï¼Œæœ¨è´¨æ¡Œé¢å’Œæš–é»„ç¯å…‰ï¼Œåå§¿åŠèº«ï¼Œä¾§è„¸çœ‹å‘çª—å¤–ï¼Œè‡ªç„¶æŠ“æ‹'],
-    æ—¥ç³»: ['ç´ é¢œæ„Ÿæ·¡å¦†ï¼Œè¡¨æƒ…å¹³é™', 'æ—¥ç³»æ¸…æ–°å§å®¤ï¼Œæµ…è‰²çº±å¸˜å’Œæœ¨åœ°æ¿ï¼Œæ™¨å…‰æŸ”å…‰ï¼Œç«™åœ¨çª—è¾¹ä¾§èº«ï¼Œæ‰‹é‡Œæ‹¿ç€å’–å•¡æ¯'],
-    å¤å¤: ['å¤å¤æ·¡å¦†ï¼Œå”‡è‰²è‡ªç„¶', 'å¤å¤å®¤å†…ï¼Œæœ¨è´¨å®¶å…·ä¸Žæš–é»„ç¯å…‰ï¼Œèƒ¶ç‰‡è´¨æ„Ÿï¼Œèº«ä½“ä¾§è½¬å›žå¤´çœ‹å‘é•œå¤´ï¼Œè‰²è°ƒåæš–'],
-    æ³•å¼: ['æ°”è´¨ä¼˜é›…ï¼Œæ·¡å¦†', 'æ³•å¼å¤å¤å§å®¤ï¼Œé›•èŠ±å¢™é¢ä¸Žçª—è¾¹æŸ”å…‰ï¼Œé å¢™ä¾§èº«ç«™ç«‹ï¼Œå§¿æ€æ¾å¼›ä¼˜é›…'],
-    å­¦é™¢é£Ž: ['é’æ˜¥æ„Ÿæ·¡å¦†', 'æ ¡å›­å›¾ä¹¦é¦†æˆ–å®¿èˆï¼Œä¹¦æž¶èƒŒæ™¯è™šåŒ–ï¼Œæ˜Žäº®è‡ªç„¶å…‰ï¼ŒæŠ±ç€ä¸€æœ¬ä¹¦ä¾§èº«ç«™ç€'],
-    é€šå‹¤: ['å¹²ç»ƒæ°”è´¨ï¼Œæ·¡å¦†', 'å†™å­—æ¥¼èµ°å»Šæˆ–å’–å•¡åº—å¤–æ™¯ï¼Œç®€æ´èƒŒæ™¯ï¼Œè‡ªç„¶æ—¥å…‰ï¼Œæ‰‹ææ‰˜ç‰¹åŒ…ä¾§èº«è¡Œèµ°æŠ“æ‹'],
-    insé£Ž: ['å¹²å‡€æ°”è´¨ï¼Œæ·¡å¦†', 'æžç®€å±…å®¶è§’è½ï¼Œç™½è‰²ç½®ç‰©æž¶å’Œç»¿æ¤ï¼ŒæŸ”å’Œè‡ªç„¶å…‰ï¼Œé å¢™ä¾§èº«ç«™ç«‹ï¼Œæž„å›¾ç•™ç™½å¹²å‡€'],
-    æ¸©æŸ”é£Ž: ['æ¸©æŸ”æ°”è´¨ï¼Œæ·¡å¦†', 'çª—è¾¹å±…å®¶åœºæ™¯ï¼Œç±³è‰²å¢™é¢å’Œç™½è‰²ç½®ç‰©æž¶ï¼Œæš–è‰²ç¯å…‰ï¼Œèº«ä½“ä¾§è½¬å››åˆ†ä¹‹ä¸‰èƒŒå¯¹é•œå¤´ï¼Œä¸€æ‰‹è½»æ‰¶æž¶å­ï¼Œæ¸©æŸ”è‡ªç„¶']
+    慵懒风: ['淡妆，表情放松慵懒', '居家客厅，米色墙面和白色置物架，暖色落地灯光，倚着柜子侧身站着，一只手轻抬到胸前，慵懒自然'],
+    韩版: ['清爽气质，淡妆', '韩系咖啡店室内，木质桌面和暖黄灯光，坐姿半身，侧脸看向窗外，自然抓拍'],
+    日系: ['素颜感淡妆，表情平静', '日系清新卧室，浅色纱帘和木地板，晨光柔光，站在窗边侧身，手里拿着咖啡杯'],
+    复古: ['复古淡妆，唇色自然', '复古室内，木质家具与暖黄灯光，胶片质感，身体侧转回头看向镜头，色调偏暖'],
+    法式: ['气质优雅，淡妆', '法式复古卧室，雕花墙面与窗边柔光，靠墙侧身站立，姿态松弛优雅'],
+    学院风: ['青春感淡妆', '校园图书馆或宿舍，书架背景虚化，明亮自然光，抱着一本书侧身站着'],
+    通勤: ['干练气质，淡妆', '写字楼走廊或咖啡店外景，简洁背景，自然日光，手提托特包侧身行走抓拍'],
+    ins风: ['干净气质，淡妆', '极简居家角落，白色置物架和绿植，柔和自然光，靠墙侧身站立，构图留白干净'],
+    温柔风: ['温柔气质，淡妆', '窗边居家场景，米色墙面和白色置物架，暖色灯光，身体侧转四分之三背对镜头，一手轻扶架子，温柔自然']
   };
-  const st = STYLE_SCENE[style0] || STYLE_SCENE['æ¸©æŸ”é£Ž'];
+  const st = STYLE_SCENE[style0] || STYLE_SCENE['温柔风'];
 
   const count = Math.max(1, Number(opts && opts.count) || 2);
-  // å§¿åŠ¿/åœºæ™¯/æ‹æ³•/é…é¥°/è¡¨æƒ…å„è‡ªæ‰“ä¹±ï¼Œæ•´æ‰¹è½®æ¢ä¸é‡æ ·ï¼›æ¯æ¬¡ç”Ÿæˆéƒ½æ¢ä¸€æ‰¹
+  // 姿势/场景/拍法/配饰/表情各自打乱，整批轮换不重样；每次生成都换一批
   const posePool = (opts && opts.poses) || shuffleArr(LIFE_POSES);
   const scenePool = (opts && opts.scenes) || shuffleArr(scenesForStyle(style0));
   const start = Number(opts && opts.start) || 0;
-  // æ‹¼å¤šå¤š/å°çº¢ä¹¦çˆ†æ¬¾å¸¸è§çš„æ‹æ³•ï¼šåŠèº«ç‰¹å†™ã€å¯¹é•œè‡ªæ‹ã€æ‰‹æœºæŒ¡è„¸ã€å±€éƒ¨æž„å›¾ç­‰
+  // 拼多多/小红书爆款常见的拍法：半身特写、对镜自拍、手机挡脸、局部构图等
   const SHOT_TYPES = [
-    'åŠèº«è¿‘æ™¯ï¼Œå–æ™¯ä»Žå¤´é¡¶åˆ°å¤§è…¿ä¸­éƒ¨ï¼Œæ¯›è¡£å ç”»é¢ 60%~75%',
-    'åå§¿åŠèº«ï¼Œé•œå¤´ç•¥é«˜äºŽè§†å¹³çº¿ï¼Œæ¯›è¡£å ç”»é¢ 60%~75%',
-    'ç«™ç«‹åŠèº«ï¼Œé•œå¤´å¹³è§†èƒ¸å£é«˜åº¦ï¼Œæ¯›è¡£å ç”»é¢ 55%~70%',
-    'å¯¹é•œè‡ªæ‹æž„å›¾ï¼Œæ‰‹æœºå‡ºçŽ°åœ¨ç”»é¢ä¸€è§’ï¼Œæ¯›è¡£å ç”»é¢ 55%~70%',
-    'æ‰‹æœºæŒ¡è„¸è‡ªæ‹æž„å›¾ï¼Œåªéœ²å‡ºä¸‹å·´å’Œé¢†å£ï¼Œæ¯›è¡£å ç”»é¢ 60%~75%',
-    'ä¾§èº«å›žçœ¸åŠèº«ï¼Œè‚©è†€è½¬å‘é•œå¤´ï¼Œæ¯›è¡£å ç”»é¢ 55%~70%',
-    'èƒ¸å‰å±€éƒ¨æž„å›¾ï¼Œé‡ç‚¹æ‹é¢†å£ã€è‚©çº¿å’Œæ¯›è¡£çº¹ç†',
-    'ç•¥å¾®ä¿¯æ‹åŠèº«ï¼Œå¤´åœ¨ä¸Šæ–¹ã€è¡£æ‘†åœ¨ä¸‹ï¼Œæ¯›è¡£å ç”»é¢ 60%~75%',
-    'ç•¥å¾®ä»°æ‹åŠèº«ï¼Œæ˜¾è…¿é•¿ï¼Œæ¯›è¡£å ç”»é¢ 55%~70%'
+    '半身近景，取景从头顶到大腿中部，毛衣占画面 60%~75%',
+    '坐姿半身，镜头略高于视平线，毛衣占画面 60%~75%',
+    '站立半身，镜头平视胸口高度，毛衣占画面 55%~70%',
+    '对镜自拍构图，手机出现在画面一角，毛衣占画面 55%~70%',
+    '手机挡脸自拍构图，只露出下巴和领口，毛衣占画面 60%~75%',
+    '侧身回眸半身，肩膀转向镜头，毛衣占画面 55%~70%',
+    '胸前局部构图，重点拍领口、肩线和毛衣纹理',
+    '略微俯拍半身，头在上方、衣摆在下，毛衣占画面 60%~75%',
+    '略微仰拍半身，显腿长，毛衣占画面 55%~70%'
   ];
   const ACC_POOL = [
-    'ä¸æˆ´é¡¹é“¾ï¼Œè„–é¢ˆå¹²å‡€',
-    'ä¸€æ¡ç»†é‡‘é¡¹é“¾æ­åœ¨é¢†å£',
-    'ä¸€æ¡çç é¡¹é“¾',
-    'ä¸€å¯¹å°åœ†è€³çŽ¯',
-    'ä¸€é¡¶è´é›·å¸½',
-    'ä¸€æ¡ç¾Šæ¯›å›´å·¾æ­åœ¨è‚©ä¸Š',
-    'ä¸€ä¸ªæ–œæŒŽå°åŒ…',
-    'ä¸€æžšç´ åœˆæˆ’æŒ‡'
+    '不戴项链，脖颈干净',
+    '一条细金项链搭在领口',
+    '一条珍珠项链',
+    '一对小圆耳环',
+    '一顶贝雷帽',
+    '一条羊毛围巾搭在肩上',
+    '一个斜挎小包',
+    '一枚素圈戒指'
   ];
   const EXPR_POOL = [
-    'çœ‹é•œå¤´è‡ªç„¶å¾®ç¬‘',
-    'ä¾§è„¸çœ‹å‘é•œå¤´ï¼Œå˜´å”‡å¾®å¼ ',
-    'ä½Žå¤´æµ…ç¬‘å†æŠ¬çœ¼',
-    'ä¸çœ‹é•œå¤´ï¼Œçœ‹å‘ä¾§å‰æ–¹',
-    'è¡¨æƒ…æ”¾æ¾ï¼Œå˜´è§’è½»å¾®ä¸Šæ‰¬'
+    '看镜头自然微笑',
+    '侧脸看向镜头，嘴唇微张',
+    '低头浅笑再抬眼',
+    '不看镜头，看向侧前方',
+    '表情放松，嘴角轻微上扬'
   ];
   const shotPool = shuffleArr(SHOT_TYPES);
   const accPool = shuffleArr(ACC_POOL);
@@ -2567,88 +2567,88 @@ function buildJimengPrompts(input, opts) {
     const acc = accPool[(start + i) % accPool.length];
     const expr = exprPool[(start + i) % exprPool.length];
     lifeVariants.push({
-      name: `ç”Ÿæ´»ç§è‰å›¾ ${i + 1}ï¼ˆ${style0}ï¼‰`,
+      name: `生活种草图 ${i + 1}（${style0}）`,
       prompt: base(
-        `ä¸€ä½å¹´è½»çš„ä¸œäºšå¥³ç”Ÿï¼ˆä¸­å›½å¥³ç”Ÿé¢å­”ï¼‰ï¼Œçš®è‚¤ç™½çš™å¹²å‡€ï¼Œå¹²å‡€æ¸…çˆ½çš„ç´ äººæ°”è´¨ï¼Œä¸æ˜¯ç½‘çº¢è„¸ï¼›äº”å®˜è‡ªç„¶ã€å·¦å³è„¸ç•¥æœ‰å·®åˆ«ã€çœ¼ç›å¤§å°æ­£å¸¸ã€é¼»æ¢ä¸é«˜ä¸çŸ®ï¼›ç´ é¢œæ„Ÿï¼Œå‡ ä¹Žçœ‹ä¸å‡ºåŒ–å¦†ï¼Œè‡ªç„¶å”‡è‰²ï¼Œæ²¡æœ‰æµ“çœ¼çº¿æ²¡æœ‰å‡ç«æ¯›ï¼Œçš®è‚¤æœ‰çœŸå®žæ¯›å­”å’Œç»†å¾®ç»’æ¯›ã€è½»å¾®è‚¤è‰²ä¸å‡ï¼›${st[0]}ï¼›å‘è‰²ã€å‘åž‹ã€è„¸åž‹ä¸¥æ ¼æŒ‰æ¨¡ç‰¹èº«ä»½æè¿°æ¥ï¼Œä¸è¦ä¸€å¾‹åšæˆå¾®å·é•¿å‘åŠ ç©ºæ°”åˆ˜æµ·`,
-        `${shot}ï¼Œ${pose}ï¼Œ${scene}ï¼Œ${acc}ï¼Œ${expr}ï¼Œè£¤å­åªéœ²å‡ºä¸€ç‚¹ï¼Œä¸è¦å…¨èº«ã€ä¸è¦æ‹åˆ°éž‹å­`,
+        `一位年轻的东亚女生（中国女生面孔），皮肤白皙干净，干净清爽的素人气质，不是网红脸；五官自然、左右脸略有差别、眼睛大小正常、鼻梁不高不矮；素颜感，几乎看不出化妆，自然唇色，没有浓眼线没有假睫毛，皮肤有真实毛孔和细微绒毛、轻微肤色不均；${st[0]}；发色、发型、脸型严格按模特身份描述来，不要一律做成微卷长发加空气刘海`,
+        `${shot}，${pose}，${scene}，${acc}，${expr}，裤子只露出一点，不要全身、不要拍到鞋子`,
         start + i
       )
     });
   }
 
-  // ç”µå•†ä¸»å›¾ï¼šå¹²å‡€èƒŒæ™¯ + è‡ªç„¶ç«™å§¿ï¼ŒèƒŒæ™¯é¢œè‰²å’Œå§¿åŠ¿éƒ½éšæœºè½®æ¢ï¼Œé¿å…æ•´æ‰¹ä¸€ä¸ªæ ·
+  // 电商主图：干净背景 + 自然站姿，背景颜色和姿势都随机轮换，避免整批一个样
   const STUDIO_BGS = [
-    'æµ…ç°è‰²æ— ç¼æ‘„å½±èƒŒæ™¯ï¼Œå¹²å‡€å¹³æ•´ï¼Œæœ‰æžç»†çš„å¢™é¢çº¹ç†',
-    'ç±³ç™½è‰²æ‘„å½±èƒŒæ™¯ï¼Œå¹²å‡€é€šé€',
-    'å¥¶æ²¹ç™½è‰²æ‘„å½±èƒŒæ™¯ï¼ŒæŸ”å’Œå¹²å‡€',
-    'æµ…è“ç°è‰²æ‘„å½±èƒŒæ™¯ï¼Œå†·é™å¹²å‡€',
-    'æµ…ç²‰è‰²æ‘„å½±èƒŒæ™¯ï¼ŒæŸ”å’Œå¹²å‡€',
-    'æµ…å¡å…¶è‰²æ‘„å½±èƒŒæ™¯ï¼Œæ¸©æš–å¹²å‡€',
-    'çª—è¾¹ç™½å¢™ï¼Œç™½å¤©æ˜Žäº®è‡ªç„¶å…‰ï¼Œå¢™é¢å¹²å‡€',
-    'æžç®€å±•åŽ…ç™½å¢™ï¼Œå¹²å‡€æ˜Žäº®ï¼Œæ— ä»»ä½•è£…é¥°',
-    'æµ…ç°è‰²æ°´æ³¥è‚Œç†å¢™ï¼Œå“‘å…‰å¹²å‡€ï¼Œå…‰çº¿å‡åŒ€',
-    'æš–ç™½è‰²æ‘„å½±èƒŒæ™¯ï¼Œå¹²å‡€æŸ”å’Œ',
-    'æµ…æœ¨è‰²å¢™æ¿å‰ï¼Œæ•´æ´æ˜Žäº®ï¼Œè‡ªç„¶å…‰',
-    'ç™½è‰²çº±å¸˜å‰çš„çª—è¾¹ï¼ŒæŸ”å…‰é€è¿›æ¥ï¼ŒèƒŒæ™¯å¹²å‡€',
-    'æµ…è±†ç»¿è‰²æ‘„å½±èƒŒæ™¯ï¼Œå¹²å‡€æŸ”å’Œ',
-    'æ·±ç°è‰²æ‘„å½±èƒŒæ™¯ï¼Œèƒ½è¡¬å‡ºæµ…è‰²æ¯›è¡£'
+    '浅灰色无缝摄影背景，干净平整，有极细的墙面纹理',
+    '米白色摄影背景，干净通透',
+    '奶油白色摄影背景，柔和干净',
+    '浅蓝灰色摄影背景，冷静干净',
+    '浅粉色摄影背景，柔和干净',
+    '浅卡其色摄影背景，温暖干净',
+    '窗边白墙，白天明亮自然光，墙面干净',
+    '极简展厅白墙，干净明亮，无任何装饰',
+    '浅灰色水泥肌理墙，哑光干净，光线均匀',
+    '暖白色摄影背景，干净柔和',
+    '浅木色墙板前，整洁明亮，自然光',
+    '白色纱帘前的窗边，柔光透进来，背景干净',
+    '浅豆绿色摄影背景，干净柔和',
+    '深灰色摄影背景，能衬出浅色毛衣'
   ];
   const STUDIO_POSES = [
-    'ç«™ç«‹åŠèº«ï¼Œè‚©è†€å¾®ä¾§ã€é‡å¿ƒè½åœ¨ä¸€æ¡è…¿ä¸Šï¼Œä¸€åªæ‰‹è½»æ­åœ¨è…°é—´',
-    'ç«™ç«‹åŠèº«ï¼ŒåŒæ‰‹è‡ªç„¶åž‚åœ¨èº«ä¾§ï¼Œèº«ä½“å¾®å¾®ä¾§è½¬',
-    'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹æ’å£è¢‹ï¼Œå¦ä¸€åªæ‰‹è‡ªç„¶åž‚ä¸‹',
-    'åå§¿åŠèº«ï¼Œååœ¨ç®€æ´çš„ç™½è‰²æ–¹å‡³ä¸Šï¼ŒåŒæ‰‹äº¤å æ”¾åœ¨è…¿ä¸Š',
-    'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹è½»æ‹‰è¡£æ‘†å±•ç¤ºä¸‹æ‘†',
-    'ç«™ç«‹åŠèº«ï¼Œä¸€åªæ‰‹æ•´ç†é¢†å£ï¼Œå±•ç¤ºé¢†åž‹',
-    'åå§¿åŠèº«ï¼Œååœ¨ç™½è‰²æ–¹å‡³ä¸Šï¼Œèº«ä½“å¾®å¾®å‰å€¾',
-    'ç«™ç«‹åŠèº«ï¼Œä¾§èº«å››åˆ†ä¹‹ä¸‰é¢å¯¹é•œå¤´ï¼Œä¸€åªæ‰‹è½»æ‰¶å£è¢‹'
+    '站立半身，肩膀微侧、重心落在一条腿上，一只手轻搭在腰间',
+    '站立半身，双手自然垂在身侧，身体微微侧转',
+    '站立半身，一只手插口袋，另一只手自然垂下',
+    '坐姿半身，坐在简洁的白色方凳上，双手交叠放在腿上',
+    '站立半身，一只手轻拉衣摆展示下摆',
+    '站立半身，一只手整理领口，展示领型',
+    '坐姿半身，坐在白色方凳上，身体微微前倾',
+    '站立半身，侧身四分之三面对镜头，一只手轻扶口袋'
   ];
   const bgPool = shuffleArr(STUDIO_BGS);
   const stPosePool = shuffleArr(STUDIO_POSES);
   const studioVariants = Array.from({ length: Math.max(2, count) }, (_, i) => ({
-    name: `ç”µå•†ä¸»å›¾ ${i + 1}`,
+    name: `电商主图 ${i + 1}`,
     prompt: base(
-      'ä¸€ä½å¹´è½»çš„äºšæ´²å¥³ç”Ÿæ¨¡ç‰¹ï¼ŒçœŸå®žç´ äººæ„Ÿï¼Œäº”å®˜è‡ªç„¶ã€å·¦å³è„¸æœ‰è½»å¾®ä¸å¯¹ç§°ï¼Œçš®è‚¤æœ‰çœŸå®žæ¯›å­”å’Œç»†å¾®è‚¤è‰²ä¸å‡ï¼Œç´ é¢œæˆ–å¾ˆæ·¡çš„å¦†ï¼Œå‘è‰²å‘åž‹æŒ‰æ¨¡ç‰¹èº«ä»½æè¿°æ¥ï¼Œä¸æ˜¯ç½‘çº¢è„¸ä¸æ˜¯æ•´å®¹è„¸',
-      `${stPosePool[(start + i) % stPosePool.length]}ï¼Œ${bgPool[(start + i) % bgPool.length]}ï¼ŒåŠèº«æž„å›¾ï¼Œä¸Šè¡£å ç”»é¢ 60%~78%ï¼Œè£¤å­åªéœ²ä¸€ç‚¹ï¼Œä¸è¦æ‹å…¨èº«ã€ä¸è¦æ‹åˆ°éž‹å­`
+      '一位年轻的亚洲女生模特，真实素人感，五官自然、左右脸有轻微不对称，皮肤有真实毛孔和细微肤色不均，素颜或很淡的妆，发色发型按模特身份描述来，不是网红脸不是整容脸',
+      `${stPosePool[(start + i) % stPosePool.length]}，${bgPool[(start + i) % bgPool.length]}，半身构图，上衣占画面 60%~78%，裤子只露一点，不要拍全身、不要拍到鞋子`
     )
   }));
 
-  /* ===== æ— æ¨¡ç‰¹å•†å“å›¾ï¼ˆå¹³é“º/æŒ‚æ‹/å æ‹/äººå°ï¼‰â€”â€” æ‹¼å¤šå¤šçˆ†æ¬¾æœ€å¸¸ç”¨ï¼Œå¤©ç„¶æ—  AI å‘³ ===== */
+  /* ===== 无模特商品图（平铺/挂拍/叠拍/人台）—— 拼多多爆款最常用，天然无 AI 味 ===== */
   const FLATLAY_SCENES = [
-    { t: 'å¹³é“ºÂ·æœ¨åœ°æ¿', d: 'è¡£æœå¹³é“ºåœ¨æµ…åŽŸæœ¨åœ°æ¿ä¸Šï¼Œæ—è¾¹éšæ„æ”¾ä¸€æ¯å’–å•¡å’Œä¸€æœ¬æ‚å¿—ï¼Œè‡ªç„¶å…‰ä»Žçª—è¾¹æ–œç…§è¿›æ¥ï¼Œæœ‰æŸ”å’Œé˜´å½±ï¼Œä¿¯æ‹ 45 åº¦' },
-    { t: 'å¹³é“ºÂ·å¤§ç†çŸ³', d: 'è¡£æœå¹³é“ºåœ¨ç™½è‰²å¤§ç†çŸ³çº¹å°é¢ä¸Šï¼Œæ—è¾¹æ”¾ä¸€å‰¯å¢¨é•œå’Œä¸€å°æŸå¹²èŠ±ï¼Œå¹²å‡€æ˜Žäº®çš„è‡ªç„¶å…‰ï¼Œä¿¯æ‹' },
-    { t: 'å¹³é“ºÂ·æ£‰éº»å¸ƒ', d: 'è¡£æœå¹³é“ºåœ¨æµ…ç±³è‰²æ£‰éº»èƒŒæ™¯å¸ƒä¸Šï¼Œæ—è¾¹æ”¾ä¸€ä¸ªè—¤ç¼–å°åŒ…ï¼ŒæŸ”å’Œçš„å®¤å†…è‡ªç„¶å…‰ï¼Œä¿¯æ‹ 45 åº¦' },
-    { t: 'å¹³é“ºÂ·åœ°æ¯¯', d: 'è¡£æœå¹³é“ºåœ¨æµ…ç°è‰²çŸ­ç»’åœ°æ¯¯ä¸Šï¼Œæ—è¾¹æ”¾ä¸€åŒå¸†å¸ƒéž‹å’Œä¸€é¡¶æ£’çƒå¸½ï¼Œè‡ªç„¶å…‰ï¼Œä¿¯æ‹' },
-    { t: 'æŒ‚æ‹Â·ç™½å¢™', d: 'è¡£æœæŒ‚åœ¨ç®€çº¦æœ¨è´¨è¡£æž¶ä¸Šï¼ŒèƒŒæ™¯æ˜¯å¹²å‡€çš„ç™½è‰²å¢™é¢ï¼ŒæŸ”å’Œçš„ä¾§å…‰ï¼Œæ­£é¢å¹³è§†æ‹æ‘„' },
-    { t: 'æŒ‚æ‹Â·ç™¾å¶çª—', d: 'è¡£æœæŒ‚åœ¨è¡£æž¶ä¸Šï¼ŒèƒŒæ™¯æ˜¯ç™½è‰²ç™¾å¶çª—ï¼Œé˜³å…‰é€è¿‡ç™¾å¶çª—æŠ•ä¸‹æ¡çº¹å…‰å½±ï¼Œæ­£é¢æ‹æ‘„' },
-    { t: 'æŒ‚æ‹Â·ç»¿æ¤', d: 'è¡£æœæŒ‚åœ¨è¡£æž¶ä¸Šï¼ŒèƒŒæ™¯æ˜¯ä¸€é¢æµ…è‰²å¢™ï¼Œæ—è¾¹æœ‰ä¸€ç›†é¾ŸèƒŒç«¹ç»¿æ¤ï¼Œè‡ªç„¶å…‰ï¼Œæ­£é¢å¹³è§†' },
-    { t: 'å æ‹Â·å¤šè‰²', d: 'åŒæ¬¾ä¸åŒè‰²çš„å‡ ä»¶æ¯›è¡£æ•´é½å æ”¾åœ¨ä¸€èµ·ï¼Œå±•ç¤ºæ‰€æœ‰é¢œè‰²ï¼Œæµ…æœ¨è‰²èƒŒæ™¯ï¼Œä¿¯æ‹' },
-    { t: 'å æ‹Â·å•æ¬¾', d: 'ä¸€ä»¶æ¯›è¡£æ•´é½å æ”¾ï¼Œæ—è¾¹æ”¾ç€åŒè‰²çš„å›´å·¾å’Œæ‰‹å¥—ï¼Œæµ…ç°è‰²èƒŒæ™¯ï¼Œè‡ªç„¶å…‰ï¼Œä¿¯æ‹ 45 åº¦' },
-    { t: 'äººå°', d: 'è¡£æœç©¿åœ¨ç®€çº¦çš„åŠèº«é«˜æ¨¡å¾…äººå°ï¼ˆmannequinï¼‰ä¸Šï¼Œæ²¡æœ‰äººçš„å¤´å’Œæ‰‹ï¼Œåªæœ‰èº¯å¹²ï¼ŒèƒŒæ™¯æ˜¯æµ…ç°è‰²çº¯è‰²å¢™ï¼ŒæŸ”å…‰ï¼Œæ­£é¢åŠèº«' },
-    { t: 'æ¤…å­æ­æ”¾', d: 'è¡£æœéšæ„æ­åœ¨ä¸€æŠŠç®€çº¦çš„æœ¨è´¨é¤æ¤…é èƒŒä¸Šï¼ŒèƒŒæ™¯æ˜¯å¹²å‡€çš„å®¤å†…å¢™é¢ï¼Œè‡ªç„¶å…‰ï¼Œå¹³è§†æ‹æ‘„' },
-    { t: 'åºŠè¾¹å¹³é“º', d: 'è¡£æœå¹³é“ºåœ¨é“ºç€ç™½è‰²åºŠå•çš„åºŠä¸Šï¼Œæ—è¾¹æ”¾ä¸€æ¯æ°´å’Œä¸€æœ¬æ‰“å¼€çš„ä¹¦ï¼Œæ¸…æ™¨æŸ”å’Œè‡ªç„¶å…‰ï¼Œä¿¯æ‹ 45 åº¦' }
+    { t: '平铺·木地板', d: '衣服平铺在浅原木地板上，旁边随意放一杯咖啡和一本杂志，自然光从窗边斜照进来，有柔和阴影，俯拍 45 度' },
+    { t: '平铺·大理石', d: '衣服平铺在白色大理石纹台面上，旁边放一副墨镜和一小束干花，干净明亮的自然光，俯拍' },
+    { t: '平铺·棉麻布', d: '衣服平铺在浅米色棉麻背景布上，旁边放一个藤编小包，柔和的室内自然光，俯拍 45 度' },
+    { t: '平铺·地毯', d: '衣服平铺在浅灰色短绒地毯上，旁边放一双帆布鞋和一顶棒球帽，自然光，俯拍' },
+    { t: '挂拍·白墙', d: '衣服挂在简约木质衣架上，背景是干净的白色墙面，柔和的侧光，正面平视拍摄' },
+    { t: '挂拍·百叶窗', d: '衣服挂在衣架上，背景是白色百叶窗，阳光透过百叶窗投下条纹光影，正面拍摄' },
+    { t: '挂拍·绿植', d: '衣服挂在衣架上，背景是一面浅色墙，旁边有一盆龟背竹绿植，自然光，正面平视' },
+    { t: '叠拍·多色', d: '同款不同色的几件毛衣整齐叠放在一起，展示所有颜色，浅木色背景，俯拍' },
+    { t: '叠拍·单款', d: '一件毛衣整齐叠放，旁边放着同色的围巾和手套，浅灰色背景，自然光，俯拍 45 度' },
+    { t: '人台', d: '衣服穿在简约的半身高模待人台（mannequin）上，没有人的头和手，只有躯干，背景是浅灰色纯色墙，柔光，正面半身' },
+    { t: '椅子搭放', d: '衣服随意搭在一把简约的木质餐椅靠背上，背景是干净的室内墙面，自然光，平视拍摄' },
+    { t: '床边平铺', d: '衣服平铺在铺着白色床单的床上，旁边放一杯水和一本打开的书，清晨柔和自然光，俯拍 45 度' }
   ];
   const flatPool = shuffleArr(FLATLAY_SCENES);
   const flatConstraint = accessory
-    ? `ä¸¥æ ¼å‚è€ƒä¸Šä¼ çš„æœè£…å›¾ç‰‡ï¼Œä¿æŒæœè£…çš„ç‰ˆåž‹ã€æè´¨çº¹ç†å’Œä¸»ä½“è®¾è®¡100%ä¸€è‡´${colorFix}${buttonFix}ï¼Œä½†è¡£æœä¸Šä¸è¦å‡ºçŽ°${accessory}ï¼Œåªä¿ç•™è¡£æœæœ¬ä½“`
-    : `ä¸¥æ ¼å‚è€ƒä¸Šä¼ çš„æœè£…å›¾ç‰‡ï¼Œä¿æŒæœè£…çš„èŠ±çº¹ã€å›¾æ¡ˆã€æè´¨çº¹ç†ã€çº½æ‰£ã€è£…é¥°ç­‰æ‰€æœ‰ç»†èŠ‚100%ä¸€è‡´ï¼Œä¸å¾—æ›´æ”¹æœè£…çš„æ¬¾å¼å’Œè®¾è®¡${colorFix}${buttonFix}`;
-  const flatQuality = 'photorealistic, shot on Canon EOS R5, 50mm f/2.8 lens, soft natural daylight from a window, neutral white balance, subtle film grain, sharp fine detail on fabric texture; çœŸå®žå•†å“å¹³é“ºå®žæ‹è´¨æ„Ÿï¼Œä¸æ˜¯æ£šæ‹ç¯ã€ä¸æ˜¯æµ·æŠ¥ï¼›no plastic texture, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look';
+    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体`
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}`;
+  const flatQuality = 'photorealistic, shot on Canon EOS R5, 50mm f/2.8 lens, soft natural daylight from a window, neutral white balance, subtle film grain, sharp fine detail on fabric texture; 真实商品平铺实拍质感，不是棚拍灯、不是海报；no plastic texture, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look';
   const FLAT_ANTI = [
-    'è¡£æœä¸å¹³é“ºå±…ä¸­ï¼Œè€Œæ˜¯æ–œæ”¾åœ¨ç”»é¢é‡Œã€æž„å›¾åå·¦ï¼Œå³ä¾§ç•™ä¸€æŽ’é“å…·',
-    'é•œå¤´ç•¥é«˜ä¿¯æ‹ï¼Œè¡£æ‘†è¢«ç”»é¢ä¸‹è¾¹ç¼˜è£æŽ‰ä¸€éƒ¨åˆ†ï¼Œå±žäºŽä¸å®Œæ•´æž„å›¾',
-    'å‰æ™¯æœ‰ä¸€ç‰‡æžå¶ã€ä¸€æ¡å›´å·¾æˆ–ä¸€åªæ¯å­è‡ªç„¶åŽ‹ä½è¡£æœçº¦ä¸€è§’ï¼Œé®ä½å°‘é‡ä¸»ä½“',
-    'è¡£æœå æ”¾åœ¨å…¶ä»–è¡£ç‰©ä¸Šï¼Œåªéœ²å‡ºå¤§åŠä¸ªä¸»ä½“ï¼Œä¸å®Œæ•´å±•ç¤º',
-    'æž„å›¾åå³ï¼Œå·¦ä¾§æ˜¯æ˜Žæ˜¾çš„æ¡Œé¢/åœ°æ¿/åºŠæ²¿çŽ¯å¢ƒç»†èŠ‚'
+    '衣服不平铺居中，而是斜放在画面里、构图偏左，右侧留一排道具',
+    '镜头略高俯拍，衣摆被画面下边缘裁掉一部分，属于不完整构图',
+    '前景有一片枝叶、一条围巾或一只杯子自然压住衣服约一角，遮住少量主体',
+    '衣服叠放在其他衣物上，只露出大半个主体，不完整展示',
+    '构图偏右，左侧是明显的桌面/地板/床沿环境细节'
   ];
   const flatVariants = Array.from({ length: Math.max(2, count) }, (_, i) => {
     const sc = flatPool[(start + i) % flatPool.length];
-    const antiFlat = antiOn ? `ï¼›è¿™å¼ å›¾çš„æž„å›¾è¦å’Œå¸¸è§å¹³é“ºå›¾æ˜Žæ˜¾ä¸åŒï¼š${FLAT_ANTI[i % FLAT_ANTI.length]}ï¼Œä¸æ˜¯æ ‡å‡†å±…ä¸­å¹³é“ºã€‚` : '';
+    const antiFlat = antiOn ? `；这张图的构图要和常见平铺图明显不同：${FLAT_ANTI[i % FLAT_ANTI.length]}，不是标准居中平铺。` : '';
     const heroFlat = (opts && opts.heroShot && opts.antiCompare)
-      ? 'ï¼›è¿™å¼ æ˜¯é“¾æŽ¥ç¬¬ 1 å¼ ä¸»å›¾ï¼šè¡£æœæ–œå‘æ‘†æ”¾ä¸å±…ä¸­ï¼Œåªéœ²å‡ºå¤§åŠä¸ªä¸»ä½“ï¼Œè¡£æ‘†æˆ–ä¸€è§’è¢«ç”»é¢ä¸Šè¾¹ç¼˜æˆ–ä¾§è¾¹è£æŽ‰ï¼Œå±žäºŽä¸å®Œæ•´æž„å›¾ï¼›ä¸è¦å¹³é“ºå±…ä¸­ã€å®Œæ•´å±•ç¤ºçš„æ ‡å‡†å•†å“å›¾'
+      ? '；这张是链接第 1 张主图：衣服斜向摆放不居中，只露出大半个主体，衣摆或一角被画面上边缘或侧边裁掉，属于不完整构图；不要平铺居中、完整展示的标准商品图'
       : '';
     return {
-      name: `å•†å“å›¾Â·${sc.t}`,
-      prompt: `${sc.d}ã€‚ä¸€ä»¶${garment}ã€‚${flatConstraint}ã€‚${flatQuality}ã€‚ç”»é¢é‡Œç»å¯¹ä¸èƒ½å‡ºçŽ°äººã€äººè„¸ã€æ‰‹ã€æ‰‹è‡‚ã€è…¿æˆ–ä»»ä½•èº«ä½“éƒ¨ä½ï¼Œåªæœ‰è¡£æœæœ¬èº«å’Œé“å…·ï¼›è¡£æœå ç”»é¢ 65%~80%ï¼Œæž„å›¾é¥±æ»¡ã€ä¸è¦ç•™å¤ªå¤šç©ºç™½${antiFlat}${heroFlat}ï¼›èƒŒæ™¯ä¸è¦å¤åˆ¶å‚è€ƒå›¾ï¼ŒæŒ‰æè¿°é‡æ–°å¸ƒç½®ã€‚`
+      name: `商品图·${sc.t}`,
+      prompt: `${sc.d}。一件${garment}。${flatConstraint}。${flatQuality}。画面里绝对不能出现人、人脸、手、手臂、腿或任何身体部位，只有衣服本身和道具；衣服占画面 65%~80%，构图饱满、不要留太多空白${antiFlat}${heroFlat}；背景不要复制参考图，按描述重新布置。`
     };
   });
 
@@ -2663,83 +2663,83 @@ function buildJimengPrompts(input, opts) {
   return variants;
 }
 
-// å³æ¢¦/æ–¹èˆŸã€Œè¯¦æƒ…å›¾ã€æç¤ºè¯ï¼ˆé¢æ–™ã€é¢†å£ã€è¢–å£ç­‰å±€éƒ¨ç‰¹å†™ï¼‰
+// 即梦/方舟「详情图」提示词（面料、领口、袖口等局部特写）
 function buildJimengDetailPrompts(input, opts) {
-  const colors = (input.colors && input.colors.length) ? input.colors.join('ã€') : 'å›¾ç‰‡æ‰€ç¤ºé¢œè‰²';
-  const category = input.category || 'æ¯›è¡£';
-  const materials = (input.materials && input.materials.length) ? input.materials.join('ã€') : '';
-  const crafts = (input.crafts && input.crafts.length) ? input.crafts.join('ã€') : '';
+  const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
+  const category = input.category || '毛衣';
+  const materials = (input.materials && input.materials.length) ? input.materials.join('、') : '';
+  const crafts = (input.crafts && input.crafts.length) ? input.crafts.join('、') : '';
   const neck = input.neck || '';
   const fit = input.fit || '';
-  const styles = (input.styles && input.styles.length) ? input.styles.join('ã€') : '';
+  const styles = (input.styles && input.styles.length) ? input.styles.join('、') : '';
   const weight = input.weight || '';
   const season = input.season || '';
 
-  let garment = `${colors}çš„${category}`;
+  let garment = `${colors}的${category}`;
   const desc = [];
-  if (materials) desc.push(`æè´¨ä¸º${materials}`);
-  if (crafts) desc.push(`${crafts}å·¥è‰º`);
-  if (neck) desc.push(`${neck}è®¾è®¡`);
-  if (fit) desc.push(`${fit}ç‰ˆåž‹`);
+  if (materials) desc.push(`材质为${materials}`);
+  if (crafts) desc.push(`${crafts}工艺`);
+  if (neck) desc.push(`${neck}设计`);
+  if (fit) desc.push(`${fit}版型`);
   if (weight) desc.push(weight);
-  if (season) desc.push(`${season}æ¬¾`);
-  if (desc.length) garment += 'ï¼Œ' + desc.join('ï¼Œ');
-  if (styles) garment += `ï¼Œ${styles}é£Žæ ¼`;
+  if (season) desc.push(`${season}款`);
+  if (desc.length) garment += '，' + desc.join('，');
+  if (styles) garment += `，${styles}风格`;
 
-  const accessory = (opts && opts.simple) ? (opts.accessory || 'ä¸å¸¦ç­‰è£…é¥°') : '';
+  const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
   const forceColor = (opts && opts.forceColor) || '';
   const colorFix = forceColor
-    ? `ï¼›é¢œè‰²å¿…é¡»åšæˆ${forceColor}ï¼Œå‚è€ƒå›¾åªå¯¹ç…§æ¬¾å¼ã€ç‰ˆåž‹ã€é’ˆç»‡çº¹ç†å’Œçº½æ‰£ä½ç½®ï¼Œé¢œè‰²ä¸è¦ç…§æ¬åŽŸå›¾`
-    : 'ï¼Œé¢œè‰²æ·±æµ…ä¸ŽåŽŸå›¾ä¸€è‡´';
-  const buttonFix = 'ï¼›çº½æ‰£çš„é¢œè‰²ã€æ•°é‡ã€å¤§å°ã€ä½ç½®å’ŒæŽ’åˆ—é¡ºåºå¿…é¡»ä¸Žå‚è€ƒå›¾å®Œå…¨ä¸€è‡´ï¼Œå½©è‰²çº½æ‰£æŒ‰åŽŸé¡ºåºè¿˜åŽŸï¼Œä¸èƒ½åŒè‰²åŒ–ã€ä¸èƒ½ä¸²è‰²ã€ä¸èƒ½å¢žå‡';
+    ? `；颜色必须做成${forceColor}，参考图只对照款式、版型、针织纹理和纽扣位置，颜色不要照搬原图`
+    : '，颜色深浅与原图一致';
+  const buttonFix = '；纽扣的颜色、数量、大小、位置和排列顺序必须与参考图完全一致，彩色纽扣按原顺序还原，不能同色化、不能串色、不能增减';
   const constraint = accessory
-    ? `ä¸¥æ ¼å‚è€ƒä¸Šä¼ çš„æœè£…å›¾ç‰‡ï¼Œä¿æŒæœè£…çš„ç‰ˆåž‹ã€æè´¨çº¹ç†å’Œä¸»ä½“è®¾è®¡100%ä¸€è‡´${colorFix}${buttonFix}ï¼Œä½†è¡£æœä¸Šä¸è¦å‡ºçŽ°${accessory}ï¼Œåªä¿ç•™è¡£æœæœ¬ä½“ï¼Œå±€éƒ¨ç‰¹å†™é‡Œä¹Ÿä¸èƒ½æ‹åˆ°ä»»ä½•é™„åŠ æŒ‚é¥°`
-    : `ä¸¥æ ¼å‚è€ƒä¸Šä¼ çš„æœè£…å›¾ç‰‡ï¼Œä¿æŒæœè£…çš„èŠ±çº¹ã€å›¾æ¡ˆã€æè´¨çº¹ç†ã€çº½æ‰£ã€è£…é¥°ç­‰æ‰€æœ‰ç»†èŠ‚100%ä¸€è‡´ï¼Œä¸å¾—æ›´æ”¹æœè£…çš„æ¬¾å¼å’Œè®¾è®¡${colorFix}${buttonFix}`;
-  const quality2 = 'photorealistic, shot on Canon EOS R5, 100mm macro lens, soft diffused studio light, neutral white balance, subtle film grain, sharp fine detail; ç”»é¢åªæ‹è¡£æœçš„ä¸€ä¸ªå±€éƒ¨ï¼Œä¸è¦å‡ºçŽ°å®Œæ•´ä¸ŠåŠèº«ã€ä¸è¦æ‹åˆ°è„¸ã€ä¸è¦æ‹åˆ°æˆ¿é—´æˆ–çŽ¯å¢ƒèƒŒæ™¯ï¼Œåªå‡ºçŽ°ä¸¤åªæ‰‹ã€æ‰‹æŒ‡æ•°é‡æ­£ç¡®ã€ç»“æž„è‡ªç„¶ï¼Œä¸è¦å¤šä½™çš„æ‰‹æˆ–æ‰‹è‡‚ï¼›no plastic texture, no cartoon, no watermark, no text';
-  const base = (scene) => `å±€éƒ¨ç‰¹å†™ç…§ç‰‡ï¼Œä¸€ä½æ¨¡ç‰¹ç©¿ç€${garment}ã€‚${constraint}ã€‚${scene}ã€‚${quality2}ã€‚`;
+    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体，局部特写里也不能拍到任何附加挂饰`
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}`;
+  const quality2 = 'photorealistic, shot on Canon EOS R5, 100mm macro lens, soft diffused studio light, neutral white balance, subtle film grain, sharp fine detail; 画面只拍衣服的一个局部，不要出现完整上半身、不要拍到脸、不要拍到房间或环境背景，只出现两只手、手指数量正确、结构自然，不要多余的手或手臂；no plastic texture, no cartoon, no watermark, no text';
+  const base = (scene) => `局部特写照片，一位模特穿着${garment}。${constraint}。${scene}。${quality2}。`;
 
   return [
-    { name: 'é¢†å£ç»†èŠ‚', prompt: base('é•œå¤´è¿‘æ™¯èšç„¦é¢†å£ï¼Œå±•ç¤ºé¢†åž‹ã€èµ°çº¿ã€æ‹‰é“¾æˆ–çº½æ‰£å’Œæ¯›ç»’è´¨æ„Ÿï¼Œæ¨¡ç‰¹ä¸‹å·´ä»¥ä¸‹å…¥é•œ') },
-    { name: 'é¢æ–™çº¹ç†', prompt: base('é•œå¤´æžè¿‘è·ç¦»å¾®è·æ‹æ‘„é¢æ–™è¡¨é¢ï¼Œå±•ç¤ºé’ˆç»‡çº¹ç†ã€çº±çº¿ç»’æ¯›å’ŒçœŸå®žè´¨æ„Ÿï¼Œæµ…æ™¯æ·±') },
-    { name: 'è¢–å£ä¸Žä¸‹æ‘†', prompt: base('é•œå¤´è¿‘æ™¯å±•ç¤ºè¢–å£èžºçº¹å’Œä¸‹æ‘†æ”¶å£ï¼Œæ¨¡ç‰¹æ‰‹éƒ¨è½»æ‹‰è¡£æ‘†ï¼Œä½“çŽ°å¼¹åŠ›å’Œåšå·¥') },
-    { name: 'ä¾§é¢ç‰ˆåž‹', prompt: base('æ¨¡ç‰¹ä¾§èº«åŠèº«å±•ç¤ºï¼Œä½“çŽ°è‚©çº¿ã€è¢–åž‹å’Œæ•´ä½“ç‰ˆåž‹ï¼Œå®¤å†…å½±æ£šæŸ”å…‰') }
+    { name: '领口细节', prompt: base('镜头近景聚焦领口，展示领型、走线、拉链或纽扣和毛绒质感，模特下巴以下入镜') },
+    { name: '面料纹理', prompt: base('镜头极近距离微距拍摄面料表面，展示针织纹理、纱线绒毛和真实质感，浅景深') },
+    { name: '袖口与下摆', prompt: base('镜头近景展示袖口螺纹和下摆收口，模特手部轻拉衣摆，体现弹力和做工') },
+    { name: '侧面版型', prompt: base('模特侧身半身展示，体现肩线、袖型和整体版型，室内影棚柔光') }
   ];
 }
 
-// å³æ¢¦ã€Œå›¾ç”Ÿè§†é¢‘ã€æç¤ºè¯ï¼ˆæ‹¼å¤šå¤šä¸»å›¾å°è§†é¢‘ï¼Œ5~10 ç§’ï¼Œ1:1ï¼‰
+// 即梦「图生视频」提示词（拼多多主图小视频，5~10 秒，1:1）
 function buildJimengVideoPrompts(input) {
-  const colors = (input.colors && input.colors.length) ? input.colors.join('ã€') : 'å›¾ç‰‡æ‰€ç¤ºé¢œè‰²';
-  const category = input.category || 'æ¯›è¡£';
-  const materials = (input.materials && input.materials.length) ? input.materials.join('ã€') : '';
-  const crafts = (input.crafts && input.crafts.length) ? input.crafts.join('ã€') : '';
+  const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
+  const category = input.category || '毛衣';
+  const materials = (input.materials && input.materials.length) ? input.materials.join('、') : '';
+  const crafts = (input.crafts && input.crafts.length) ? input.crafts.join('、') : '';
   const neck = input.neck || '';
   const fit = input.fit || '';
-  const styles = (input.styles && input.styles.length) ? input.styles.join('ã€') : '';
+  const styles = (input.styles && input.styles.length) ? input.styles.join('、') : '';
   const weight = input.weight || '';
   const season = input.season || '';
 
-  let garment = `${colors}çš„${category}`;
+  let garment = `${colors}的${category}`;
   const desc = [];
-  if (materials) desc.push(`æè´¨ä¸º${materials}`);
-  if (crafts) desc.push(`${crafts}å·¥è‰º`);
-  if (neck) desc.push(`${neck}è®¾è®¡`);
-  if (fit) desc.push(`${fit}ç‰ˆåž‹`);
+  if (materials) desc.push(`材质为${materials}`);
+  if (crafts) desc.push(`${crafts}工艺`);
+  if (neck) desc.push(`${neck}设计`);
+  if (fit) desc.push(`${fit}版型`);
   if (weight) desc.push(weight);
-  if (season) desc.push(`${season}æ¬¾`);
-  if (desc.length) garment += 'ï¼Œ' + desc.join('ï¼Œ');
-  if (styles) garment += `ï¼Œ${styles}é£Žæ ¼`;
+  if (season) desc.push(`${season}款`);
+  if (desc.length) garment += '，' + desc.join('，');
+  if (styles) garment += `，${styles}风格`;
 
-  const constraint = 'ä¸¥æ ¼å‚è€ƒä¸Šä¼ çš„æœè£…å›¾ç‰‡ï¼Œä¿æŒæœè£…çš„èŠ±çº¹ã€å›¾æ¡ˆã€é¢œè‰²æ·±æµ…ã€æè´¨çº¹ç†ã€çº½æ‰£å’Œè£…é¥°ç­‰æ‰€æœ‰ç»†èŠ‚ä¸ŽåŽŸå›¾100%ä¸€è‡´ï¼Œä¸å¾—æ”¹å˜æœè£…çš„æ¬¾å¼å’Œè®¾è®¡ï¼›åªè®©æ¨¡ç‰¹åŠ¨ä½œå’Œé•œå¤´è¿åŠ¨ï¼Œè¡£æœæœ¬èº«ä¸å˜å½¢ä¸é—ªçƒ';
-  const quality = 'çœŸå®žæ‘„å½±è´¨æ„Ÿï¼Œ24å¸§æ¯ç§’ï¼Œç”»é¢ç¨³å®šä¸æŠ–åŠ¨ï¼Œå…‰å½±è‡ªç„¶æœ‰çœŸå®žé˜´å½±ï¼Œé«˜æ¸…ç»†èŠ‚ï¼Œæ— æ°´å°æ— æ–‡å­—æ— logoï¼Œä¸è¦å¡é€šä¸è¦æ’ç”»ï¼Œç”µå•†ä¸»å›¾è§†é¢‘è´¨æ„Ÿ';
-  const base = (model, action, camera, extra) => `${model}ï¼Œç©¿ç€${garment}ã€‚${constraint}ã€‚${action}ã€‚${camera}${extra ? 'ã€‚' + extra : ''}ã€‚${quality}ã€‚`;
+  const constraint = '严格参考上传的服装图片，保持服装的花纹、图案、颜色深浅、材质纹理、纽扣和装饰等所有细节与原图100%一致，不得改变服装的款式和设计；只让模特动作和镜头运动，衣服本身不变形不闪烁';
+  const quality = '真实摄影质感，24帧每秒，画面稳定不抖动，光影自然有真实阴影，高清细节，无水印无文字无logo，不要卡通不要插画，电商主图视频质感';
+  const base = (model, action, camera, extra) => `${model}，穿着${garment}。${constraint}。${action}。${camera}${extra ? '。' + extra : ''}。${quality}。`;
 
   return [
     {
-      name: 'å½±æ£šæ­£é¢å±•ç¤ºï¼ˆ5ç§’ Â· 1:1ï¼‰',
+      name: '影棚正面展示（5秒 · 1:1）',
       prompt: base(
-        'ä¸€ä½25å²å·¦å³çš„äºšæ´²å¥³æ€§æ¨¡ç‰¹ï¼Œäº”å®˜è‡ªç„¶ï¼Œæ·¡å¦†ï¼Œé•¿ç›´å‘ï¼Œè¡¨æƒ…æ¸©å’Œå¾®ç¬‘',
-        'æ¨¡ç‰¹æ­£é¢ç«™ç«‹ï¼ŒåŒæ‰‹è‡ªç„¶ä¸‹åž‚ï¼Œå…ˆè½»å¾®ä¾§èº«å†å›žæ­£çœ‹å‘é•œå¤´ï¼ŒåŠ¨ä½œç¼“æ…¢è‡ªç„¶',
-        'é•œå¤´å›ºå®šä¸­æ™¯ï¼Œçº¦è…°ä»¥ä¸ŠåŠèº«ï¼Œæµ…ç°è‰²æ¸å˜èƒŒæ™¯ï¼ŒæŸ”å’Œå‡åŒ€å¸ƒå…‰'
+        '一位25岁左右的亚洲女性模特，五官自然，淡妆，长直发，表情温和微笑',
+        '模特正面站立，双手自然下垂，先轻微侧身再回正看向镜头，动作缓慢自然',
+        '镜头固定中景，约腰以上半身，浅灰色渐变背景，柔和均匀布光'
       )
     }
   ];
@@ -2755,12 +2755,12 @@ async function saveToLibrary() {
       url = r.url;
       S.studioImage.assetUrl = url;
     }
-    // ä¿å­˜å…¨éƒ¨ï¼šåŽŸå›¾ã€ç«å±±æ¨¡ç‰¹å›¾ã€å³æ¢¦æç¤ºè¯ã€å±žæ€§ã€SKUã€æ ‡é¢˜ã€å–ç‚¹ç­‰
+    // 保存全部：原图、火山模特图、即梦提示词、属性、SKU、标题、卖点等
     const jmOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'blend', count: 4, seed: 0 }, arkAccOpts() || {});
     const jmVariants = buildJimengPrompts(S.studioInput, jmOpts).map((v) => ({ name: v.name, prompt: v.prompt }));
     S.data.materials.unshift({
       id: uid(),
-      name: S.studioInput.category + ' Â· ' + (S.studioInput.colors || []).join('/'),
+      name: S.studioInput.category + ' · ' + (S.studioInput.colors || []).join('/'),
       imageUrl: url,
       input: Object.assign({}, S.studioInput),
       kit: S.studioKit,
@@ -2770,13 +2770,13 @@ async function saveToLibrary() {
     });
     S.data.materials = S.data.materials.slice(0, 500);
     persist();
-    toast('å·²å­˜å…¥ç´ æåº“ï¼ˆå«æ¨¡ç‰¹å›¾ã€æç¤ºè¯ã€SKU ç­‰å…¨éƒ¨ç´ æï¼‰');
+    toast('已存入素材库（含模特图、提示词、SKU 等全部素材）');
   } catch (_) {
-    toast('ä¿å­˜å¤±è´¥ï¼Œæ£€æŸ¥ç½‘ç»œ');
+    toast('保存失败，检查网络');
   }
 }
 
-/* ================= æ‰¹é‡ä¸‹è½½ï¼ˆæ‰“åŒ… zipï¼‰ ================= */
+/* ================= 批量下载（打包 zip） ================= */
 function zipCrc32(buf) {
   if (!zipCrc32.table) {
     const t = new Uint32Array(256);
@@ -2848,7 +2848,7 @@ function makeZip(files) {
   return new Blob([...chunks, ...central, end], { type: 'application/zip' });
 }
 
-/* ===== å›¾ç‰‡æœ¬åœ°ç¼“å­˜ï¼šæ–¹èˆŸå›¾ç‰‡é“¾æŽ¥ 24 å°æ—¶åŽä¼šå¤±æ•ˆï¼Œç”Ÿæˆæ—¶å°±å­˜ä¸€ä»½åˆ°æµè§ˆå™¨ ===== */
+/* ===== 图片本地缓存：方舟图片链接 24 小时后会失效，生成时就存一份到浏览器 ===== */
 const IMG_DB = 'knit-img';
 function imgDb() {
   return new Promise((res, rej) => {
@@ -2872,7 +2872,7 @@ function imgCachePut(url, blob) {
     t.onerror = () => res(false);
   })).catch(() => false);
 }
-// ç”Ÿæˆå®Œé©¬ä¸Šç¼“å­˜ï¼Œä¹‹åŽä¸‹è½½ä¸å†ä¾èµ–æ–¹èˆŸé“¾æŽ¥
+// 生成完马上缓存，之后下载不再依赖方舟链接
 function cacheImageNow(url) {
   if (!url) return;
   imgCacheGet(url).then((c) => {
@@ -2889,11 +2889,11 @@ async function fetchImageBlob(url) {
   const cached = await imgCacheGet(url);
   if (cached) return cached;
   const resp = await fetch(url);
-  if (!resp.ok) throw new Error('è¿™å¼ å›¾çš„æ–¹èˆŸé“¾æŽ¥å·²å¤±æ•ˆï¼ˆæ–¹èˆŸå›¾ç‰‡åªä¿ç•™ 24 å°æ—¶ï¼‰ï¼Œé‡æ–°ç”Ÿæˆä¸€ä¸‹è¿™å¼ å°±è¡Œ');
+  if (!resp.ok) throw new Error('这张图的方舟链接已失效（方舟图片只保留 24 小时），重新生成一下这张就行');
   const type = resp.headers.get('content-type') || '';
   const blob = await resp.blob();
   if (!/^image\//.test(type) || blob.size < 20000) {
-    throw new Error('è¿™å¼ å›¾çš„æ–¹èˆŸé“¾æŽ¥å·²å¤±æ•ˆï¼ˆæ–¹èˆŸå›¾ç‰‡åªä¿ç•™ 24 å°æ—¶ï¼‰ï¼Œé‡æ–°ç”Ÿæˆä¸€ä¸‹è¿™å¼ å°±è¡Œ');
+    throw new Error('这张图的方舟链接已失效（方舟图片只保留 24 小时），重新生成一下这张就行');
   }
   imgCachePut(url, blob);
   return blob;
@@ -2904,13 +2904,13 @@ async function downloadOne(url, name) {
     const blob = await fetchImageBlob(url);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = (name || 'å›¾ç‰‡').replace(/[\\/:*?"<>|]/g, '_') + '.jpg';
+    a.download = (name || '图片').replace(/[\\/:*?"<>|]/g, '_') + '.jpg';
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 30000);
   } catch (e) {
-    toast(e.message || 'ä¸‹è½½å¤±è´¥ï¼Œé•¿æŒ‰å›¾ç‰‡å¯ä¿å­˜');
+    toast(e.message || '下载失败，长按图片可保存');
   }
 }
 
@@ -2926,7 +2926,7 @@ function bindOneDownloads() {
 async function downloadAsZip(items, zipName) {
   if (!items || !items.length) return;
   const toastMsg = toast;
-  toastMsg(`æ­£åœ¨æ‰“åŒ… ${items.length} å¼ å›¾ç‰‡â€¦`);
+  toastMsg(`正在打包 ${items.length} 张图片…`);
   try {
     const files = [];
     for (let i = 0; i < items.length; i++) {
@@ -2936,9 +2936,9 @@ async function downloadAsZip(items, zipName) {
         const blob = await fetchImageBlob(it.url);
         buf = new Uint8Array(await blob.arrayBuffer());
       } catch (e) {
-        throw new Error(`ç¬¬ ${i + 1} å¼ ï¼ˆ${it.label || 'æœªå‘½å'}ï¼‰ï¼š${e.message}`);
+        throw new Error(`第 ${i + 1} 张（${it.label || '未命名'}）：${e.message}`);
       }
-      const safe = (it.label || ('å›¾ç‰‡' + (i + 1))).replace(/[\\/:*?"<>|]/g, '_');
+      const safe = (it.label || ('图片' + (i + 1))).replace(/[\\/:*?"<>|]/g, '_');
       files.push({ name: `${String(i + 1).padStart(2, '0')}_${safe}.jpg`, bytes: buf });
     }
     const blob = makeZip(files);
@@ -2949,9 +2949,9 @@ async function downloadAsZip(items, zipName) {
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 30000);
-    toastMsg(`å·²æ‰“åŒ… ${items.length} å¼ ï¼Œä¸‹è½½ 1 ä¸ª zip æ–‡ä»¶å³å¯`);
+    toastMsg(`已打包 ${items.length} 张，下载 1 个 zip 文件即可`);
   } catch (e) {
-    toast('æ‰“åŒ…å¤±è´¥ï¼š' + (e.message || e));
+    toast('打包失败：' + (e.message || e));
   }
 }
 
@@ -2977,10 +2977,10 @@ function filteredMaterials(materials, keyword) {
 }
 
 function renderMaterialDetail(m) {
-  if (!m) return '<div class="tbl-empty">ç´ æä¸å­˜åœ¨</div>';
+  if (!m) return '<div class="tbl-empty">素材不存在</div>';
   const i = m.input || {};
   const k = m.kit || {};
-  const tags = [i.category, (i.materials || []).join('ã€'), i.neck, i.fit, (i.styles || []).join('ã€'), i.weight, i.season, (i.colors || []).join('ã€')].filter(Boolean).join(' Â· ');
+  const tags = [i.category, (i.materials || []).join('、'), i.neck, i.fit, (i.styles || []).join('、'), i.weight, i.season, (i.colors || []).join('、')].filter(Boolean).join(' · ');
   const aiImgs = m.aiImages || [];
   const jm = m.jimengPrompts || [];
   const titles = (k.titles || []).map((t) => t.text).filter(Boolean);
@@ -2991,24 +2991,24 @@ function renderMaterialDetail(m) {
       <div style="color:var(--ink-3);font-size:12px;margin-bottom:12px">${new Date(m.createdAt).toLocaleString('zh-CN')}</div>
       <div style="background:var(--surface-2);padding:8px 12px;border-radius:8px;margin-bottom:14px">${esc(tags)}</div>
       ${aiImgs.length ? `
-        <div style="font-weight:600;margin:12px 0 8px">ç«å±±æ¨¡ç‰¹å›¾ï¼ˆ${aiImgs.length} å¼ ï¼‰</div>
+        <div style="font-weight:600;margin:12px 0 8px">火山模特图（${aiImgs.length} 张）</div>
         <div class="canvas-grid">${aiImgs.map((a) => `
           <div class="canvas-card">
             <a href="${a.url}" target="_blank" rel="noopener"><img src="${a.url}" alt="${esc(a.label)}"></a>
-            <div class="cc-foot"><span>${esc(a.label)}</span><span style="margin-left:auto"><a class="btn sm dlOne" href="${a.url}" data-url="${a.url}" data-name="${esc(a.label)}">ä¸‹è½½</a></span></div>
+            <div class="cc-foot"><span>${esc(a.label)}</span><span style="margin-left:auto"><a class="btn sm dlOne" href="${a.url}" data-url="${a.url}" data-name="${esc(a.label)}">下载</a></span></div>
           </div>`).join('')}</div>
-        <div style="margin-top:8px"><a class="btn sm" id="libDlAll">å…¨éƒ¨ä¸‹è½½ï¼ˆ${aiImgs.length} å¼ ï¼‰</a></div>
-      ` : '<div style="color:var(--ink-3);font-size:12px;margin-bottom:12px">ï¼ˆä¿å­˜æ—¶æ²¡æœ‰ç«å±±æ¨¡ç‰¹å›¾ï¼‰</div>'}
+        <div style="margin-top:8px"><a class="btn sm" id="libDlAll">全部下载（${aiImgs.length} 张）</a></div>
+      ` : '<div style="color:var(--ink-3);font-size:12px;margin-bottom:12px">（保存时没有火山模特图）</div>'}
       ${titles.length ? `
-        <div style="font-weight:600;margin:16px 0 8px">æ ‡é¢˜</div>
+        <div style="font-weight:600;margin:16px 0 8px">标题</div>
         <div style="display:flex;flex-direction:column;gap:6px">${titles.map((t) => `<div style="background:var(--surface-2);padding:8px 12px;border-radius:8px;font-size:13px">${esc(t)}</div>`).join('')}</div>
       ` : ''}
       ${skus.length ? `
-        <div style="font-weight:600;margin:16px 0 8px">SKU è§„æ ¼</div>
-        <div class="table-wrap"><table class="tbl"><thead><tr><th>é¢œè‰²</th><th>å°ºç </th><th>æ‹¼å¤šå¤šè§„æ ¼å</th><th class="num">ä»·æ ¼</th><th class="num">åº“å­˜</th></tr></thead><tbody>${skus.map((s) => `<tr><td>${esc(s.spec1)}</td><td>${esc(s.spec2)}</td><td>${esc(s.pddName)}</td><td class="num">${s.price}</td><td class="num">${s.stock}</td></tr>`).join('')}</tbody></table></div>
+        <div style="font-weight:600;margin:16px 0 8px">SKU 规格</div>
+        <div class="table-wrap"><table class="tbl"><thead><tr><th>颜色</th><th>尺码</th><th>拼多多规格名</th><th class="num">价格</th><th class="num">库存</th></tr></thead><tbody>${skus.map((s) => `<tr><td>${esc(s.spec1)}</td><td>${esc(s.spec2)}</td><td>${esc(s.pddName)}</td><td class="num">${s.price}</td><td class="num">${s.stock}</td></tr>`).join('')}</tbody></table></div>
       ` : ''}
       ${jm.length ? `
-        <div style="font-weight:600;margin:16px 0 8px">å³æ¢¦æç¤ºè¯ï¼ˆ${jm.length} ç»„ï¼‰</div>
+        <div style="font-weight:600;margin:16px 0 8px">即梦提示词（${jm.length} 组）</div>
         <div style="display:flex;flex-direction:column;gap:8px">${jm.map((p) => `
           <div style="background:var(--surface-2);padding:10px 12px;border-radius:8px">
             <div style="font-size:12px;color:var(--ink-3);margin-bottom:4px">${esc(p.name)}</div>
@@ -3016,7 +3016,7 @@ function renderMaterialDetail(m) {
           </div>`).join('')}</div>
       ` : ''}
       <div style="margin-top:16px">
-        <button class="btn sm" id="libDel">åˆ é™¤è¿™æ¡ç´ æ</button>
+        <button class="btn sm" id="libDel">删除这条素材</button>
       </div>
     </div>`;
 }
@@ -3024,94 +3024,94 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>è®¾ç½®</h2><p>æ•°æ®ã€å¤‡ä»½ã€ä½¿ç”¨è¯´æ˜Ž Â· å½“å‰ç‰ˆæœ¬ v1156a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1156a</p></div></div>
     <div class="stack">
       <div class="card">
-        <div class="card-head"><h3>æ•°æ®åŒæ­¥</h3><span class="sub">æ‰‹æœºä¸Žç”µè„‘å…±ç”¨åŒä¸€ä»½æ•°æ®</span></div>
+        <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
         <div class="card-body">
-          <div class="seg-row"><div class="sk">åŒæ­¥çŠ¶æ€</div><div id="syncStateText">${S.syncState === 'ok' ? 'å·²åŒæ­¥åˆ°äº‘ç«¯' : 'æœªåŒæ­¥'}</div><span class="pill ${S.syncState === 'ok' ? 'good' : 'warn'}">${S.syncState === 'ok' ? 'æ­£å¸¸' : 'æ³¨æ„'}</span></div>
-          <div class="seg-row"><div class="sk">æœ€è¿‘æ›´æ–°</div><div>${d.updatedAt ? new Date(d.updatedAt).toLocaleString('zh-CN') : 'â€”'}</div></div>
+          <div class="seg-row"><div class="sk">同步状态</div><div id="syncStateText">${S.syncState === 'ok' ? '已同步到云端' : '未同步'}</div><span class="pill ${S.syncState === 'ok' ? 'good' : 'warn'}">${S.syncState === 'ok' ? '正常' : '注意'}</span></div>
+          <div class="seg-row"><div class="sk">最近更新</div><div>${d.updatedAt ? new Date(d.updatedAt).toLocaleString('zh-CN') : '—'}</div></div>
           <div class="row" style="margin-top:14px">
-            <a class="btn" href="/api/backup" download>ä¸‹è½½å¤‡ä»½ï¼ˆJSONï¼‰</a>
-            <button class="btn" id="importBtn">ä»Žå¤‡ä»½æ¢å¤</button>
+            <a class="btn" href="/api/backup" download>下载备份（JSON）</a>
+            <button class="btn" id="importBtn">从备份恢复</button>
             <input type="file" id="importFile" accept="application/json" hidden>
           </div>
-          <p style="font-size:12px;color:var(--ink-3);margin-top:12px">å»ºè®®æ¯å‘¨ä¸‹è½½ä¸€æ¬¡å¤‡ä»½ã€‚æœåŠ¡å™¨é‡å»ºåŽï¼Œç”¨å¤‡ä»½æ–‡ä»¶å¯ä»¥å®Œæ•´æ¢å¤åº—é“ºã€å•†å“ã€æ¯æ—¥æ•°æ®å’Œç´ æåº“ã€‚</p>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:12px">建议每周下载一次备份。服务器重建后，用备份文件可以完整恢复店铺、商品、每日数据和素材库。</p>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>AI ç”Ÿå›¾é…ç½®</h3><span class="sub">è‡ªåŠ¨è¯†åˆ«å±žæ€§ + æ‰‹åŠ¨ç”Ÿæˆæ¨¡ç‰¹å›¾</span></div>
+        <div class="card-head"><h3>AI 生图配置</h3><span class="sub">自动识别属性 + 手动生成模特图</span></div>
         <div class="card-body">
-          <div class="seg-row"><div class="sk">æœåŠ¡å¹³å°</div>
+          <div class="seg-row"><div class="sk">服务平台</div>
             <select id="aiProvider">
-              <option value="volc" ${(S.data.settings.ai.provider||'volc')==='volc'?'selected':''}>ç«å±±æ–¹èˆŸï¼ˆè±†åŒ…è¯†å›¾ + Seedream å‡ºå›¾ï¼‰</option>
-              <option value="custom" ${(S.data.settings.ai.provider)==='custom'?'selected':''}>è‡ªå®šä¹‰ï¼ˆOpenAI å…¼å®¹æŽ¥å£ï¼‰</option>
+              <option value="volc" ${(S.data.settings.ai.provider||'volc')==='volc'?'selected':''}>火山方舟（豆包识图 + Seedream 出图）</option>
+              <option value="custom" ${(S.data.settings.ai.provider)==='custom'?'selected':''}>自定义（OpenAI 兼容接口）</option>
             </select>
           </div>
-          <div class="seg-row"><div class="sk">API Keyï¼ˆå¯†é’¥ï¼‰</div>
-            <input id="aiApiKey" type="password" style="flex:1" placeholder="ç²˜è´´ç«å±±æ–¹èˆŸçš„ API Key" value="${esc(S.data.settings.ai.apiKey||'')}">
+          <div class="seg-row"><div class="sk">API Key（密钥）</div>
+            <input id="aiApiKey" type="password" style="flex:1" placeholder="粘贴火山方舟的 API Key" value="${esc(S.data.settings.ai.apiKey||'')}">
           </div>
-          <div class="seg-row"><div class="sk">æŽ¥å£åœ°å€ï¼ˆBase URLï¼‰</div>
+          <div class="seg-row"><div class="sk">接口地址（Base URL）</div>
             <input id="aiBaseUrl" type="text" style="flex:1" value="${esc(S.data.settings.ai.baseUrl||'')}">
           </div>
-          <div class="seg-row"><div class="sk">è¯†åˆ«æ¨¡åž‹ï¼ˆè±†åŒ…è§†è§‰ï¼‰</div>
-            <input id="aiVisionModel" type="text" style="flex:1" placeholder="å¡«è±†åŒ…è§†è§‰æ¨¡åž‹ ID" value="${esc(S.data.settings.ai.visionModel||'')}">
+          <div class="seg-row"><div class="sk">识别模型（豆包视觉）</div>
+            <input id="aiVisionModel" type="text" style="flex:1" placeholder="填豆包视觉模型 ID" value="${esc(S.data.settings.ai.visionModel||'')}">
           </div>
-          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">åªç”¨äºŽè¯†åˆ«æè´¨ã€é¢†åž‹ã€ç‰ˆåž‹ã€é£Žæ ¼ï¼Œçº¦ 0.001 å…ƒä¸€å¼ ï¼ˆåŸºæœ¬å¯ä»¥å¿½ç•¥ï¼‰ã€‚ä¸Šä¼ å›¾ç‰‡åŽè‡ªåŠ¨è·‘ï¼Œä¸ç”¨ä½ ç‚¹ã€‚</p>
-          <div class="seg-row" style="margin-top:10px"><div class="sk">ç”Ÿå›¾æ¨¡åž‹ï¼ˆSeedreamï¼‰</div>
-            <input id="aiImageModel" type="text" style="flex:1" placeholder="å¡« Seedream ç”Ÿå›¾æ¨¡åž‹ ID" value="${esc(S.data.settings.ai.imageModel||'')}">
+          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">只用于识别材质、领型、版型、风格，约 0.001 元一张（基本可以忽略）。上传图片后自动跑，不用你点。</p>
+          <div class="seg-row" style="margin-top:10px"><div class="sk">生图模型（Seedream）</div>
+            <input id="aiImageModel" type="text" style="flex:1" placeholder="填 Seedream 生图模型 ID" value="${esc(S.data.settings.ai.imageModel||'')}">
           </div>
-          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">åªç”¨äºŽã€Œç”Ÿæˆæ¨¡ç‰¹å›¾ã€ï¼Œä¸€å¼ çº¦ 0.1~1 å…ƒã€‚å¿…é¡»ä½ æ‰‹åŠ¨ç‚¹æŒ‰é’®æ‰ä¼šç”Ÿæˆï¼Œä¸ä¼šè‡ªåŠ¨æ‰£é’±ã€‚</p>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">只用于「生成模特图」，一张约 0.1~1 元。必须你手动点按钮才会生成，不会自动扣钱。</p>
           <div class="seg-row" style="margin-top:10px"><div class="sk">Access Key ID</div>
-            <input id="aiAkId" type="text" style="flex:1" placeholder="ç«å±±å¼•æ“Ž AK IDï¼ˆå¯é€‰ï¼Œä»…ç”¨äºŽæŸ¥ä½™é¢ï¼‰" value="${esc(S.data.settings.ai.accessKeyId||'')}">
+            <input id="aiAkId" type="text" style="flex:1" placeholder="火山引擎 AK ID（可选，仅用于查余额）" value="${esc(S.data.settings.ai.accessKeyId||'')}">
           </div>
           <div class="seg-row"><div class="sk">Secret Access Key</div>
-            <input id="aiAkSecret" type="password" style="flex:1" placeholder="ç«å±±å¼•æ“Ž SKï¼ˆå¯é€‰ï¼Œä»…ç”¨äºŽæŸ¥ä½™é¢ï¼‰" value="${esc(S.data.settings.ai.secretAccessKey||'')}">
+            <input id="aiAkSecret" type="password" style="flex:1" placeholder="火山引擎 SK（可选，仅用于查余额）" value="${esc(S.data.settings.ai.secretAccessKey||'')}">
           </div>
-          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">å¡«äº†è¿™ä¸¤ä¸ªæ‰èƒ½åœ¨å·¥å…·é‡ŒæŸ¥æ–¹èˆŸä½™é¢ã€‚åªå¡« API Key æŸ¥ä¸äº†ä½™é¢ï¼ˆæ–¹èˆŸæ²¡å¼€æ”¾è¿™ä¸ªæŽ¥å£ï¼‰ã€‚AK/SK åœ¨ç«å±±å¼•æ“ŽæŽ§åˆ¶å°ã€Œè®¿é—®æŽ§åˆ¶ - API è®¿é—®å¯†é’¥ã€é‡Œåˆ›å»ºï¼Œåªå­˜åœ¨ä½ è‡ªå·±æµè§ˆå™¨é‡Œã€‚</p>
-          <div class="seg-row" style="margin-top:10px"><div class="sk">å›¾ç”Ÿå›¾å‚è€ƒ</div>
-            <label style="display:flex;align-items:center;gap:6px"><input id="aiImg2img" type="checkbox" ${S.data.settings.ai.img2img!==false?'checked':''}> ä¸Šä¼ å®žæ‹å›¾ä½œä¸ºç”Ÿæˆå‚è€ƒï¼ˆæ›´åƒä½ çš„è¡£æœï¼‰</label>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">填了这两个才能在工具里查方舟余额。只填 API Key 查不了余额（方舟没开放这个接口）。AK/SK 在火山引擎控制台「访问控制 - API 访问密钥」里创建，只存在你自己浏览器里。</p>
+          <div class="seg-row" style="margin-top:10px"><div class="sk">图生图参考</div>
+            <label style="display:flex;align-items:center;gap:6px"><input id="aiImg2img" type="checkbox" ${S.data.settings.ai.img2img!==false?'checked':''}> 上传实拍图作为生成参考（更像你的衣服）</label>
           </div>
           <div class="row" style="margin-top:14px">
-            <button class="btn primary" id="aiSaveBtn">ä¿å­˜é…ç½®</button>
-            <button class="btn" id="aiTestBtn">æµ‹è¯•è¿žæŽ¥</button>
+            <button class="btn primary" id="aiSaveBtn">保存配置</button>
+            <button class="btn" id="aiTestBtn">测试连接</button>
           </div>
-          <p style="font-size:12px;color:var(--ink-3);margin-top:12px">æ¨¡åž‹ ID åœ¨ç«å±±æ–¹èˆŸæŽ§åˆ¶å°ã€Œå¼€é€šç®¡ç†ã€é‡Œå¤åˆ¶ï¼Œå½¢å¦‚ doubao-seedream-4-5-xxxxã€‚å¡«å®Œå…ˆç‚¹ã€Œæµ‹è¯•è¿žæŽ¥ã€ï¼Œæ˜¾ç¤ºèƒ½ç”¨å†å›žç´ æå·¥åŠç”Ÿæˆï¼Œé¿å…ç™½æ‰£é’±ã€‚ä¸å¡« Key ä¹Ÿèƒ½ç”¨ï¼šç´ æå·¥åŠé‡Œæ‰‹åŠ¨é€‰æ ‡ç­¾ï¼Œå³æ¢¦æç¤ºè¯ç…§æ ·è‡ªåŠ¨ç”Ÿæˆï¼Œæ‹¿åŽ»å³æ¢¦å…è´¹å‡ºå›¾ã€‚<br>æ–¹èˆŸä½™é¢ç”¨å®Œå°±åŽ»æŽ§åˆ¶å°å……å€¼ï¼Œå·¥å…·æœ¬èº«ä¸ä»£æ”¶ä»»ä½•è´¹ç”¨ã€‚</p>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:12px">模型 ID 在火山方舟控制台「开通管理」里复制，形如 doubao-seedream-4-5-xxxx。填完先点「测试连接」，显示能用再回素材工坊生成，避免白扣钱。不填 Key 也能用：素材工坊里手动选标签，即梦提示词照样自动生成，拿去即梦免费出图。<br>方舟余额用完就去控制台充值，工具本身不代收任何费用。</p>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>è´¦å·</h3></div>
+        <div class="card-head"><h3>账号</h3></div>
         <div class="card-body">
-          <div class="row"><button class="btn" id="logoutBtn2">é€€å‡ºç™»å½•</button>
-          <span style="font-size:12px;color:var(--ink-3)">å£ä»¤æš‚ä¸æ”¯æŒåœ¨çº¿ä¿®æ”¹ï¼Œå¦‚éœ€é‡ç½®è¯·è”ç³»ç®¡ç†å‘˜æ¸…ç©ºæœåŠ¡å™¨ data ç›®å½•ã€‚</span></div>
+          <div class="row"><button class="btn" id="logoutBtn2">退出登录</button>
+          <span style="font-size:12px;color:var(--ink-3)">口令暂不支持在线修改，如需重置请联系管理员清空服务器 data 目录。</span></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>æ•°æ®æ¥æºè¯´æ˜Ž</h3></div>
+        <div class="card-head"><h3>数据来源说明</h3></div>
         <div class="card-body" style="font-size:13px;color:var(--ink-2);line-height:1.9">
-          <div><b>å½“å‰ç‰ˆæœ¬</b>ï¼šæ‰‹åŠ¨å½•å…¥ + å¯¼å…¥ï¼Œé›¶å°åº—é£Žé™©ã€‚æ¯æ—¥æ•°æ®ä»Žå•†å®¶åŽå°ã€Œæ•°æ®ä¸­å¿ƒã€æŠ„å½•ï¼Œ30 ç§’å½•å®Œä¸€å®¶åº—ã€‚</div>
-          <div><b>ä¸ºä»€ä¹ˆä¸åšè‡ªåŠ¨æŠ“å–</b>ï¼šæ’ä»¶æŠ“å–è¿åå¹³å°åè®®ï¼Œæœ‰å°åº—é£Žé™©ï¼Œä¸”åŽå°ä¸€æ”¹ç‰ˆå°±å¤±æ•ˆï¼Œä¸é€‚åˆä½œä¸ºé•¿æœŸä¾èµ–ã€‚</div>
-          <div><b>ä»¥åŽå¯ä»¥æŽ¥</b>ï¼šæ‹¼å¤šå¤šå¼€æ”¾å¹³å°çš„è®¢å•/ç‰©æµ/å•†å“æŽ¥å£ï¼Œéœ€è¦ä¼ä¸šèµ„è´¨ä¸Žåº”ç”¨å®¡æ ¸ï¼›å±Šæ—¶çœ‹æ¿å¯ä»¥ç›´æŽ¥è‡ªåŠ¨å‡ºæ•°ã€‚</div>
-          <div><b>ç´ æç”Ÿæˆ</b>ï¼šæŒ‰æ¯›è¡£ç±»ç›®çš„å…³é”®è¯è§„åˆ™ç”Ÿæˆï¼Œä¸è”ç½‘ã€ä¸ä¸Šä¼ ä½ çš„å›¾åˆ°ç¬¬ä¸‰æ–¹ï¼›ç”Ÿæˆç»“æžœæŒ‰å¹³å°è§„åˆ™åšè¿‡å­—æ•°æŽ§åˆ¶ã€‚</div>
-          <div><b>AI æ¨¡ç‰¹å›¾</b>ï¼šä¸¤æ¡è·¯éƒ½ä¿ç•™ã€‚å…è´¹è·¯çº¿ = å¤åˆ¶å³æ¢¦æç¤ºè¯åŽ»å³æ¢¦ AI ç½‘é¡µç‰ˆå‡ºå›¾ï¼›èŠ±é’±è·¯çº¿ = åœ¨ç´ æå·¥åŠæ‰‹åŠ¨ç‚¹ã€Œç”¨ç«å±±æ–¹èˆŸç”Ÿæˆã€ï¼Œä¸€å¼ çº¦ 0.1~1 å…ƒï¼Œä»Žæ–¹èˆŸä½™é¢æ‰£ï¼Œä¸ç‚¹ä¸æ‰£ã€‚ä¸Šä¼ å›¾ç‰‡åŽçš„æè´¨è¯†åˆ«çº¦ 0.001 å…ƒä¸€å¼ ï¼Œè‡ªåŠ¨è·‘ã€‚</div>
+          <div><b>当前版本</b>：手动录入 + 导入，零封店风险。每日数据从商家后台「数据中心」抄录，30 秒录完一家店。</div>
+          <div><b>为什么不做自动抓取</b>：插件抓取违反平台协议，有封店风险，且后台一改版就失效，不适合作为长期依赖。</div>
+          <div><b>以后可以接</b>：拼多多开放平台的订单/物流/商品接口，需要企业资质与应用审核；届时看板可以直接自动出数。</div>
+          <div><b>素材生成</b>：按毛衣类目的关键词规则生成，不联网、不上传你的图到第三方；生成结果按平台规则做过字数控制。</div>
+          <div><b>AI 模特图</b>：两条路都保留。免费路线 = 复制即梦提示词去即梦 AI 网页版出图；花钱路线 = 在素材工坊手动点「用火山方舟生成」，一张约 0.1~1 元，从方舟余额扣，不点不扣。上传图片后的材质识别约 0.001 元一张，自动跑。</div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>ç´ æåº“</h3><span class="sub">å…± ${d.materials.length} æ¡</span></div>
+        <div class="card-head"><h3>素材库</h3><span class="sub">共 ${d.materials.length} 条</span></div>
         <div class="card-body">
           <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
-            <input type="text" id="libSearchInput" placeholder="æœç´¢ï¼šå“ç±» / é¢œè‰² / é£Žæ ¼ / æè´¨â€¦" value="${esc(S.libSearch)}" style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--bg)">
-            ${S.libViewId ? `<button class="btn sm" id="libBack">è¿”å›žåˆ—è¡¨</button>` : ''}
+            <input type="text" id="libSearchInput" placeholder="搜索：品类 / 颜色 / 风格 / 材质…" value="${esc(S.libSearch)}" style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--bg)">
+            ${S.libViewId ? `<button class="btn sm" id="libBack">返回列表</button>` : ''}
           </div>
           ${S.libViewId ? renderMaterialDetail(d.materials.find((m) => m.id === S.libViewId)) : (d.materials.length ? `<div class="canvas-grid">${filteredMaterials(d.materials, S.libSearch).map((m) => `
             <div class="canvas-card" data-mat-id="${m.id}" style="cursor:pointer">
               <img src="${m.imageUrl}" alt="${esc(m.name)}">
-              <div class="cc-foot"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</span>${m.aiImages && m.aiImages.length ? `<span style="color:var(--brand);font-size:11px;margin-left:6px">${m.aiImages.length}å›¾</span>` : ''}</div>
-            </div>`).join('')}</div>${filteredMaterials(d.materials, S.libSearch).length === 0 && S.libSearch ? `<div class="tbl-empty">æ²¡æœ‰åŒ¹é…ã€Œ${esc(S.libSearch)}ã€çš„ç´ æ</div>` : ''}` : `<div class="tbl-empty">ç´ æå·¥åŠé‡Œç‚¹ã€Œä¿å­˜åˆ°ç´ æåº“ã€åŽï¼Œä¼šå‡ºçŽ°åœ¨è¿™é‡Œ</div>`)}
+              <div class="cc-foot"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</span>${m.aiImages && m.aiImages.length ? `<span style="color:var(--brand);font-size:11px;margin-left:6px">${m.aiImages.length}图</span>` : ''}</div>
+            </div>`).join('')}</div>${filteredMaterials(d.materials, S.libSearch).length === 0 && S.libSearch ? `<div class="tbl-empty">没有匹配「${esc(S.libSearch)}」的素材</div>` : ''}` : `<div class="tbl-empty">素材工坊里点「保存到素材库」后，会出现在这里</div>`)}
         </div>
       </div>
     </div>`;
@@ -3136,16 +3136,16 @@ function bindSettings() {
         S.rev = parsed.rev || S.rev;
         persist();
         renderRoute();
-        toast('å¤‡ä»½å·²æ¢å¤ï¼Œæ­£åœ¨åŒæ­¥');
+        toast('备份已恢复，正在同步');
       } catch (_) {
-        toast('å¤‡ä»½æ–‡ä»¶æ ¼å¼ä¸å¯¹');
+        toast('备份文件格式不对');
       }
     };
   }
   const logout = $('#logoutBtn2');
   if (logout) logout.onclick = doLogout;
 
-  // ç´ æåº“ï¼šæœç´¢
+  // 素材库：搜索
   const libSearchInput = $('#libSearchInput');
   if (libSearchInput) {
     libSearchInput.oninput = (e) => {
@@ -3153,12 +3153,12 @@ function bindSettings() {
       S.libViewId = null;
       renderRoute();
       bindSettings();
-      // é‡æ–°èšç„¦æœç´¢æ¡†å¹¶æŠŠå…‰æ ‡æ”¾åˆ°æœ«å°¾
+      // 重新聚焦搜索框并把光标放到末尾
       const inp = $('#libSearchInput');
       if (inp) { inp.focus(); const v = inp.value; inp.value = ''; inp.value = v; }
     };
   }
-  // ç´ æåº“ï¼šç‚¹å‡»ç´ ææŸ¥çœ‹è¯¦æƒ…
+  // 素材库：点击素材查看详情
   $$('[data-mat-id]').forEach((el) => {
     el.onclick = () => {
       S.libViewId = el.dataset.matId;
@@ -3166,27 +3166,27 @@ function bindSettings() {
       bindSettings();
     };
   });
-  // ç´ æåº“ï¼šè¿”å›žåˆ—è¡¨
+  // 素材库：返回列表
   const libBack = $('#libBack');
   if (libBack) libBack.onclick = () => { S.libViewId = null; renderRoute(); bindSettings(); };
-  // ç´ æåº“ï¼šæ‰¹é‡ä¸‹è½½
+  // 素材库：批量下载
   const libDlAll = $('#libDlAll');
   if (libDlAll) libDlAll.onclick = () => {
     const m = S.data.materials.find((x) => x.id === S.libViewId);
     const imgs = (m && m.aiImages) || [];
     if (!imgs.length) return;
-    downloadAsZip(imgs, `${(m.name || 'ç´ æ').replace(/[\\/:*?"<>|]/g, '_')}.zip`);
+    downloadAsZip(imgs, `${(m.name || '素材').replace(/[\\/:*?"<>|]/g, '_')}.zip`);
   };
-  // ç´ æåº“ï¼šåˆ é™¤
+  // 素材库：删除
   const libDel = $('#libDel');
   if (libDel) libDel.onclick = () => {
-    if (!confirm('ç¡®å®šåˆ é™¤è¿™æ¡ç´ æï¼Ÿæ­¤æ“ä½œä¸å¯æ¢å¤ã€‚')) return;
+    if (!confirm('确定删除这条素材？此操作不可恢复。')) return;
     S.data.materials = S.data.materials.filter((x) => x.id !== S.libViewId);
     S.libViewId = null;
     persist();
     renderRoute();
     bindSettings();
-    toast('å·²åˆ é™¤');
+    toast('已删除');
   };
 
   const aiSave = $('#aiSaveBtn');
@@ -3202,11 +3202,11 @@ function bindSettings() {
       secretAccessKey: $('#aiAkSecret').value.trim()
     };
     persist();
-    toast('AI é…ç½®å·²ä¿å­˜');
+    toast('AI 配置已保存');
   };
   const aiTest = $('#aiTestBtn');
   if (aiTest) aiTest.onclick = async () => {
-    // å…ˆç”¨å½“å‰è¾“å…¥æ¡†çš„å€¼ä¸´æ—¶ä¿å­˜ä¸€ä¸‹å†æµ‹è¯•
+    // 先用当前输入框的值临时保存一下再测试
     S.data.settings.ai = {
       provider: $('#aiProvider').value,
       apiKey: $('#aiApiKey').value.trim(),
@@ -3219,16 +3219,16 @@ function bindSettings() {
     };
     await flush();
     aiTest.disabled = true;
-    aiTest.textContent = 'æµ‹è¯•ä¸­â€¦';
+    aiTest.textContent = '测试中…';
     try {
       const r = await api('/api/ai/test', { method: 'POST', body: '{}' });
-      if (r.ok) toast('Key èƒ½ç”¨ï¼Œæµè§ˆå™¨èƒ½ç›´è¿žæ–¹èˆŸï¼Œå¯ä»¥åŽ»ç”Ÿæˆæ¨¡ç‰¹å›¾äº†');
-      else toast('è¿žæŽ¥å¤±è´¥ï¼š' + (r.message || r.error));
+      if (r.ok) toast('Key 能用，浏览器能直连方舟，可以去生成模特图了');
+      else toast('连接失败：' + (r.message || r.error));
     } catch (e) {
-      toast('è¿žæŽ¥å¤±è´¥ï¼š' + ((e.body && e.body.message) || e.message));
+      toast('连接失败：' + ((e.body && e.body.message) || e.message));
     } finally {
       aiTest.disabled = false;
-      aiTest.textContent = 'æµ‹è¯•è¿žæŽ¥';
+      aiTest.textContent = '测试连接';
     }
   };
 }
@@ -3238,12 +3238,12 @@ async function doLogout() {
   location.reload();
 }
 
-/* ================= å·¥å…· ================= */
+/* ================= 工具 ================= */
 
 async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text);
-    toast('å·²å¤åˆ¶');
+    toast('已复制');
   } catch (_) {
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -3251,11 +3251,11 @@ async function copyText(text) {
     ta.select();
     document.execCommand('copy');
     ta.remove();
-    toast('å·²å¤åˆ¶');
+    toast('已复制');
   }
 }
 
-/* å‡ºå›¾åŽè‡ªåŠ¨è°ƒè‰²ï¼šæäº® + æš–è°ƒ + é«˜å…‰æŸ”å…‰ï¼ŒæŽ¥è¿‘æ‰‹æœºç›´å‡ºå’–å•¡é¦†çš„äº®åº¦ */
+/* 出图后自动调色：提亮 + 暖调 + 高光柔光，接近手机直出咖啡馆的亮度 */
 function gradePhoto(url) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -3267,12 +3267,12 @@ function gradePhoto(url) {
         c.width = W;
         c.height = H;
         const x = c.getContext('2d');
-        // åªåšè½»å¾®ã€ä¸­æ€§çš„æäº®ï¼Œä¸åŠ æš–æ©™æ»¤é•œï¼Œé¿å…æ•´æ‰¹å˜æˆåŒä¸€ç§ AI è‰²è°ƒ
+        // 只做轻微、中性的提亮，不加暖橙滤镜，避免整批变成同一种 AI 色调
         const lift = 1.02 + Math.random() * 0.04;
         x.filter = `brightness(${lift.toFixed(2)}) saturate(1.02) contrast(1.01)`;
         x.drawImage(img, 0, 0, W, H);
         x.filter = 'none';
-        // é˜²æ¯”ä»·ï¼šæ¯å¼ å›¾åŠ æžè½»å¾®çš„éšæœºè‰²è°ƒå’Œäº®åº¦åç§»ï¼Œä¿è¯åƒç´ çº§å”¯ä¸€
+        // 防比价：每张图加极轻微的随机色调和亮度偏移，保证像素级唯一
         const randHue = (Math.random() - 0.5) * 3;
         const randBri = 1 + (Math.random() - 0.5) * 0.02;
         x.globalCompositeOperation = 'source-over';
@@ -3290,7 +3290,7 @@ function gradePhoto(url) {
         x.drawImage(b, 0, 0, W, H);
         x.globalAlpha = 1;
         x.globalCompositeOperation = 'source-over';
-        // æžè½»é¢—ç²’ï¼Œé¿å…è¿‡åº¦ç£¨çš®çš„å¡‘æ–™æ„Ÿï¼ŒåŒæ—¶ä¸æ˜¾ç²—ç³™
+        // 极轻颗粒，避免过度磨皮的塑料感，同时不显粗糙
         const grain = x.getImageData(0, 0, W, H);
         const gd = grain.data;
         for (let i = 0; i < gd.length; i += 4) {
@@ -3318,9 +3318,9 @@ function openImgViewer(url, label) {
   wrap.id = 'imgViewer';
   wrap.className = 'img-viewer';
   wrap.innerHTML = `
-    <div class="iv-top"><span>${esc(label || 'æŸ¥çœ‹å¤§å›¾')}</span><button class="iv-close" type="button">å…³é—­</button></div>
+    <div class="iv-top"><span>${esc(label || '查看大图')}</span><button class="iv-close" type="button">关闭</button></div>
     <div class="iv-body"><img src="${url}" alt="${esc(label || '')}"></div>
-    <div class="iv-foot"><a class="btn sm primary" href="${url}" download="${esc(label || 'å›¾ç‰‡')}.png">ä¸‹è½½è¿™å¼ </a></div>`;
+    <div class="iv-foot"><a class="btn sm primary" href="${url}" download="${esc(label || '图片')}.png">下载这张</a></div>`;
   wrap.addEventListener('click', (e) => {
     if (e.target.closest('.iv-top') || e.target.closest('.iv-foot')) return;
     wrap.remove();
@@ -3337,9 +3337,9 @@ function downloadText(text, filename, mime) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-/* ================= å¯åŠ¨ ================= */
+/* ================= 启动 ================= */
 
-// ç”Ÿæˆå›¾ç»Ÿä¸€åœ¨åº”ç”¨å†…æŸ¥çœ‹å¤§å›¾ï¼šdata: å›¾ç‰‡åœ¨æ–°æ ‡ç­¾é¡µä¼šè¢«æµè§ˆå™¨æ‹¦æˆªæˆé»‘å±
+// 生成图统一在应用内查看大图：data: 图片在新标签页会被浏览器拦截成黑屏
 document.addEventListener('click', (e) => {
   const img = e.target.closest('.canvas-card img');
   if (!img) return;
@@ -3347,16 +3347,16 @@ document.addEventListener('click', (e) => {
   const labelEl = card && card.querySelector('.cc-foot span');
   const link = img.closest('a');
   if (link) e.preventDefault();
-  openImgViewer(img.getAttribute('src'), labelEl ? labelEl.textContent : 'æŸ¥çœ‹å¤§å›¾');
+  openImgViewer(img.getAttribute('src'), labelEl ? labelEl.textContent : '查看大图');
 });
 
 $('#logoutBtn').onclick = doLogout;
 window.addEventListener('resize', () => { if (S.route === 'dashboard') drawSpark(); });
-window.addEventListener('online', () => { toast('ç½‘ç»œå·²æ¢å¤'); flush(); });
-window.addEventListener('offline', () => setSync('error', 'ç¦»çº¿'));
+window.addEventListener('online', () => { toast('网络已恢复'); flush(); });
+window.addEventListener('offline', () => setSync('error', '离线'));
 
 if ('serviceWorker' in navigator) {
-  // ä¸å†ä½¿ç”¨ç¦»çº¿ç¼“å­˜ï¼Œé¿å…æ—§ç‰ˆæœ¬é¡µé¢å¡ä½ï¼›åŒæ—¶æ³¨é”€åŽ†å²æ³¨å†Œ
+  // 不再使用离线缓存，避免旧版本页面卡住；同时注销历史注册
   navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
 }
 
