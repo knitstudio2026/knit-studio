@@ -379,6 +379,29 @@ function closeDrawer() {
   if (old) old.remove();
 }
 
+/* 页面内确认对话框，替代原生 confirm（原生 confirm 在部分手机浏览器可能不弹） */
+function confirm2(msg) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'overlay';
+    wrap.style.zIndex = '9999';
+    wrap.innerHTML = `
+      <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;color:#1a1a1a;padding:22px 20px 16px;border-radius:14px;max-width:340px;width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25);font-size:14px;line-height:1.6">
+        <div style="font-weight:600;font-size:15px;margin-bottom:10px">确认一下</div>
+        <div style="margin-bottom:18px;color:#333">${esc(msg)}</div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button class="btn sm" data-cancel>取消</button>
+          <button class="btn sm primary" data-ok>继续</button>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+    const done = (v) => { wrap.remove(); resolve(v); };
+    wrap.querySelector('[data-ok]').onclick = () => done(true);
+    wrap.querySelector('[data-cancel]').onclick = () => done(false);
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) done(false); });
+  });
+}
+
 /* ================= 看板 ================= */
 
 function viewDashboard() {
@@ -2244,7 +2267,8 @@ async function arkPreviewOne() {
   const total = jobs.length;
   if (!total) { toast('张数都是 0，先选一下'); return; }
   const msg = `先出 1 张预览（${jobs[0].label}），看看人脸和风格对不对。满意了再继续生成剩下的 ${total - 1} 张。这 1 张约 0.1~1 元，从你的方舟余额扣。继续吗？`;
-  if (!confirm(msg)) return;
+  const ok = await confirm2(msg);
+  if (!ok) return;
 
   S.arkPendingJobs = jobs.slice(1);
   S.arkStatus = `正在出预览图…`;
@@ -2273,7 +2297,8 @@ async function arkContinueRest() {
   const low = (total * 0.1).toFixed(1);
   const doneBase = S.studioAiImages.length;
   const msg = `继续生成剩下的 ${total} 张，约 ${low}~${total} 元，从你的方舟余额扣。之前的预览图会保留，继续往后加。继续吗？`;
-  if (!confirm(msg)) return;
+  const ok = await confirm2(msg);
+  if (!ok) return;
 
   S.arkStatus = `继续生成剩余 ${total} 张…`;
   renderRoute();
@@ -2973,7 +2998,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1155a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1156a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
