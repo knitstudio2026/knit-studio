@@ -1,4 +1,4 @@
-mport { OPTIONS, generateKit, detailToText, skuToCsv } from './gen.js';
+import { OPTIONS, generateKit, detailToText, skuToCsv } from './gen.js';
 import { buildMainImages, buildDetailImage, downloadCanvas, loadImageFromFile } from './img.js';
 
 /* 全局异常兜底：任何静默异常都弹 toast */
