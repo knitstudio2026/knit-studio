@@ -2147,6 +2147,15 @@ function arkBuildJobs() {
   if (mode === 'auto') {
     batchMode = Math.random() < 0.5 ? 'flatlay' : 'lifestyle';
   }
+  // 首图构图策略：每款只抽一种，同款各颜色共用；最近几款用过的策略排到后面，避免连着几款都是同一个姿势
+  const heroTotal = batchMode === 'flatlay' ? 6 : 10;
+  const recentHero = Array.isArray(S.arkRecentHero) ? S.arkRecentHero : [];
+  let heroType = Math.floor(Math.random() * heroTotal);
+  for (let t = 0; t < heroTotal; t++) {
+    const cand = (heroType + t) % heroTotal;
+    if (recentHero.indexOf(cand) < 0) { heroType = cand; break; }
+  }
+  S.arkRecentHero = [heroType].concat(recentHero).slice(0, 4);
   // 整批打乱一次：颜色之间、张数之间都不重复；每次点生成都会重新打乱
   const styleKey = (S.studioInput.styles && S.studioInput.styles[0]) || '温柔风';
   const posePool = shuffleArr(LIFE_POSES);
@@ -2162,7 +2171,7 @@ function arkBuildJobs() {
     const ci = Object.assign({}, S.studioInput, { colors: [color] });
     const fc = color === '图片所示颜色' ? '' : color;
     for (let i = 0; i < mainPer; i++) {
-      const one = buildJimengPrompts(ci, Object.assign({ count: 1, start: startIdx + i, poses: posePool, scenes: scenePool, forceColor: fc, photoStyle: batchMode, antiCompare: !!S.arkCounts.antiCompare, heroShot: i === 0 }, accOpts))[0];
+      const one = buildJimengPrompts(ci, Object.assign({ count: 1, start: startIdx + i, poses: posePool, scenes: scenePool, forceColor: fc, photoStyle: batchMode, antiCompare: !!S.arkCounts.antiCompare, heroShot: i === 0, heroType }, accOpts))[0];
       jobs.push({ color, label: `${color} 主图 ${i + 1}`, prompt: one.prompt + accNote, photoStyle: batchMode });
     }
     const dv = buildJimengDetailPrompts(ci, Object.assign({}, accOpts, { forceColor: fc }));
@@ -2500,10 +2509,31 @@ function buildJimengPrompts(input, opts) {
     const s = ANTI_STRUCT[idx % ANTI_STRUCT.length];
     return `；这张图的构图要与常见同款商品图明显不同：${s}。不要正面居中的标准商品图，构图和背景都不能和参考图或常见同款图重复`;
   };
-  // 链接第 1 张主图单独加码：半侧面 + 换机位/背景/陈设，但衣服必须完整可见（细节不能丢）
+  // 链接第 1 张主图：从「首图构图策略池」里抽一种，同款各颜色共用同一种，不同款换着来
+  const HERO_MODEL = [
+    '模特身体侧向约 40°、肩膀斜对镜头，头转回来看向镜头，能看到衣服的侧面轮廓和大部分正面，不是同行那种正面直立的商品图，也不要侧到看不见衣服主体',
+    '模特正朝镜头方向自然走动抓拍，身体略侧、手臂自然摆动、衣摆有轻微动态，像路人随手拍下的一瞬间，不是摆拍站定',
+    '模特低头看着衣服下摆，手指轻轻捏住下摆一角，脸只露出三分之二侧脸、视线不看向镜头，像在整理衣服',
+    '模特双手插在衣服两侧口袋里，肩膀略微倾斜、身体相对镜头偏转 15°~20°，姿态放松自然，不是笔直立正',
+    '模特背对镜头站立、身体转回约三分之一回头看向镜头，画面上能看到后肩和后领，同时露出一部分正面，构图和常见正面商品图差别很大',
+    '模特坐在椅子或台阶上、身体微微前倾，一只手搭在膝盖或桌面上，衣服从领口到衣摆完整在画面里',
+    '模特一只手把头发拨到耳后或撩起一侧头发，视线略微向下不直视镜头，头部自然偏转',
+    '模特手里拿着咖啡杯、花束或一本书，身体侧站、视线看向手里的道具而不是镜头，像被抓拍的生活瞬间',
+    '画面上半部分从胸口偏上开始取景、头顶被画面上边缘切掉一点，只保留脸的下半部分和整件衣服，衣服从领口到下摆完整可见',
+    '模特用手机挡在脸前只露出眼睛以上部分，身体略侧，像对着镜子的自拍抓拍，毛衣完整可见'
+  ];
+  const HERO_FLAT = [
+    '衣服在画面里斜向 45° 摆放、整体偏左，右侧留出一排道具和桌面空白，不是居中平铺',
+    '衣服挂在木质衣架上、悬在窗前被自然光照亮，画面偏右放置，衣架和窗框一起入镜，不是平铺',
+    '衣服搭在椅背上、两只袖子自然垂落，画面偏左，椅子和地板纹理一起入镜，不是平铺',
+    '衣服平铺但一只袖子折起、下摆折起一角，露出内里纹理，摆放角度不是正的，像随手摊开的样子',
+    '主件衣服叠放在另一件衣物或毯子上，主件完整展示、轮廓清楚，构图偏右，不是单件居中平铺',
+    '衣服挂拍或平铺，画面一侧有窗框、门框或枝叶入镜，把背景切得不规整，衣服完整不被压住'
+  ];
   const heroOn = !!(opts && opts.heroShot && opts.antiCompare);
+  const heroIdx = (opts && opts.heroType != null) ? Number(opts.heroType) : Math.floor(Math.random() * HERO_MODEL.length);
   const heroClause = heroOn
-    ? '；这张是链接第 1 张主图：模特身体侧向约 40°（肩膀斜对镜头），头转回来看向镜头，这样既能看到衣服的侧面轮廓和大部分正面，也完全不是同行那种正面直立的商品图；衣服必须完整入镜（从领口到下摆、两个口袋和口袋上的小装饰都看得见），靠机位高度、背景和陈设的不同来制造差异，不要把衣服裁掉或被前景遮挡；不要正对镜头的正面站姿商品图，也不要侧到看不见衣服主体'
+    ? `；这张是链接第 1 张主图：${HERO_MODEL[heroIdx % HERO_MODEL.length]}。衣服必须完整入镜（从领口到下摆、两个口袋和口袋上的小装饰都看得见），不要被前景遮挡或裁掉；靠机位高度、背景和陈设的不同来制造差异`
     : '';
 
   const base = (model, scene, antiIdx) => {
@@ -2648,7 +2678,7 @@ function buildJimengPrompts(input, opts) {
     const sc = flatPool[(start + i) % flatPool.length];
     const antiFlat = antiOn ? `；这张图的构图要和常见平铺图明显不同：${FLAT_ANTI[i % FLAT_ANTI.length]}，不是标准居中平铺。` : '';
     const heroFlat = (opts && opts.heroShot && opts.antiCompare)
-      ? '；这张是链接第 1 张主图：衣服斜放在画面里、不居中，靠桌面/地面材质、道具排布和机位角度的不同来制造差异，但衣服必须完整入镜（从领口到下摆、两个口袋和口袋上的小装饰都能看到），图片不能被裁切；不要平铺居中、完整展示的标准商品图'
+      ? `；这张是链接第 1 张主图：${HERO_FLAT[heroIdx % HERO_FLAT.length]}。衣服必须完整入镜（从领口到下摆、两个口袋和口袋上的小装饰都能看到），图片不能被裁切；不要平铺居中、完整展示的标准商品图`
       : '';
     return {
       name: `商品图·${sc.t}`,
