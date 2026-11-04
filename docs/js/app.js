@@ -17,7 +17,7 @@ const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
 const esc = (s) =>
-  String(s == null ? '' : s).replace(/&/g, '&').replace(//g, '>').replace(/"/g, '"');
+  String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const uid = () => 'id-' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
 
@@ -371,21 +371,14 @@ function openDrawer(title, bodyHtml, footHtml) {
   wrap.className = 'overlay';
   wrap.id = 'drawerOverlay';
   wrap.innerHTML = `
-    
-
-      
-
-        
-${esc(title)}
-        
-关闭
-      
-      
-${bodyHtml}
-      
-${footHtml || ''}
-    
-`;
+    <div class="drawer" role="dialog" aria-modal="true">
+      <div class="drawer-head">
+        <h3>${esc(title)}</h3>
+        <div style="margin-left:auto"><button class="icon-btn" data-close>关闭</button></div>
+      </div>
+      <div class="drawer-body">${bodyHtml}</div>
+      <div class="drawer-foot">${footHtml || ''}</div>
+    </div>`;
   document.body.appendChild(wrap);
   wrap.addEventListener('click', (e) => { if (e.target === wrap || e.target.hasAttribute('data-close')) closeDrawer(); });
   return wrap;
@@ -403,19 +396,14 @@ function confirm2(msg) {
     wrap.className = 'overlay';
     wrap.style.zIndex = '9999';
     wrap.innerHTML = `
-      
-
-        
-确认一下
-        
-${esc(msg)}
-        
-
-          取消
-          继续
-        
-      
-`;
+      <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;color:#1a1a1a;padding:22px 20px 16px;border-radius:14px;max-width:340px;width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25);font-size:14px;line-height:1.6">
+        <div style="font-weight:600;font-size:15px;margin-bottom:10px">确认一下</div>
+        <div style="margin-bottom:18px;color:#333">${esc(msg)}</div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button class="btn sm" data-cancel>取消</button>
+          <button class="btn sm primary" data-ok>继续</button>
+        </div>
+      </div>`;
     document.body.appendChild(wrap);
     const done = (v) => { wrap.remove(); resolve(v); };
     wrap.querySelector('[data-ok]').onclick = () => done(true);
@@ -430,17 +418,12 @@ function viewDashboard() {
   const d = S.data;
   if (!d.shops.length) {
     return `
-      
-
-        
-◫
-        
-先添加你的第一家店
-        
-一人多店：每加一家店，看板和利润表都会自动汇总。
-        ＋ 添加店铺
-      
-`;
+      <div class="empty">
+        <div class="glyph">◫</div>
+        <h4>先添加你的第一家店</h4>
+        <p>一人多店：每加一家店，看板和利润表都会自动汇总。</p>
+        <button class="btn primary" data-act="add-shop">＋ 添加店铺</button>
+      </div>`;
   }
 
   const todayStr = today();
@@ -451,143 +434,92 @@ function viewDashboard() {
   const rows = d.shops.map((shop) => {
     const st = shopStats(shop.id);
     return `
-      
-        ${esc(shop.name)}
-        ${money(st.sales)}
-        ${num(st.orders)}
-        ${money(st.net)}
-        ${st.roi === Infinity ? '—' : st.roi.toFixed(2)}
-        ${pct(st.refundRate)}
-      `;
+      <tr>
+        <td><strong>${esc(shop.name)}</strong></td>
+        <td class="num">${money(st.sales)}</td>
+        <td class="num">${num(st.orders)}</td>
+        <td class="num" style="color:${st.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(st.net)}</td>
+        <td class="num">${st.roi === Infinity ? '—' : st.roi.toFixed(2)}</td>
+        <td class="num">${pct(st.refundRate)}</td>
+      </tr>`;
   }).join('');
 
   const series = buildSeries(14);
 
   return `
-    
+    <div class="page-head">
+      <div>
+        <h2>经营看板</h2>
+        <p>${todayStr} · ${d.shops.length} 家店在管</p>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn sm" data-act="export-daily">导出</button>
+      <button class="btn primary sm" data-act="add-daily">＋ 录入今日数据</button>
+    </div>
 
-      
+    <div class="grid four" style="margin-bottom:14px">
+      <div class="stat accent">
+        <div class="label">今日净利</div>
+        <div class="value">${money(t.net)}</div>
+        <div class="hint">销售额 ${money(t.sales)}</div>
+      </div>
+      <div class="stat">
+        <div class="label">近 7 天净利</div>
+        <div class="value">${money(w.net)}</div>
+        <div class="hint">销售额 ${money(w.sales)}</div>
+      </div>
+      <div class="stat">
+        <div class="label">近 30 天净利</div>
+        <div class="value">${money(m.net)}</div>
+        <div class="hint">广告费 ${money(m.adSpend)}</div>
+      </div>
+      <div class="stat">
+        <div class="label">整体 ROI</div>
+        <div class="value">${m.roi === Infinity ? '—' : m.roi.toFixed(2)}</div>
+        <div class="hint">销售额 / 广告费</div>
+      </div>
+    </div>
 
-        
-经营看板
-        
-${todayStr} · ${d.shops.length} 家店在管
-      
-      
+    <div class="stack">
+      <div class="card">
+        <div class="card-head">
+          <h3>各店今日表现</h3>
+          <span class="sub">净利已扣成本、佣金、广告、退款</span>
+        </div>
+        <div class="table-wrap">
+          <table class="tbl">
+            <thead><tr><th>店铺</th><th class="num">今日销售额</th><th class="num">订单</th><th class="num">今日净利</th><th class="num">ROI</th><th class="num">退款率</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
 
-      导出
-      ＋ 录入今日数据
-    
+      <div class="card">
+        <div class="card-head"><h3>近 14 天净利趋势</h3><span class="sub">按日汇总</span></div>
+        <div class="card-body">
+          ${series.hasData ? `<canvas id="spark" class="spark" width="800" height="160"></canvas>` : `<div class="tbl-empty">还没有每日数据，录入 2 天以上就能看到趋势</div>`}
+        </div>
+      </div>
 
-    
-
-      
-
-        
-今日净利
-        
-${money(t.net)}
-        
-销售额 ${money(t.sales)}
-      
-      
-
-        
-近 7 天净利
-        
-${money(w.net)}
-        
-销售额 ${money(w.sales)}
-      
-      
-
-        
-近 30 天净利
-        
-${money(m.net)}
-        
-广告费 ${money(m.adSpend)}
-      
-      
-
-        
-整体 ROI
-        
-${m.roi === Infinity ? '—' : m.roi.toFixed(2)}
-        
-销售额 / 广告费
-      
-    
-
-    
-
-      
-
-        
-
-          
-各店今日表现
-          净利已扣成本、佣金、广告、退款
-        
-        
-
-                                  ${rows}          
-店铺今日销售额订单今日净利ROI退款率
-
-
-        
-      
-
-      
-
-        
-近 14 天净利趋势
-按日汇总
-        
-
-          ${series.hasData ? `` : `
-还没有每日数据，录入 2 天以上就能看到趋势
-`}
-        
-      
-
-      
-
-        
-需要你注意
-        
-${attentionList()}
-      
-    
-`;
+      <div class="card">
+        <div class="card-head"><h3>需要你注意</h3></div>
+        <div class="card-body">${attentionList()}</div>
+      </div>
+    </div>`;
 }
 
 function attentionList() {
   const items = [];
   const lowMargin = S.data.products.map((p) => ({ p, r: productProfit(p) })).filter((x) => x.r.net < 0);
   if (lowMargin.length) {
-    items.push(`
-亏损
-${lowMargin.length} 个商品扣掉推广费后是负毛利：${lowMargin.slice(0, 3).map((x) => esc(x.p.name)).join('、')}${lowMargin.length > 3 ? ' 等' : ''}
-看利润页
-`);
+    items.push(`<div class="seg-row"><div class="sk">亏损</div><div>${lowMargin.length} 个商品扣掉推广费后是负毛利：${lowMargin.slice(0, 3).map((x) => esc(x.p.name)).join('、')}${lowMargin.length > 3 ? ' 等' : ''}</div><span class="pill bad">看利润页</span></div>`);
   }
   S.data.shops.forEach((shop) => {
     const st = shopStats(shop.id);
-    if (st.refundRate > 0.05) items.push(`
-退款
-${esc(shop.name)} 退款率 ${pct(st.refundRate)}，高于 5%
-查售后
-`);
-    if (st.adSpend > 0 && st.roi < 2) items.push(`
-投放
-${esc(shop.name)} ROI 只有 ${st.roi.toFixed(2)}，先别加预算
-查推广
-`);
+    if (st.refundRate > 0.05) items.push(`<div class="seg-row"><div class="sk">退款</div><div>${esc(shop.name)} 退款率 ${pct(st.refundRate)}，高于 5%</div><span class="pill warn">查售后</span></div>`);
+    if (st.adSpend > 0 && st.roi < 2) items.push(`<div class="seg-row"><div class="sk">投放</div><div>${esc(shop.name)} ROI 只有 ${st.roi.toFixed(2)}，先别加预算</div><span class="pill warn">查推广</span></div>`);
   });
-  if (!items.length) return `
-一切正常，没有需要立刻处理的问题
-`;
+  if (!items.length) return `<div class="tbl-empty">一切正常，没有需要立刻处理的问题</div>`;
   return items.join('');
 }
 
@@ -685,38 +617,25 @@ function openDailyForm() {
   const shops = S.data.shops;
   if (!shops.length) { toast('先添加店铺'); return; }
   const html = `
-    
-
-      
-
-        
-日期
-        
-店铺
-          ${shops.map((s) => `${esc(s.name)}`).join('')}
-        
-      
-      
-
-        
-销售额（成交金额）
-        
-订单数
-      
-      
-
-        
-退款金额
-        
-推广花费
-      
-      
-访客数（可选）
-      
-数据从拼多多商家后台「数据中心 → 经营概况」抄录，一天录一次即可。成本率、佣金率在店铺设置里配置。
-    
-`;
-  openDrawer('录入每日数据', html, `取消保存`);
+    <div class="stack">
+      <div class="grid two">
+        <div class="field"><label>日期</label><input class="input" type="date" id="dDate" value="${today()}"></div>
+        <div class="field"><label>店铺</label>
+          <select class="select" id="dShop">${shops.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="grid two">
+        <div class="field"><label>销售额（成交金额）</label><input class="input" id="dSales" type="number" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label>订单数</label><input class="input" id="dOrders" type="number" inputmode="numeric" placeholder="0"></div>
+      </div>
+      <div class="grid two">
+        <div class="field"><label>退款金额</label><input class="input" id="dRefunds" type="number" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label>推广花费</label><input class="input" id="dAd" type="number" inputmode="decimal" placeholder="0.00"></div>
+      </div>
+      <div class="field"><label>访客数（可选）</label><input class="input" id="dVisitors" type="number" inputmode="numeric" placeholder="0"></div>
+      <p class="tip" style="font-size:12px;color:var(--ink-3)">数据从拼多多商家后台「数据中心 → 经营概况」抄录，一天录一次即可。成本率、佣金率在店铺设置里配置。</p>
+    </div>`;
+  openDrawer('录入每日数据', html, `<button class="btn ghost" data-close>取消</button><button class="btn primary" id="dSave">保存</button>`);
 
   $('#dSave').onclick = () => {
     const shopId = $('#dShop').value;
@@ -764,74 +683,46 @@ function viewProducts() {
   const rows = withR.map(({ p, r }) => {
     const shop = S.data.shops.find((s) => s.id === p.shopId);
     return `
-      
-        ${esc(p.name)}
-${esc(shop ? shop.name : '未分配店铺')}
-        ${money(r.price)}
-        ${money(r.costSum)}
-        ${money(r.gross)}
-        ${pct(r.grossMargin)}
-        ${money(r.net)}
-        ${r.breakEvenRoi === Infinity ? '—' : r.breakEvenRoi.toFixed(2)}
-      `;
+      <tr data-id="${p.id}" style="cursor:pointer">
+        <td><strong>${esc(p.name)}</strong><div style="font-size:11px;color:var(--ink-3)">${esc(shop ? shop.name : '未分配店铺')}</div></td>
+        <td class="num">${money(r.price)}</td>
+        <td class="num">${money(r.costSum)}</td>
+        <td class="num">${money(r.gross)}</td>
+        <td class="num"><span class="pill ${r.grossMargin >= 0.35 ? 'good' : r.grossMargin >= 0.15 ? 'warn' : 'bad'}">${pct(r.grossMargin)}</span></td>
+        <td class="num" style="color:${r.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(r.net)}</td>
+        <td class="num">${r.breakEvenRoi === Infinity ? '—' : r.breakEvenRoi.toFixed(2)}</td>
+      </tr>`;
   }).join('');
 
   return `
-    
+    <div class="page-head">
+      <div><h2>利润核算</h2><p>把成本摊开算清楚，才知道该不该投推广</p></div>
+      <div class="spacer"></div>
+      <button class="btn primary sm" data-act="add-product">＋ 新增商品成本卡</button>
+    </div>
 
-      
-利润核算
-把成本摊开算清楚，才知道该不该投推广
-      
+    <div class="grid three" style="margin-bottom:14px">
+      <div class="stat"><div class="label">商品数</div><div class="value">${products.length}<small>个</small></div></div>
+      <div class="stat"><div class="label">平均毛利率</div><div class="value">${pct(avgMargin)}</div><div class="hint">扣除成本/运费/佣金，未扣推广</div></div>
+      <div class="stat ${loss ? 'bad' : 'good'}"><div class="label">扣推广后亏损</div><div class="value">${loss}<small>个</small></div></div>
+    </div>
 
-      ＋ 新增商品成本卡
-    
+    <div class="card">
+      <div class="card-head"><h3>成本卡列表</h3><span class="sub">点击一行可编辑</span></div>
+      ${products.length ? `<div class="table-wrap"><table class="tbl">
+        <thead><tr><th>商品</th><th class="num">售价</th><th class="num">单件成本</th><th class="num">毛利</th><th class="num">毛利率</th><th class="num">净利</th><th class="num">保本ROI</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>` : `<div class="tbl-empty">还没有商品，先建一张成本卡试试</div>`}
+    </div>
 
-    
-
-      
-商品数
-${products.length}个
-      
-平均毛利率
-${pct(avgMargin)}
-扣除成本/运费/佣金，未扣推广
-      
-扣推广后亏损
-${loss}个
-    
-
-    
-
-      
-成本卡列表
-点击一行可编辑
-      ${products.length ? `
-                ${rows}
-商品售价单件成本毛利毛利率净利保本ROI
-
-` : `
-还没有商品，先建一张成本卡试试
-`}
-    
-
-    
-
-      
-怎么用这几列
-      
-
-        
-毛利 = 售价 − 商品成本 − 运费 − 平台佣金（未扣推广费）
-        
-净利 = 毛利 − 单笔推广费 − 退款损耗（按退款率估算往返运费与包装损耗）
-        
-保本ROI = 售价 ÷（售价 − 成本 − 运费 − 佣金 − 退款损耗）。推广 ROI 低于这个数就是在亏钱卖。
-        
-保本售价 = 成本 ÷（1 − 佣金率），用来判断还能不能再降价。
-      
-    
-`;
+    <div class="card" style="margin-top:14px">
+      <div class="card-head"><h3>怎么用这几列</h3></div>
+      <div class="card-body" style="font-size:13px;color:var(--ink-2);line-height:1.9">
+        <div><b>毛利</b> = 售价 − 商品成本 − 运费 − 平台佣金（未扣推广费）</div>
+        <div><b>净利</b> = 毛利 − 单笔推广费 − 退款损耗（按退款率估算往返运费与包装损耗）</div>
+        <div><b>保本ROI</b> = 售价 ÷（售价 − 成本 − 运费 − 佣金 − 退款损耗）。推广 ROI 低于这个数就是在亏钱卖。</div>
+        <div><b>保本售价</b> = 成本 ÷（1 − 佣金率），用来判断还能不能再降价。</div>
+      </div>
+    </div>`;
 }
 
 function bindProducts() {
@@ -857,48 +748,30 @@ function openProductForm(product) {
     refundRate: 3,
     note: ''
   };
-  const shopOpts = S.data.shops.map((s) => `${esc(s.name)}`).join('');
+  const shopOpts = S.data.shops.map((s) => `<option value="${s.id}" ${p.shopId === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
 
   openDrawer(product ? '编辑成本卡' : '新增成本卡', `
-    
-
-      
-商品名称
-      
-所属店铺${shopOpts}
-      
-
-        
-售价（元）
-        
-平台佣金率（%）拼多多多为 0.6%
-      
-      
-单件成本
-      
-
-        
-采购/生产
-        
-加工/工费
-        
-辅料/吊牌
-        
-包装
-      
-      
-
-        
-单件运费（元）
-        
-单笔推广费（元）
-      
-      
-预估退款率（%）
-      
-
-    
-`, `删除保存`);
+    <div class="stack">
+      <div class="field"><label>商品名称</label><input class="input" id="pName" value="${esc(p.name)}" placeholder="例如：半高领加厚毛衣"></div>
+      <div class="field"><label>所属店铺</label><select class="select" id="pShop">${shopOpts}</select></div>
+      <div class="grid two">
+        <div class="field"><label>售价（元）</label><input class="input" id="pPrice" type="number" value="${p.price}"></div>
+        <div class="field"><label>平台佣金率（%）</label><input class="input" id="pCommission" type="number" step="0.01" value="${p.commission}"><div class="tip">拼多多多为 0.6%</div></div>
+      </div>
+      <div class="card-head" style="padding:0;border:0;background:none"><h3 style="font-size:13px;color:var(--ink-2)">单件成本</h3></div>
+      <div class="grid two">
+        <div class="field"><label>采购/生产</label><input class="input" id="cMaterial" type="number" value="${p.cost.material}"></div>
+        <div class="field"><label>加工/工费</label><input class="input" id="cLabor" type="number" value="${p.cost.labor}"></div>
+        <div class="field"><label>辅料/吊牌</label><input class="input" id="cAcc" type="number" value="${p.cost.accessories}"></div>
+        <div class="field"><label>包装</label><input class="input" id="cPack" type="number" value="${p.cost.packaging}"></div>
+      </div>
+      <div class="grid two">
+        <div class="field"><label>单件运费（元）</label><input class="input" id="pShip" type="number" value="${p.shipping}"></div>
+        <div class="field"><label>单笔推广费（元）</label><input class="input" id="pAd" type="number" value="${p.adCost}"></div>
+      </div>
+      <div class="field"><label>预估退款率（%）</label><input class="input" id="pRefund" type="number" value="${p.refundRate}"></div>
+      <div class="card" style="background:var(--surface-2);box-shadow:none" id="pCalc"></div>
+    </div>`, `<button class="btn danger" id="pDel">删除</button><button class="btn primary" id="pSave">保存</button>`);
 
   const calc = () => {
     const tmp = {
@@ -916,31 +789,16 @@ function openProductForm(product) {
     };
     const r = productProfit(tmp);
     $('#pCalc').innerHTML = `
-      
-
-        
-
-          
-单件总成本
-${money(r.costSum + r.shipping)}
-          
-毛利 / 毛利率
-${money(r.gross)} · ${pct(r.grossMargin)}
-          
-净利 / 净利率
-${money(r.net)} · ${pct(r.netMargin)}
-          
-保本 ROI
-${r.breakEvenRoi === Infinity ? '—' : r.breakEvenRoi.toFixed(2)}
-          
-保本售价
-${money(r.breakEvenPrice)}
-          
-退款损耗
-${money(r.refundLoss)}
-        
-      
-`;
+      <div class="card-body" style="padding:14px">
+        <div class="grid two" style="gap:10px">
+          <div><div style="font-size:11px;color:var(--ink-3)">单件总成本</div><div style="font-weight:650">${money(r.costSum + r.shipping)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">毛利 / 毛利率</div><div style="font-weight:650">${money(r.gross)} · ${pct(r.grossMargin)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">净利 / 净利率</div><div style="font-weight:650;color:${r.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(r.net)} · ${pct(r.netMargin)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">保本 ROI</div><div style="font-weight:650">${r.breakEvenRoi === Infinity ? '—' : r.breakEvenRoi.toFixed(2)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">保本售价</div><div style="font-weight:650">${money(r.breakEvenPrice)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3)">退款损耗</div><div style="font-weight:650">${money(r.refundLoss)}</div></div>
+        </div>
+      </div>`;
   };
 
   $$('#drawerOverlay input').forEach((i) => (i.oninput = calc));
@@ -990,67 +848,35 @@ function viewShops() {
   const cards = S.data.shops.map((shop) => {
     const st = shopStats(shop.id);
     return `
-      
-
-        
-
-        
-
-          
-${esc(shop.name)}
-          
-${esc(shop.note || '未填写备注')}
-          
-
-            
-运营方式
-${esc(shop.opMode || '未设置')}
-            
-价位段
-${esc(shop.band || '未设置')}
-            
-累计净利
-${money(st.net)}
-            
-商品数
-${S.data.products.filter((p) => p.shopId === shop.id).length}
-          
-        
-      
-`;
+      <div class="card shop-card" data-id="${shop.id}">
+        <div class="accent-bar" style="background:${esc(shop.color || '#c4562b')}"></div>
+        <div class="card-body">
+          <div class="name">${esc(shop.name)}</div>
+          <div class="meta">${esc(shop.note || '未填写备注')}</div>
+          <div class="shop-kv">
+            <div><div class="k">运营方式</div><div class="v" style="font-size:13px">${esc(shop.opMode || '未设置')}</div></div>
+            <div><div class="k">价位段</div><div class="v" style="font-size:13px">${esc(shop.band || '未设置')}</div></div>
+            <div><div class="k">累计净利</div><div class="v" style="color:${st.net >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(st.net)}</div></div>
+            <div><div class="k">商品数</div><div class="v">${S.data.products.filter((p) => p.shopId === shop.id).length}</div></div>
+          </div>
+        </div>
+      </div>`;
   }).join('');
 
   return `
-    
-
-      
-我的店铺
-一人多店：新开店铺加进来，所有数据自动汇总
-      
-
-      ＋ 添加店铺
-    
-    ${S.data.shops.length ? `
-${cards}
-` : `
-◫
-还没有店铺
-先把正在经营的店加进来
-＋ 添加店铺
-`}
-    
-
-      
-不用自己算，选一下就行
-      
-
-        
-添加店铺只需要：店名、运营方式、价位段。系统按价位段自动估算成本率，看板上的毛利是估算值。
-        
-想算准某一个款：去「利润」页建成本卡，填售价、进货价、运费、每天推广费，系统自动算出毛利率和保本 ROI。
-      
-    
-`;
+    <div class="page-head">
+      <div><h2>我的店铺</h2><p>一人多店：新开店铺加进来，所有数据自动汇总</p></div>
+      <div class="spacer"></div>
+      <button class="btn primary sm" data-act="add-shop">＋ 添加店铺</button>
+    </div>
+    ${S.data.shops.length ? `<div class="shop-grid">${cards}</div>` : `<div class="empty"><div class="glyph">◫</div><h4>还没有店铺</h4><p>先把正在经营的店加进来</p><button class="btn primary" data-act="add-shop">＋ 添加店铺</button></div>`}
+    <div class="card" style="margin-top:16px">
+      <div class="card-head"><h3>不用自己算，选一下就行</h3></div>
+      <div class="card-body" style="font-size:13px;color:var(--ink-2);line-height:1.9">
+        <div>添加店铺只需要：店名、运营方式、价位段。系统按价位段自动估算成本率，看板上的毛利是估算值。</div>
+        <div>想算准某一个款：去「利润」页建成本卡，填售价、进货价、运费、每天推广费，系统自动算出毛利率和保本 ROI。</div>
+      </div>
+    </div>`;
 }
 
 function bindShops() {
@@ -1069,25 +895,14 @@ function openShopForm(shop) {
   const mode = s.opMode || '自然流量';
   let band = s.band || '30-60';
   openDrawer(shop ? '编辑店铺' : '添加店铺', `
-    
-
-      
-店铺名称
-      
-主要运营方式
-${MODES.map((m) => `${m}`).join('')}
-      
-主流价位段
-${BANDS.map((b) => `${b}`).join('')}
-      
-备注（可选）
-      
-识别色
-${colors.map((c) => ``).join('')}
-      
-成本率不用你算：系统按价位段自动估算，看板上是估算值；要精确到单品，在「利润」页建成本卡。
-    
-`, `删除保存`);
+    <div class="stack">
+      <div class="field"><label>店铺名称</label><input class="input" id="sName" value="${esc(s.name)}" placeholder="例如：织间旗舰店"></div>
+      <div class="field"><label>主要运营方式</label><div class="chip-group" id="sMode">${MODES.map((m) => `<button class="chip ${m === mode ? 'active' : ''}" data-mode="${m}">${m}</button>`).join('')}</div></div>
+      <div class="field"><label>主流价位段</label><div class="chip-group" id="sBand">${BANDS.map((b) => `<button class="chip ${b === band ? 'active' : ''}" data-band="${b}">${b}</button>`).join('')}</div></div>
+      <div class="field"><label>备注（可选）</label><input class="input" id="sNote" value="${esc(s.note)}" placeholder="主营类目 / 风格 / 其他要点"></div>
+      <div class="field"><label>识别色</label><div class="chip-group" id="sColors">${colors.map((c) => `<button class="chip ${c === s.color ? 'active' : ''}" data-color="${c}" style="width:34px;height:34px;padding:0;background:${c};border-color:${c}"></button>`).join('')}</div></div>
+      <div class="hint" style="color:var(--ink-3);font-size:12px">成本率不用你算：系统按价位段自动估算，看板上是估算值；要精确到单品，在「利润」页建成本卡。</div>
+    </div>`, `<button class="btn danger" id="sDel">删除</button><button class="btn primary" id="sSave">保存</button>`);
 
   let color = s.color;
   let modeSel = mode;
@@ -1148,11 +963,9 @@ ${colors.map((c) => ``).join('')}
 function chipGroup(key, values, multi) {
   const cur = S.studioInput[key];
   const arr = Array.isArray(cur) ? cur : [cur];
-  return `
-${values
-    .map((v) => `${esc(v)}`)
-    .join('')}
-`;
+  return `<div class="chip-group" data-group="${key}" data-multi="${multi ? 1 : 0}">${values
+    .map((v) => `<button class="chip ${arr.includes(v) ? 'active' : ''}" data-value="${esc(v)}">${esc(v)}</button>`)
+    .join('')}</div>`;
 }
 
 function viewStudio() {
@@ -1160,290 +973,186 @@ function viewStudio() {
   const hasKit = Boolean(S.studioKit);
 
   return `
-    
+    <div class="page-head">
+      <div><h2>素材工坊</h2><p>上传一张图 → 标题、卖点、SKU、主图、详情页全部出来</p></div>
+    </div>
 
-      
-素材工坊
-上传一张图 → 标题、卖点、SKU、主图、详情页全部出来
-    
-
-    
-
-      
-
-        
-
-          
-1 · 商品图
-          
-
+    <div class="studio">
+      <div class="stack">
+        <div class="card">
+          <div class="card-head"><h3>1 · 商品图</h3></div>
+          <div class="card-body">
             ${S.studioImage
-              ? `
-换图
-`
-              : `
-⬆
-点击上传 / 拍照
-建议白底或干净背景，正方形最好
-`}
-            
+              ? `<div class="thumb"><img src="${S.studioImage.dataUrl}" alt="商品图"><button class="reup" id="reup">换图</button></div>`
+              : `<div class="dropzone" id="dz"><div class="dz-icon">⬆</div><p>点击上传 / 拍照</p><div class="dz-hint">建议白底或干净背景，正方形最好</div></div>`}
+            <input type="file" id="fileInput" accept="image/*" hidden>
             ${S.studioImage && S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `
-              
-用火山方舟生成模特图（先出 1 张预览）
-              
-先出 1 张预览看人脸和风格，满意了再批量出，不点不扣钱。
+              <div style="margin-top:12px"><button class="btn primary" id="arkGenTop" style="width:100%">用火山方舟生成模特图（先出 1 张预览）</button></div>
+              <p style="font-size:12px;color:var(--ink-3);margin:6px 0 0">先出 1 张预览看人脸和风格，满意了再批量出，不点不扣钱。</p>
             ` : (S.studioImage ? `
-              
+              <div class="no-key">
+                <b>还没填火山方舟 Key</b>
+                <p>所以这张图不会识别颜色，也不会生成模特图。填一次 Key 就能自动识别。</p>
+                <button class="btn primary sm" id="goSettings">去设置填 Key</button>
+              </div>` : '')}
+          </div>
+        </div>
 
-                还没填火山方舟 Key
-                
-所以这张图不会识别颜色，也不会生成模特图。填一次 Key 就能自动识别。
-                去设置填 Key
-              
-` : '')}
-          
-        
-
-        
-
-          
-一键换装（可选）
-保留姿势，换成你的衣服
-          
-
-            
-
+        <div class="card">
+          <div class="card-head"><h3>一键换装（可选）</h3><span class="sub">保留姿势，换成你的衣服</span></div>
+          <div class="card-body">
+            <p style="font-size:12px;color:#7a5a1e;background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:8px 10px;margin:0 0 10px;line-height:1.7">
               一次可选多张爆款图做姿势参考。工具会自动换成新面孔，降低肖像权风险；但请只使用你有权使用的图片，不要直接拿同行模特正脸上架。
-            
-            
-
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
               ${S.swapImages.map((im, i) => `
-                
+                <div style="position:relative;width:90px">
+                  <img src="${im.dataUrl}" style="width:90px;height:120px;object-fit:cover;border-radius:6px;border:1px solid var(--line)" alt="参考图${i+1}">
+                  <button class="reup" data-swap-del="${i}" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#fff;border:1px solid var(--line);font-size:12px;line-height:1;padding:0">×</button>
+                  <div style="font-size:11px;color:var(--ink-3);text-align:center;margin-top:2px">参考图 ${i+1}</div>
+                </div>`).join('')}
+              <div class="dropzone" id="swapDz" style="width:90px;height:120px;min-height:auto;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <div class="dz-icon" style="font-size:20px">+</div>
+                <div style="font-size:11px;color:var(--ink-3)">添加</div>
+              </div>
+            </div>
+            <input type="file" id="swapFile" accept="image/*" multiple hidden>
+            <div style="margin-top:8px">
+              <button class="btn primary" id="swapBtn" style="width:100%">${S.swapImages.length ? '一键全部换装（' + S.swapImages.length + ' 张）' : '换装生成（收费）'}</button>
+            </div>
+            <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || (S.swapImages.length ? '点「一键全部换装」会对每张参考图各出 1 张' : '会先提示费用，确认后才扣钱'))}</div>
+            ${S.studioAiImages && S.studioAiImages.some((x) => /换装/.test(x.label)) ? `<div class="canvas-grid" style="margin-top:10px">${S.studioAiImages.filter((x) => /换装/.test(x.label)).map((it) => `
+              <div class="canvas-card">
+                <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
+                <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span><a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">下载</a></div>
+              </div>`).join('')}</div>` : ''}
+          </div>
+        </div>
 
-                  
-                  ×
-                  
-参考图 ${i+1}
-                
-`).join('')}
-              
-
-                
-+
-                
-添加
-              
-            
-            
-            
-
-              ${S.swapImages.length ? '一键全部换装（' + S.swapImages.length + ' 张）' : '换装生成（收费）'}
-            
-            
-${esc(S.swapStatus || (S.swapImages.length ? '点「一键全部换装」会对每张参考图各出 1 张' : '会先提示费用，确认后才扣钱'))}
-            ${S.studioAiImages && S.studioAiImages.some((x) => /换装/.test(x.label)) ? `
-${S.studioAiImages.filter((x) => /换装/.test(x.label)).map((it) => `
-              
-
-                
-                
-${esc(it.label)}下载
-              
-`).join('')}
-` : ''}
-          
-        
-
-        
-
-          
-
-            
-3 · 商品标签
-自动识别，可改
-            
-${S.tagOpen ? '收起' : '修改标签'}
-          
-          
-
-            
-
+        <div class="card">
+          <div class="card-head">
+            <h3>3 · 商品标签</h3><span class="sub">自动识别，可改</span>
+            <div style="margin-left:auto"><button class="btn sm" id="tagToggle">${S.tagOpen ? '收起' : '修改标签'}</button></div>
+          </div>
+          <div class="card-body">
+            <div style="font-size:13px;line-height:1.9;color:var(--ink-2)">
               ${esc([i.category, i.wearStyle, (i.materials || []).join('、'), i.fiber, i.pattern, i.neck, i.fit, i.length, i.sleeveLen, i.sleeveType, i.mainStyle, i.subStyle, i.weight, i.age, i.fleece, i.season, (i.colors || []).length ? (i.colors || []).join('、') + '（' + (i.colors || []).length + ' 色）' : ''].filter(Boolean).join(' · '))}
               ${S.aiStatus
-                ? `
-${esc(S.aiStatus)}
-`
-                : '
-上传图片后自动识别，不准可以点「修改标签」或重新识别
-'}
-              ${S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `重新识别一次` : ''}
-            
+                ? `<div id="aiStatus" class="ai-status ${/失败/.test(S.aiStatus) ? 'bad' : (/识别成功/.test(S.aiStatus) ? 'good' : '')}">${esc(S.aiStatus)}</div>`
+                : '<div style="color:var(--ink-3);font-size:12px">上传图片后自动识别，不准可以点「修改标签」或重新识别</div>'}
+              ${S.data.settings && S.data.settings.ai && S.data.settings.ai.apiKey ? `<button class="btn sm" id="aiRecognizeBtn" style="margin-top:8px">重新识别一次</button>` : ''}
+            </div>
             ${S.tagOpen ? `
-            
-
-              
-
-                
-品类
+            <div style="margin-top:14px">
+              <div class="param-block">
+                <div class="plabel"><span>品类</span></div>
                 ${chipGroup('category', OPTIONS.category, false)}
-              
-              
-
-                
-主面料成分可多选，第一个算主成分
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>主面料成分</span><span class="opt">可多选，第一个算主成分</span></div>
                 ${chipGroup('materials', OPTIONS.material, true)}
-              
-              
-
-                
-穿着方式
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>穿着方式</span></div>
                 ${chipGroup('wearStyle', OPTIONS.wearStyle, false)}
-              
-              
-
-                
-面料俗称
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>面料俗称</span></div>
                 ${chipGroup('fiber', OPTIONS.fiber, false)}
-              
-              
-
-                
-图案
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>图案</span></div>
                 ${chipGroup('pattern', OPTIONS.pattern, false)}
-              
-              
-
-                
-领型
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>领型</span></div>
                 ${chipGroup('neck', OPTIONS.neck, false)}
-              
-              
-
-                
-版型
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>版型</span></div>
                 ${chipGroup('fit', OPTIONS.fit, false)}
-              
-              
-
-                
-衣长
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>衣长</span></div>
                 ${chipGroup('length', OPTIONS.length, false)}
-              
-              
-
-                
-袖长
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>袖长</span></div>
                 ${chipGroup('sleeveLen', OPTIONS.sleeveLen, false)}
-              
-              
-
-                
-袖型
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>袖型</span></div>
                 ${chipGroup('sleeveType', OPTIONS.sleeveType, false)}
-              
-              
-
-                
-适用年龄
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>适用年龄</span></div>
                 ${chipGroup('age', OPTIONS.age, false)}
-              
-              
-
-                
-是否加绒
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>是否加绒</span></div>
                 ${chipGroup('fleece', OPTIONS.fleece, false)}
-              
-              
-
-                
-流行元素可多选
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>流行元素</span><span class="opt">可多选</span></div>
                 ${chipGroup('elements', OPTIONS.elements, true)}
-              
-              
-
-                
-主风格只能选 1 个
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>主风格</span><span class="opt">只能选 1 个</span></div>
                 ${chipGroup('mainStyle', OPTIONS.mainStyle, false)}
-              
-              
-
-                
-风格
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>风格</span></div>
                 ${chipGroup('subStyle', OPTIONS.subStyle, false)}
-              
-              
-
-                
-厚薄
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>厚薄</span></div>
                 ${chipGroup('weight', OPTIONS.weight, false)}
-              
-              
-
-                
-适用季节
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>适用季节</span></div>
                 ${chipGroup('season', OPTIONS.season, false)}
-              
-              
-
-                
-颜色可多选，漏了就手动加
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>颜色</span><span class="opt">可多选，漏了就手动加</span></div>
                 ${chipGroup('colors', Array.from(new Set([].concat(OPTIONS.color, (S.studioInput.colors || [])))), true)}
-                
-
-                  
-                  添加
-                
-              
-              
-
-                
-尺码可多选
+                <div style="display:flex;gap:8px;margin-top:8px">
+                  <input class="input" id="colorCustom" placeholder="手动补颜色，如：浅紫色">
+                  <button class="btn sm" id="colorAdd" style="white-space:nowrap">添加</button>
+                </div>
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>尺码</span><span class="opt">可多选</span></div>
                 ${chipGroup('sizes', OPTIONS.size, true)}
-              
-              
-
-                
-场景可多选
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>场景</span><span class="opt">可多选</span></div>
                 ${chipGroup('scene', OPTIONS.scene, true)}
-              
-              
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>售价（元）</span></div>
+                <input class="input" id="stuPrice" type="number" value="${esc(i.price)}">
+              </div>
+              <div class="param-block">
+                <div class="plabel"><span>额外关键词</span><span class="opt">选填，逗号分隔</span></div>
+                <input class="input" id="stuExtra" value="${esc(i.extra)}" placeholder="如：大码、孕妇可穿、可机洗">
+              </div>
+            </div>` : ''}
+            <div style="margin-top:16px">
+              <button class="btn primary block" id="genBtn">${hasKit ? '重新生成全部素材' : '一键生成全部素材'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                
-售价（元）
-                
-              
-              
-
-                
-额外关键词选填，逗号分隔
-                
-              
-            
-` : ''}
-            
-
-              ${hasKit ? '重新生成全部素材' : '一键生成全部素材'}
-            
-          
-        
-      
-
-      
-
+      <div>
         ${hasKit ? renderStudioResult() : `
-          
-
-            
-✳
-            
-左边选好标签，点「一键生成」
-            
-会生成 6 组标题、8 条卖点、SKU 规格表、5 张主图、1 张详情长图、一整套属性表
-          
-`}
-      
-    
-`;
+          <div class="card"><div class="empty" style="padding:60px 20px">
+            <div class="glyph">✳</div>
+            <h4>左边选好标签，点「一键生成」</h4>
+            <p>会生成 6 组标题、8 条卖点、SKU 规格表、5 张主图、1 张详情长图、一整套属性表</p>
+          </div></div>`}
+      </div>
+    </div>`;
 }
 
 function renderStudioResult() {
@@ -1464,70 +1173,48 @@ function renderStudioResult() {
 
   if (tab === 'titles') {
     body = kit.titles.map((t, i) => `
-      
-
-        
-${i + 1}
-        
-
-          
-${esc(t.text)}
-          
-${t.kind} · ${t.len} 字${t.len > 60 ? '（超出 60，需删减）' : ''}
-        
-        
-复制
-      
-`).join('');
+      <div class="title-item">
+        <div class="idx">${i + 1}</div>
+        <div>
+          <div class="txt">${esc(t.text)}</div>
+          <div class="meta ${t.len > 60 ? 'over' : ''}">${t.kind} · ${t.len} 字${t.len > 60 ? '（超出 60，需删减）' : ''}</div>
+        </div>
+        <div class="acts"><button class="btn sm" data-copy="${esc(t.text)}">复制</button></div>
+      </div>`).join('');
   }
 
   if (tab === 'points') {
-    body = `
-${kit.sellingPoints.map((p) => `
-      
-
-        
-${p.icon} ${esc(p.text)}复制
-        
-${esc(p.desc)}
-      
-`).join('')}
-`;
+    body = `<div class="copy-list">${kit.sellingPoints.map((p) => `
+      <div class="copy-block">
+        <div class="cb-head"><span>${p.icon} ${esc(p.text)}</span><span class="spacer"></span><button class="btn sm" data-copy="${esc(p.text)}：${esc(p.desc)}">复制</button></div>
+        <pre>${esc(p.desc)}</pre>
+      </div>`).join('')}</div>`;
   }
 
   if (tab === 'skus') {
     body = `
-      
-${kit.skus.length} 个 SKU
-价格、库存可直接改
-
-      
-                ${kit.skus.map((s, idx) => `                                                `).join('')}      
-规格1规格2拼多多规格名价格库存编码
-
-${esc(s.spec1)}${esc(s.spec2)}${esc(s.pddName)}
-
-
-${esc(s.code)}
-
-
-      
-复制为 CSV（可粘贴到表格）
-      
-`;
+      <div class="card"><div class="card-head"><h3>${kit.skus.length} 个 SKU</h3><span class="sub">价格、库存可直接改</span></div>
+      <div class="table-wrap"><table class="tbl sku-table">
+        <thead><tr><th>规格1</th><th>规格2</th><th>拼多多规格名</th><th class="num">价格</th><th class="num">库存</th><th>编码</th></tr></thead>
+        <tbody>${kit.skus.map((s, idx) => `<tr>
+          <td>${esc(s.spec1)}</td><td>${esc(s.spec2)}</td><td>${esc(s.pddName)}</td>
+          <td class="num"><input type="number" value="${s.price}" data-sku-price="${idx}"></td>
+          <td class="num"><input type="number" value="${s.stock}" data-sku-stock="${idx}"></td>
+          <td>${esc(s.code)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <div class="card-body" style="border-top:1px solid var(--line)"><button class="btn sm" id="copySku">复制为 CSV（可粘贴到表格）</button></div>
+      </div>`;
   }
 
   if (tab === 'images') {
     body = `
-      
-
-        下载全部主图
-        下载详情长图
-        800×800 PNG · 详情 750px 宽
-      
-      
-
-`;
+      <div class="row" style="margin-bottom:12px">
+        <button class="btn sm primary" id="dlAll">下载全部主图</button>
+        <button class="btn sm" id="dlDetail">下载详情长图</button>
+        <span class="sub" style="font-size:12px;color:var(--ink-3)">800×800 PNG · 详情 750px 宽</span>
+      </div>
+      <div class="canvas-grid" id="canvasGrid"></div>`;
   }
 
   if (tab === 'ark') {
@@ -1535,109 +1222,87 @@ ${esc(s.code)}
     const hasKey = Boolean(ai.apiKey);
     const aiImgs = S.studioAiImages || [];
     body = `
-      
-
-        
-火山方舟生成模特图
-手动点，确认后扣费
-          查余额
-        
-        
-
-          
-
+      <div class="card">
+        <div class="card-head"><h3>火山方舟生成模特图</h3><span class="sub">手动点，确认后扣费</span>
+          <button class="btn sm" id="arkBalanceBtn" style="margin-left:auto">查余额</button>
+        </div>
+        <div class="card-body">
+          <div id="arkBalanceBox" style="display:none;font-size:13px;background:#f6ffed;border:1px solid #b7eb8f;border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.7"></div>
           ${hasKey ? `
-            
-
-              识别到的颜色：${esc((S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.join('、') : '未识别（按 1 个颜色算）'))}
-              （${S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.length : 1} 个颜色，每个颜色单独出）
-            
-            
-
-              每个颜色主图
-                
-                  ${[2,3,4,5].map((n) => `${n}`).join('')}
-                张
-              
-              每个颜色详情图
-                
-                  ${[0,1,2,3].map((n) => `${n}`).join('')}
-                张
-              
-            
-            
-
-              出图风格
-                
-                  自动随机（每款统一风格）
-                  全平铺挂拍（无模特）
-                  全素人模特随手拍
-                
-              
-            
-            
-
-              
-                
+            <div style="font-size:13px;color:var(--ink-2);margin-bottom:10px">
+              识别到的颜色：<strong>${esc((S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.join('、') : '未识别（按 1 个颜色算）'))}</strong>
+              <span style="color:var(--ink-3)">（${S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.length : 1} 个颜色，每个颜色单独出）</span>
+            </div>
+            <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+              <label style="font-size:13px;color:var(--ink-2)">每个颜色主图
+                <select id="arkMainCount" style="margin:0 4px">
+                  ${[2,3,4,5].map((n) => `<option value="${n}" ${S.arkCounts.mainPer === n ? 'selected' : ''}>${n}</option>`).join('')}
+                </select>张
+              </label>
+              <label style="font-size:13px;color:var(--ink-2)">每个颜色详情图
+                <select id="arkDetailCount" style="margin:0 4px">
+                  ${[0,1,2,3].map((n) => `<option value="${n}" ${S.arkCounts.detailPer === n ? 'selected' : ''}>${n}</option>`).join('')}
+                </select>张
+              </label>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
+                <select id="arkPhotoStyle" style="margin:0 4px">
+                  <option value="auto" ${(S.arkCounts.photoStyle || 'auto') === 'auto' ? 'selected' : ''}>自动随机（每款统一风格）</option>
+                  <option value="flatlay" ${S.arkCounts.photoStyle === 'flatlay' ? 'selected' : ''}>全平铺挂拍（无模特）</option>
+                  <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>全素人模特随手拍</option>
+                </select>
+              </label>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+                <input type="checkbox" id="arkSimpleSku" ${S.arkCounts.simpleSku ? 'checked' : ''}>
                 有简配版（低价 SKU 引流，多出 1 张）
-              
-              
-            
-            
-
-              
-                
+              </label>
+              <input id="arkSimpleNote" type="text" value="${esc(S.arkCounts.simpleNote)}" placeholder="简配差异，例如：不带丝带" style="flex:1;min-width:140px">
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+                <input type="checkbox" id="arkNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
                 不带装饰（只生成衣服本体，全部图都生效）
-              
-              
-            
-            
-
-              
-                
+              </label>
+              <input id="arkAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结" style="flex:1;min-width:140px">
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+                <input type="checkbox" id="arkAntiCompare" ${S.arkCounts.antiCompare ? 'checked' : ''}>
                 防比价模式（换角度/遮挡1/3/换构图，让平台认不出是同款）
-              
-            
-            
-
-              防比价原理：平台会比对主图、SKU图、SKU文字（权重最高）、标题、属性，相同特征超阈值就判同款、报活动被压价。SKU 图直接用生成好的主图就行，不用另外花钱生成；SKU 文字会自动做变体。
+              </label>
+            </div>
+            <div style="font-size:12px;color:var(--ink-3);line-height:1.6;margin:-4px 0 10px">
+              防比价原理：平台会比对主图、SKU图、SKU文字（权重最高）、标题、属性，相同特征超阈值就判同款、报活动被压价。SKU 图直接用生成好的主图就行，不用另外花钱生成；SKU 文字会自动做变体。<br>
               新品标（服装类目有效期 30 天）：需店铺近 90 天 DSR 三项高于同行，且属性填全、图片原创，由平台自动判定，无法手动报名。
-            
-            
-
+            </div>
+            <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
               ${S.arkPendingJobs && S.arkPendingJobs.length ? `
-                继续生成剩余 ${S.arkPendingJobs.length} 张
-                丢掉预览，重新出
+                <button class="btn primary" id="arkContinueBtn">继续生成剩余 ${S.arkPendingJobs.length} 张</button>
+                <button class="btn sm" id="arkRestartBtn">丢掉预览，重新出</button>
               ` : `
-                先生成 1 张预览（约 0.1~1 元）
-                ${aiImgs.length ? `清空` : ''}
+                <button class="btn primary" id="arkGenBtn">先生成 1 张预览（约 0.1~1 元）</button>
+                ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空</button>` : ''}
               `}
-            
-            
-${esc(S.arkStatus || (S.arkPendingJobs && S.arkPendingJobs.length ? '预览图已出，满意就点「继续生成」，不满意就「丢掉预览，重新出」' : (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张' : '建议先出 1 张看看人脸和风格，满意了再批量出，省得浪费钱')))}
-            ${aiImgs.length ? `
-
-                全部下载（${aiImgs.length} 张）
-                打包成 1 个 zip 下载，不会一张张弹窗
-              
-${aiImgs.map((it) => `
-              
-
-                
-                
-${esc(it.label)}
-                  下载
-              
-`).join('')}
-` : ''}
+            </div>
+            <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (S.arkPendingJobs && S.arkPendingJobs.length ? '预览图已出，满意就点「继续生成」，不满意就「丢掉预览，重新出」' : (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张' : '建议先出 1 张看看人脸和风格，满意了再批量出，省得浪费钱')))}</div>
+            ${aiImgs.length ? `<div class="row" style="margin-bottom:10px">
+                <button class="btn sm primary" id="arkDlAll">全部下载（${aiImgs.length} 张）</button>
+                <span class="sub" style="font-size:12px;color:var(--ink-3)">打包成 1 个 zip 下载，不会一张张弹窗</span>
+              </div><div class="canvas-grid">${aiImgs.map((it) => `
+              <div class="canvas-card">
+                <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
+                <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span>
+                  <a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">下载</a></div>
+              </div>`).join('')}</div>` : ''}
           ` : `
-            
-还没填火山方舟 Key，不能直接出图。
-            去设置填 Key
+            <div class="tbl-empty" style="margin-bottom:12px">还没填火山方舟 Key，不能直接出图。</div>
+            <button class="btn" id="arkGoSettings">去设置填 Key</button>
           `}
-        
-      
-`;
+        </div>
+      </div>`;
   }
 
   if (tab === 'jimeng') {
@@ -1645,136 +1310,91 @@ ${esc(it.label)}
     const variants = buildJimengPrompts(S.studioInput, jmOpts);
     const videoVariants = buildJimengVideoPrompts(S.studioInput);
     body = `
-      
-
-        
-即梦图片提示词
-免费，复制的越少越好用
-        
-
-          
-即梦选「图生图」，上传同一张实拍图，粘贴下面任意一条即可。
-          
-
-            出图风格
-              
-                融合推荐（种草氛围 + 主图质感）
-                纯生活种草
-                纯电商实拍主图
-              
-            
-            
-              
+      <div class="card">
+        <div class="card-head"><h3>即梦图片提示词</h3><span class="sub">免费，复制的越少越好用</span></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生图」，上传同一张实拍图，粘贴下面任意一条即可。</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:13px">
+            <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
+              <select id="jimengPhotoStyle" style="margin:0 4px">
+                <option value="blend" ${(S.arkCounts.photoStyle || 'blend') === 'blend' ? 'selected' : ''}>融合推荐（种草氛围 + 主图质感）</option>
+                <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>纯生活种草</option>
+                <option value="studio" ${S.arkCounts.photoStyle === 'studio' ? 'selected' : ''}>纯电商实拍主图</option>
+              </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+              <input type="checkbox" id="jimengNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
               不带装饰（只卖衣服本体）
-            
-            
-          
-          ${S.studioImage ? '' : `
-请先上传商品图
-`}
-          
-
+            </label>
+            <input id="jimengAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结" style="flex:1;min-width:140px" ${S.arkCounts.noAccessory ? '' : 'disabled'}>
+          </div>
+          ${S.studioImage ? '' : `<div class="tbl-empty" style="margin-bottom:12px">请先上传商品图</div>`}
+          <div class="copy-list">
             ${variants.map((v, i) => `
-              
+              <div class="copy-block">
+                <div class="cb-head">
+                  <span><strong>${i + 1}. ${esc(v.name)}</strong></span>
+                  <span class="spacer"></span>
+                  <button class="btn sm primary" data-copy="${esc(v.prompt)}">复制提示词</button>
+                </div>
+                <pre>${esc(v.prompt)}</pre>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
 
-                
-
-                  ${i + 1}. ${esc(v.name)}
-                  
-                  复制提示词
-                
-                
-${esc(v.prompt)}
-              
-`).join('')}
-          
-        
-      
-
-      
-
-        
-即梦视频提示词
-5 秒 · 1:1
-        
-
-          
-即梦选「图生视频」，时长 5 秒、比例 1:1，粘贴下面这条。
-          
-
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h3>即梦视频提示词</h3><span class="sub">5 秒 · 1:1</span></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生视频」，时长 5 秒、比例 1:1，粘贴下面这条。</p>
+          <div class="copy-list">
             ${videoVariants.map((v, i) => `
-              
-
-                
-
-                  ${i + 1}. ${esc(v.name)}
-                  
-                  复制提示词
-                
-                
-${esc(v.prompt)}
-              
-`).join('')}
-          
-        
-      
-`;
+              <div class="copy-block">
+                <div class="cb-head">
+                  <span><strong>${i + 1}. ${esc(v.name)}</strong></span>
+                  <span class="spacer"></span>
+                  <button class="btn sm primary" data-copy="${esc(v.prompt)}">复制提示词</button>
+                </div>
+                <pre>${esc(v.prompt)}</pre>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
   }
 
   if (tab === 'detail') {
-    body = `
-${kit.detail.sections.map((s) => `
-      
-
-        
-${esc(s.title)}
-        复制
-        
-${esc(s.lines.join('\n'))}
-      
-`).join('')}
-      复制整篇详情页文案
-`;
+    body = `<div class="copy-list">${kit.detail.sections.map((s) => `
+      <div class="copy-block">
+        <div class="cb-head"><span>${esc(s.title)}</span><span class="spacer"></span>
+        <button class="btn sm" data-copy="${esc(s.lines.join('\n'))}">复制</button></div>
+        <pre>${esc(s.lines.join('\n'))}</pre>
+      </div>`).join('')}
+      <button class="btn block" data-copy="${esc(detailToText(kit))}">复制整篇详情页文案</button></div>`;
   }
 
   if (tab === 'attrs') {
-    body = `
-拼多多商品属性
-上架时照填
-
-      
-                ${kit.attrs.map(([k, v]) => ``).join('')}      
-属性填写值
-${esc(k)}${esc(v)}
-
-      
-
-        复制全部属性
-        
-字段与拼多多女装毛衣发布页一致（品牌、穿着方式、厚薄、衣长、领型、袖长、袖型、服装版型、图案、主面料成分、成分含量、面料俗称、适用年龄、流行元素、是否加绒、上市时节、主风格、风格）。成分含量是草稿值，务必按吊牌实际百分比改，平台会抽检。
-      
-`;
+    body = `<div class="card"><div class="card-head"><h3>拼多多商品属性</h3><span class="sub">上架时照填</span></div>
+      <div class="table-wrap"><table class="tbl">
+        <thead><tr><th>属性</th><th>填写值</th></tr></thead>
+        <tbody>${kit.attrs.map(([k, v]) => `<tr><td style="color:var(--ink-2)">${esc(k)}</td><td><strong>${esc(v)}</strong></td></tr>`).join('')}</tbody>
+      </table></div>
+      <div class="card-body" style="border-top:1px solid var(--line)">
+        <button class="btn sm" data-copy="${esc(kit.attrs.map(([k, v]) => k + '：' + v).join('\n'))}">复制全部属性</button>
+        <p style="font-size:12px;color:var(--ink-3);margin-top:10px">字段与拼多多女装毛衣发布页一致（品牌、穿着方式、厚薄、衣长、领型、袖长、袖型、服装版型、图案、主面料成分、成分含量、面料俗称、适用年龄、流行元素、是否加绒、上市时节、主风格、风格）。成分含量是草稿值，务必按吊牌实际百分比改，平台会抽检。</p>
+      </div></div>`;
   }
 
   return `
-    
-
-      
-
-        
-生成结果
-${new Date(kit.generatedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-        
-保存到素材库
-      
-      
-
-        
-${tabs.map(([k, label]) => `${label}`).join('')}
+    <div class="card">
+      <div class="card-head">
+        <h3>生成结果</h3><span class="sub">${new Date(kit.generatedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+        <div style="margin-left:auto"><button class="btn sm" id="saveMaterial">保存到素材库</button></div>
+      </div>
+      <div class="card-body">
+        <div class="result-tabs">${tabs.map(([k, label]) => `<button class="${tab === k ? 'active' : ''}" data-tab="${k}">${label}</button>`).join('')}</div>
         ${body}
-      
-    
-`;
+      </div>
+    </div>`;
 }
 
 function bindStudio() {
@@ -1932,14 +1552,11 @@ function bindStudio() {
     const input = Object.assign({}, S.studioInput, { price: Number(S.studioInput.price) });
     const images = buildMainImages(S.studioImage.img, S.studioKit, input);
     grid.innerHTML = images.map((x) => `
-      
-
-        
-        
-${x.label}
-          下载
-      
-`).join('');
+      <div class="canvas-card">
+        <img src="${x.c.toDataURL('image/png')}" alt="${x.label}">
+        <div class="cc-foot"><span>${x.label}</span><span style="margin-left:auto"></span>
+          <button class="btn sm" data-dl="${x.key}">下载</button></div>
+      </div>`).join('');
     $$('#view [data-dl]').forEach((b) => {
       b.onclick = () => {
         const item = images.find((x) => x.key === b.dataset.dl);
@@ -2051,7 +1668,7 @@ async function autoRecognize() {
   };
   tick();
   renderRoute();
-  bindRoute();
+  bindRoute()
   const timer = setInterval(tick, 1000);
   try {
     let r = null;
@@ -2751,7 +2368,7 @@ async function arkCheckBalance() {
       if (box) { box.style.background = '#fff1f0'; box.style.borderColor = '#ffa39e'; box.textContent = '查不了：' + (r.message || r.error) + '。没填 AK/SK 的话去「设置」里填一下。'; }
     } else {
       const lines = [];
-      if (r.available !== '' && r.available != null) lines.push('可用余额：¥' + r.available + '');
+      if (r.available !== '' && r.available != null) lines.push('可用余额：<b>¥' + r.available + '</b>');
       if (r.cash !== '' && r.cash != null) lines.push('现金余额：¥' + r.cash);
       if (r.frozen !== '' && r.frozen != null) lines.push('冻结金额：¥' + r.frozen);
       if (!lines.length && r.raw) {
@@ -2764,8 +2381,7 @@ async function arkCheckBalance() {
       if (box) {
         box.style.background = '#f6ffed';
         box.style.borderColor = '#b7eb8f';
-        box.innerHTML = lines.length ? lines.join('
-') : ('查询成功，但返回内容看不懂。原始数据：' + JSON.stringify(r.raw).slice(0, 200));
+        box.innerHTML = lines.length ? lines.join('<br>') : ('查询成功，但返回内容看不懂。原始数据：' + JSON.stringify(r.raw).slice(0, 200));
       }
     }
   } catch (e) {
@@ -3361,9 +2977,7 @@ function filteredMaterials(materials, keyword) {
 }
 
 function renderMaterialDetail(m) {
-  if (!m) return '
-素材不存在
-';
+  if (!m) return '<div class="tbl-empty">素材不存在</div>';
   const i = m.input || {};
   const k = m.kit || {};
   const tags = [i.category, (i.materials || []).join('、'), i.neck, i.fit, (i.styles || []).join('、'), i.weight, i.season, (i.colors || []).join('、')].filter(Boolean).join(' · ');
@@ -3372,228 +2986,135 @@ function renderMaterialDetail(m) {
   const titles = (k.titles || []).map((t) => t.text).filter(Boolean);
   const skus = k.skus || [];
   return `
-    
-
-      
-${esc(m.name)}
-      
-${new Date(m.createdAt).toLocaleString('zh-CN')}
-      
-${esc(tags)}
+    <div style="font-size:13px;color:var(--ink-2);line-height:1.8">
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(m.name)}</div>
+      <div style="color:var(--ink-3);font-size:12px;margin-bottom:12px">${new Date(m.createdAt).toLocaleString('zh-CN')}</div>
+      <div style="background:var(--surface-2);padding:8px 12px;border-radius:8px;margin-bottom:14px">${esc(tags)}</div>
       ${aiImgs.length ? `
-        
-火山模特图（${aiImgs.length} 张）
-        
-${aiImgs.map((a) => `
-          
-
-            
-            
-${esc(a.label)}下载
-          
-`).join('')}
-        
-全部下载（${aiImgs.length} 张）
-      ` : '
-（保存时没有火山模特图）
-'}
+        <div style="font-weight:600;margin:12px 0 8px">火山模特图（${aiImgs.length} 张）</div>
+        <div class="canvas-grid">${aiImgs.map((a) => `
+          <div class="canvas-card">
+            <a href="${a.url}" target="_blank" rel="noopener"><img src="${a.url}" alt="${esc(a.label)}"></a>
+            <div class="cc-foot"><span>${esc(a.label)}</span><span style="margin-left:auto"><a class="btn sm dlOne" href="${a.url}" data-url="${a.url}" data-name="${esc(a.label)}">下载</a></span></div>
+          </div>`).join('')}</div>
+        <div style="margin-top:8px"><a class="btn sm" id="libDlAll">全部下载（${aiImgs.length} 张）</a></div>
+      ` : '<div style="color:var(--ink-3);font-size:12px;margin-bottom:12px">（保存时没有火山模特图）</div>'}
       ${titles.length ? `
-        
-标题
-        
-${titles.map((t) => `
-${esc(t)}
-`).join('')}
+        <div style="font-weight:600;margin:16px 0 8px">标题</div>
+        <div style="display:flex;flex-direction:column;gap:6px">${titles.map((t) => `<div style="background:var(--surface-2);padding:8px 12px;border-radius:8px;font-size:13px">${esc(t)}</div>`).join('')}</div>
       ` : ''}
       ${skus.length ? `
-        
-SKU 规格
-        
-${skus.map((s) => ``).join('')}颜色尺码拼多多规格名价格库存${esc(s.spec1)}${esc(s.spec2)}${esc(s.pddName)}${s.price}${s.stock}
+        <div style="font-weight:600;margin:16px 0 8px">SKU 规格</div>
+        <div class="table-wrap"><table class="tbl"><thead><tr><th>颜色</th><th>尺码</th><th>拼多多规格名</th><th class="num">价格</th><th class="num">库存</th></tr></thead><tbody>${skus.map((s) => `<tr><td>${esc(s.spec1)}</td><td>${esc(s.spec2)}</td><td>${esc(s.pddName)}</td><td class="num">${s.price}</td><td class="num">${s.stock}</td></tr>`).join('')}</tbody></table></div>
       ` : ''}
       ${jm.length ? `
-        
-即梦提示词（${jm.length} 组）
-        
-${jm.map((p) => `
-          
-
-            
-${esc(p.name)}
-            
-${esc(p.prompt)}
-          
-`).join('')}
+        <div style="font-weight:600;margin:16px 0 8px">即梦提示词（${jm.length} 组）</div>
+        <div style="display:flex;flex-direction:column;gap:8px">${jm.map((p) => `
+          <div style="background:var(--surface-2);padding:10px 12px;border-radius:8px">
+            <div style="font-size:12px;color:var(--ink-3);margin-bottom:4px">${esc(p.name)}</div>
+            <div style="font-size:12px;color:var(--ink-2);line-height:1.6;word-break:break-all">${esc(p.prompt)}</div>
+          </div>`).join('')}</div>
       ` : ''}
-      
-
-        删除这条素材
-      
-    
-`;
+      <div style="margin-top:16px">
+        <button class="btn sm" id="libDel">删除这条素材</button>
+      </div>
+    </div>`;
 }
 
 function viewSettings() {
   const d = S.data;
   return `
-    
-设置
-数据、备份、使用说明 · 当前版本 v1156a
-    
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1156a</p></div></div>
+    <div class="stack">
+      <div class="card">
+        <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
+        <div class="card-body">
+          <div class="seg-row"><div class="sk">同步状态</div><div id="syncStateText">${S.syncState === 'ok' ? '已同步到云端' : '未同步'}</div><span class="pill ${S.syncState === 'ok' ? 'good' : 'warn'}">${S.syncState === 'ok' ? '正常' : '注意'}</span></div>
+          <div class="seg-row"><div class="sk">最近更新</div><div>${d.updatedAt ? new Date(d.updatedAt).toLocaleString('zh-CN') : '—'}</div></div>
+          <div class="row" style="margin-top:14px">
+            <a class="btn" href="/api/backup" download>下载备份（JSON）</a>
+            <button class="btn" id="importBtn">从备份恢复</button>
+            <input type="file" id="importFile" accept="application/json" hidden>
+          </div>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:12px">建议每周下载一次备份。服务器重建后，用备份文件可以完整恢复店铺、商品、每日数据和素材库。</p>
+        </div>
+      </div>
 
-      
+      <div class="card">
+        <div class="card-head"><h3>AI 生图配置</h3><span class="sub">自动识别属性 + 手动生成模特图</span></div>
+        <div class="card-body">
+          <div class="seg-row"><div class="sk">服务平台</div>
+            <select id="aiProvider">
+              <option value="volc" ${(S.data.settings.ai.provider||'volc')==='volc'?'selected':''}>火山方舟（豆包识图 + Seedream 出图）</option>
+              <option value="custom" ${(S.data.settings.ai.provider)==='custom'?'selected':''}>自定义（OpenAI 兼容接口）</option>
+            </select>
+          </div>
+          <div class="seg-row"><div class="sk">API Key（密钥）</div>
+            <input id="aiApiKey" type="password" style="flex:1" placeholder="粘贴火山方舟的 API Key" value="${esc(S.data.settings.ai.apiKey||'')}">
+          </div>
+          <div class="seg-row"><div class="sk">接口地址（Base URL）</div>
+            <input id="aiBaseUrl" type="text" style="flex:1" value="${esc(S.data.settings.ai.baseUrl||'')}">
+          </div>
+          <div class="seg-row"><div class="sk">识别模型（豆包视觉）</div>
+            <input id="aiVisionModel" type="text" style="flex:1" placeholder="填豆包视觉模型 ID" value="${esc(S.data.settings.ai.visionModel||'')}">
+          </div>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">只用于识别材质、领型、版型、风格，约 0.001 元一张（基本可以忽略）。上传图片后自动跑，不用你点。</p>
+          <div class="seg-row" style="margin-top:10px"><div class="sk">生图模型（Seedream）</div>
+            <input id="aiImageModel" type="text" style="flex:1" placeholder="填 Seedream 生图模型 ID" value="${esc(S.data.settings.ai.imageModel||'')}">
+          </div>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">只用于「生成模特图」，一张约 0.1~1 元。必须你手动点按钮才会生成，不会自动扣钱。</p>
+          <div class="seg-row" style="margin-top:10px"><div class="sk">Access Key ID</div>
+            <input id="aiAkId" type="text" style="flex:1" placeholder="火山引擎 AK ID（可选，仅用于查余额）" value="${esc(S.data.settings.ai.accessKeyId||'')}">
+          </div>
+          <div class="seg-row"><div class="sk">Secret Access Key</div>
+            <input id="aiAkSecret" type="password" style="flex:1" placeholder="火山引擎 SK（可选，仅用于查余额）" value="${esc(S.data.settings.ai.secretAccessKey||'')}">
+          </div>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:4px">填了这两个才能在工具里查方舟余额。只填 API Key 查不了余额（方舟没开放这个接口）。AK/SK 在火山引擎控制台「访问控制 - API 访问密钥」里创建，只存在你自己浏览器里。</p>
+          <div class="seg-row" style="margin-top:10px"><div class="sk">图生图参考</div>
+            <label style="display:flex;align-items:center;gap:6px"><input id="aiImg2img" type="checkbox" ${S.data.settings.ai.img2img!==false?'checked':''}> 上传实拍图作为生成参考（更像你的衣服）</label>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn primary" id="aiSaveBtn">保存配置</button>
+            <button class="btn" id="aiTestBtn">测试连接</button>
+          </div>
+          <p style="font-size:12px;color:var(--ink-3);margin-top:12px">模型 ID 在火山方舟控制台「开通管理」里复制，形如 doubao-seedream-4-5-xxxx。填完先点「测试连接」，显示能用再回素材工坊生成，避免白扣钱。不填 Key 也能用：素材工坊里手动选标签，即梦提示词照样自动生成，拿去即梦免费出图。<br>方舟余额用完就去控制台充值，工具本身不代收任何费用。</p>
+        </div>
+      </div>
 
-        
-数据同步
-手机与电脑共用同一份数据
-        
+      <div class="card">
+        <div class="card-head"><h3>账号</h3></div>
+        <div class="card-body">
+          <div class="row"><button class="btn" id="logoutBtn2">退出登录</button>
+          <span style="font-size:12px;color:var(--ink-3)">口令暂不支持在线修改，如需重置请联系管理员清空服务器 data 目录。</span></div>
+        </div>
+      </div>
 
-          
-同步状态
-${S.syncState === 'ok' ? '已同步到云端' : '未同步'}
-${S.syncState === 'ok' ? '正常' : '注意'}
-          
-最近更新
-${d.updatedAt ? new Date(d.updatedAt).toLocaleString('zh-CN') : '—'}
-          
+      <div class="card">
+        <div class="card-head"><h3>数据来源说明</h3></div>
+        <div class="card-body" style="font-size:13px;color:var(--ink-2);line-height:1.9">
+          <div><b>当前版本</b>：手动录入 + 导入，零封店风险。每日数据从商家后台「数据中心」抄录，30 秒录完一家店。</div>
+          <div><b>为什么不做自动抓取</b>：插件抓取违反平台协议，有封店风险，且后台一改版就失效，不适合作为长期依赖。</div>
+          <div><b>以后可以接</b>：拼多多开放平台的订单/物流/商品接口，需要企业资质与应用审核；届时看板可以直接自动出数。</div>
+          <div><b>素材生成</b>：按毛衣类目的关键词规则生成，不联网、不上传你的图到第三方；生成结果按平台规则做过字数控制。</div>
+          <div><b>AI 模特图</b>：两条路都保留。免费路线 = 复制即梦提示词去即梦 AI 网页版出图；花钱路线 = 在素材工坊手动点「用火山方舟生成」，一张约 0.1~1 元，从方舟余额扣，不点不扣。上传图片后的材质识别约 0.001 元一张，自动跑。</div>
+        </div>
+      </div>
 
-            下载备份（JSON）
-            从备份恢复
-            
-          
-          
-建议每周下载一次备份。服务器重建后，用备份文件可以完整恢复店铺、商品、每日数据和素材库。
-        
-      
-
-      
-
-        
-AI 生图配置
-自动识别属性 + 手动生成模特图
-        
-
-          
-服务平台
-
-            
-              火山方舟（豆包识图 + Seedream 出图）
-              自定义（OpenAI 兼容接口）
-            
-          
-          
-API Key（密钥）
-
-            
-          
-          
-接口地址（Base URL）
-
-            
-          
-          
-识别模型（豆包视觉）
-
-            
-          
-          
-只用于识别材质、领型、版型、风格，约 0.001 元一张（基本可以忽略）。上传图片后自动跑，不用你点。
-          
-生图模型（Seedream）
-
-            
-          
-          
-只用于「生成模特图」，一张约 0.1~1 元。必须你手动点按钮才会生成，不会自动扣钱。
-          
-Access Key ID
-
-            
-          
-          
-Secret Access Key
-
-            
-          
-          
-填了这两个才能在工具里查方舟余额。只填 API Key 查不了余额（方舟没开放这个接口）。AK/SK 在火山引擎控制台「访问控制 - API 访问密钥」里创建，只存在你自己浏览器里。
-          
-图生图参考
-
-             上传实拍图作为生成参考（更像你的衣服）
-          
-          
-
-            保存配置
-            测试连接
-          
-          
-模型 ID 在火山方舟控制台「开通管理」里复制，形如 doubao-seedream-4-5-xxxx。填完先点「测试连接」，显示能用再回素材工坊生成，避免白扣钱。不填 Key 也能用：素材工坊里手动选标签，即梦提示词照样自动生成，拿去即梦免费出图。
-方舟余额用完就去控制台充值，工具本身不代收任何费用。
-        
-      
-
-      
-
-        
-账号
-        
-
-          
-退出登录
-          口令暂不支持在线修改，如需重置请联系管理员清空服务器 data 目录。
-        
-      
-
-      
-
-        
-数据来源说明
-        
-
-          
-当前版本：手动录入 + 导入，零封店风险。每日数据从商家后台「数据中心」抄录，30 秒录完一家店。
-          
-为什么不做自动抓取：插件抓取违反平台协议，有封店风险，且后台一改版就失效，不适合作为长期依赖。
-          
-以后可以接：拼多多开放平台的订单/物流/商品接口，需要企业资质与应用审核；届时看板可以直接自动出数。
-          
-素材生成：按毛衣类目的关键词规则生成，不联网、不上传你的图到第三方；生成结果按平台规则做过字数控制。
-          
-AI 模特图：两条路都保留。免费路线 = 复制即梦提示词去即梦 AI 网页版出图；花钱路线 = 在素材工坊手动点「用火山方舟生成」，一张约 0.1~1 元，从方舟余额扣，不点不扣。上传图片后的材质识别约 0.001 元一张，自动跑。
-        
-      
-
-      
-
-        
-素材库
-共 ${d.materials.length} 条
-        
-
-          
-
-            
-            ${S.libViewId ? `返回列表` : ''}
-          
-          ${S.libViewId ? renderMaterialDetail(d.materials.find((m) => m.id === S.libViewId)) : (d.materials.length ? `
-${filteredMaterials(d.materials, S.libSearch).map((m) => `
-            
-
-              
-              
-${esc(m.name)}${m.aiImages && m.aiImages.length ? `${m.aiImages.length}图` : ''}
-            
-`).join('')}
-${filteredMaterials(d.materials, S.libSearch).length === 0 && S.libSearch ? `
-没有匹配「${esc(S.libSearch)}」的素材
-` : ''}` : `
-素材工坊里点「保存到素材库」后，会出现在这里
-`)}
-        
-      
-    
-`;
+      <div class="card">
+        <div class="card-head"><h3>素材库</h3><span class="sub">共 ${d.materials.length} 条</span></div>
+        <div class="card-body">
+          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+            <input type="text" id="libSearchInput" placeholder="搜索：品类 / 颜色 / 风格 / 材质…" value="${esc(S.libSearch)}" style="flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--bg)">
+            ${S.libViewId ? `<button class="btn sm" id="libBack">返回列表</button>` : ''}
+          </div>
+          ${S.libViewId ? renderMaterialDetail(d.materials.find((m) => m.id === S.libViewId)) : (d.materials.length ? `<div class="canvas-grid">${filteredMaterials(d.materials, S.libSearch).map((m) => `
+            <div class="canvas-card" data-mat-id="${m.id}" style="cursor:pointer">
+              <img src="${m.imageUrl}" alt="${esc(m.name)}">
+              <div class="cc-foot"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</span>${m.aiImages && m.aiImages.length ? `<span style="color:var(--brand);font-size:11px;margin-left:6px">${m.aiImages.length}图</span>` : ''}</div>
+            </div>`).join('')}</div>${filteredMaterials(d.materials, S.libSearch).length === 0 && S.libSearch ? `<div class="tbl-empty">没有匹配「${esc(S.libSearch)}」的素材</div>` : ''}` : `<div class="tbl-empty">素材工坊里点「保存到素材库」后，会出现在这里</div>`)}
+        </div>
+      </div>
+    </div>`;
 }
 
 function bindSettings() {
@@ -3797,13 +3318,9 @@ function openImgViewer(url, label) {
   wrap.id = 'imgViewer';
   wrap.className = 'img-viewer';
   wrap.innerHTML = `
-    
-${esc(label || '查看大图')}关闭
-    
-
-    
-下载这张
-`;
+    <div class="iv-top"><span>${esc(label || '查看大图')}</span><button class="iv-close" type="button">关闭</button></div>
+    <div class="iv-body"><img src="${url}" alt="${esc(label || '')}"></div>
+    <div class="iv-foot"><a class="btn sm primary" href="${url}" download="${esc(label || '图片')}.png">下载这张</a></div>`;
   wrap.addEventListener('click', (e) => {
     if (e.target.closest('.iv-top') || e.target.closest('.iv-foot')) return;
     wrap.remove();
