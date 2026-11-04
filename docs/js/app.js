@@ -1668,7 +1668,7 @@ async function autoRecognize() {
   };
   tick();
   renderRoute();
-  bindRoute()
+  bindRoute();
   const timer = setInterval(tick, 1000);
   try {
     let r = null;
@@ -2233,13 +2233,15 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       setArkStatus(S.arkStatus);
       // 详情图是局部特写，不套用生活种草的半身构图和模特描述，免得又被带成一张半身照
       let prompt = job.prompt + '。' + styleInfo + (job.isDetail ? '' : '。' + arkFaceSpec(job.photoStyle) + '。' + arkPhotoTag(job.photoStyle));
-      // 颜色必须以这一张对应的颜色为准：参考图只借款式，颜色要重新上
+      // 颜色必须和参考图完全一致：颜色偏差是退货最大原因，任何提亮/降温/加暖/加饱和都算错
       if (job.color && job.color !== '图片所示颜色') {
-        prompt += `。这一张的衣服必须是「${job.color}」：参考图1只用来对照款式、版型、针织纹理、纽扣和口袋的位置，颜色不要照搬参考图，整件衣服（含领口、袖口、门襟、口袋）都要呈现${job.color}，颜色要准确、均匀、饱和自然；但纽扣保持参考图1原样：数量、大小、位置、排列顺序和每一颗的颜色都不变，彩色纽扣按原顺序还原，不能同色化、不能串色、不能增减`;
+        prompt += `。这一张的衣服颜色是「${job.color}」：参考图里这件衣服的这个颜色，色相、明度、饱和度都要照着还原，整件衣服（含领口、袖口、门襟、口袋）颜色完全一致、干净均匀，不要提亮、不要加暖调、不要偏冷、不要加深、不要出现渐变或色块不均；款式、版型、长度、口袋和口袋上的小装饰、针织纹理都照参考图不变；纽扣保持参考图原样：数量、大小、位置、排列顺序和每一颗的颜色都不变，彩色纽扣按原顺序还原，不能同色化、不能串色、不能增减`;
       } else {
-        prompt += '。颜色严格保持参考图1的原色，不要改色';
+        prompt += '。颜色严格保持参考图的原色和原明度，色相、明度、饱和度一点都不能改，不要提亮、不要加深、不要加暖调或冷调';
       }
-      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
+      // 环境光最容易把白毛衣染成米黄、把浅粉染成橘——衣服颜色必须是本色
+      prompt += '。衣服的颜色不受现场环境影响：即使场景是暖光、夕阳、黄灯或玻璃反光，衣服也要呈现参考图的真实颜色（白就是干净的白、粉就是粉、蓝就是蓝、紫就是紫、黑就是黑），不要被环境光染偏黄、偏橘、偏绿，不要整体加暖调滤镜';
+      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
       if (faceRef && !job.isDetail) {
         body.images = [garment, faceRef];
         prompt += '。参考图1 是服装图，只对照衣服的款式、版型、面料纹理、纽扣和口袋位置；参考图2 只是模特的脸部特写，只参考五官、脸型、发型、发色和妆容，绝对不要参考参考图2 的姿势、动作、构图、背景、光线角度和衣服';
@@ -2462,8 +2464,8 @@ function buildJimengPrompts(input, opts) {
   const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
   const forceColor = (opts && opts.forceColor) || '';
   const colorFix = forceColor
-    ? `；这张图的颜色必须是${forceColor}（如果参考图本身就是这个颜色，就照原图的深浅来）；颜色可以不同，但款式、版型、长度、门襟、口袋、纽扣和纹理必须100%照参考图，不能因为改颜色就改款`
-    : '，颜色深浅与原图一致';
+    ? `；这张图的颜色必须是${forceColor}，色相、明度、饱和度都按参考图里这个颜色还原，不许提亮、不许偏冷、不许偏暖；款式、版型、长度、门襟、口袋、纽扣和纹理必须100%照参考图，不能因为改颜色就改款`
+    : '；颜色、明度、饱和度必须和参考图完全一致，不许提亮、不许偏色';
   const buttonFix = '；纽扣必须和参考图完全一致：数量、大小、间距、位置、排列顺序都不变，参考图是彩色纽扣的（例如黄、蓝、粉、绿依次排列），要按原顺序保留每一种颜色，不能全部做成同色、不能串色、不能增减纽扣、不能换位置';
   const detailFix = '；参考图可能是同一款衣服多个颜色的拼图，请把每一块都当成同一件衣服，取其中看得最清楚的那一块对照细节：衣服长度和整体轮廓不变；门襟、领口、袖口、下摆的样式不变；两个口袋的位置、大小、形状和口袋边缘的细节不变；口袋上的小别针、小挂件、小标签、小刺绣等小装饰必须原样保留，一个都不能省略；针织纹理和绒感不变。只允许更换穿着的人、姿势和背景';
   const constraint = accessory
@@ -3268,34 +3270,13 @@ function gradePhoto(url) {
         c.width = W;
         c.height = H;
         const x = c.getContext('2d');
-        // 只做轻微、中性的提亮，不加暖橙滤镜，避免整批变成同一种 AI 色调
-        const lift = 1.02 + Math.random() * 0.04;
-        x.filter = `brightness(${lift.toFixed(2)}) saturate(1.02) contrast(1.01)`;
+        // 不调色：颜色必须和原图一致（退货大头是颜色不符），只做极轻颗粒，不动亮度/对比/饱和度/色相
         x.drawImage(img, 0, 0, W, H);
-        x.filter = 'none';
-        // 防比价：每张图加极轻微的随机色调和亮度偏移，保证像素级唯一
-        const randHue = (Math.random() - 0.5) * 3;
-        const randBri = 1 + (Math.random() - 0.5) * 0.02;
-        x.globalCompositeOperation = 'source-over';
-        x.filter = `hue-rotate(${randHue}deg) brightness(${randBri})`;
-        x.drawImage(c, 0, 0);
-        x.filter = 'none';
-        const b = document.createElement('canvas');
-        b.width = Math.max(1, Math.round(W / 5));
-        b.height = Math.max(1, Math.round(H / 5));
-        const bx = b.getContext('2d');
-        bx.filter = 'blur(6px) brightness(1.1)';
-        bx.drawImage(img, 0, 0, b.width, b.height);
-        x.globalCompositeOperation = 'screen';
-        x.globalAlpha = 0.04;
-        x.drawImage(b, 0, 0, W, H);
-        x.globalAlpha = 1;
-        x.globalCompositeOperation = 'source-over';
         // 极轻颗粒，避免过度磨皮的塑料感，同时不显粗糙
         const grain = x.getImageData(0, 0, W, H);
         const gd = grain.data;
         for (let i = 0; i < gd.length; i += 4) {
-          const n = (Math.random() - 0.5) * 8;
+          const n = (Math.random() - 0.5) * 5;
           gd[i] += n;
           gd[i + 1] += n;
           gd[i + 2] += n;
