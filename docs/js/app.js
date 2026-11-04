@@ -2250,7 +2250,7 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       }
       // 环境光最容易把白毛衣染成米黄、把浅粉染成橘——衣服颜色必须是本色
       prompt += '。衣服的颜色不受现场环境影响：即使场景是暖光、夕阳、黄灯或玻璃反光，衣服也要呈现参考图的真实颜色（白就是干净的白、粉就是粉、蓝就是蓝、紫就是紫、黑就是黑），不要被环境光染偏黄、偏橘、偏绿，不要整体加暖调滤镜';
-      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
+      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
       if (faceRef && !job.isDetail) {
         body.images = [garment, faceRef];
         prompt += '。参考图1 是服装图，只对照衣服的款式、版型、面料纹理、纽扣和口袋位置；参考图2 只是模特的脸部特写，只参考五官、脸型、发型、发色和妆容，绝对不要参考参考图2 的姿势、动作、构图、背景、光线角度和衣服';
@@ -2524,17 +2524,24 @@ function buildJimengPrompts(input, opts) {
     : '；颜色、明度、饱和度必须和参考图完全一致，不许提亮、不许偏色';
   const buttonFix = '；纽扣必须和参考图完全一致：数量、大小、间距、位置、排列顺序都不变，参考图是彩色纽扣的（例如黄、蓝、粉、绿依次排列），要按原顺序保留每一种颜色，不能全部做成同色、不能串色、不能增减纽扣、不能换位置';
   const pocketFix = '；口袋只存在于衣服正面的两侧，绝对不能画到背面、肩部、袖子背面或侧面；从背面拍时，背面必须是干净的、没有口袋也没有门襟和纽扣（除非参考图背面本来就有口袋）；不管什么角度，口袋的数量和左右位置都不变';
+  const knit = /针织|毛衣|开衫|腈纶|聚酯|涤纶|锦纶|羊毛|羊绒|棉/.test(String(materials) + String(category) + String(crafts));
+  const fabricFix = knit
+    ? '；这是针织类毛衣，面料必须是细密、平整的针织表面：能看到一列列清晰细密的针脚和平针/罗纹纹理，织物表面紧实、不蓬松、不厚；绝对不要做成毛呢、羊毛呢、抓绒、羊羔绒、泰迪绒、颗粒绒那种厚而蓬松的毛面材质，也不要做成棉服/羽绒/摇粒绒的质感'
+    : '';
+  const whiteFix = /白/.test(String(forceColor))
+    ? '；这件是白色系，必须是接近纯白的极浅白：不能偏米色、不能偏燕麦色、不能偏卡其、不能偏驼色、不能偏黄，最亮处要接近纯白，整件颜色干净一致'
+    : '';
   const detailFix = '；参考图可能是同一款衣服多个颜色的拼图，请把每一块都当成同一件衣服，取其中看得最清楚的那一块对照细节：衣服长度和整体轮廓不变；门襟、领口、袖口、下摆的样式不变；两个口袋的位置、大小、形状和口袋边缘的细节不变；口袋上的小别针、小挂件、小标签、小刺绣等小装饰必须原样保留，一个都不能省略；针织纹理和绒感不变。只允许更换穿着的人、姿势和背景';
   const constraint = accessory
-    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}${pocketFix}${detailFix}，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
-    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}${pocketFix}${detailFix}；只改变穿着的人和场景`;
+    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${whiteFix}${fabricFix}${buttonFix}${pocketFix}${detailFix}，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${whiteFix}${fabricFix}${buttonFix}${pocketFix}${detailFix}；只改变穿着的人和场景`;
 
   // 画质约束：核心是具体相机 + 真实光线 + 胶片颗粒，去 AI 味
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
   const useLife = true;
   const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
-  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features';
-  const quality = `${CAMERA}; 自然光下的真实随手拍，画面明亮通透、曝光充足，不要欠曝、不要整体发灰发闷、不要把背景压暗；衣服本身必须是整个画面里最亮的部分，人物脸部也要有光，不发白、不套滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；毛绒针织绒感自然、能看到纤维走向；${NEG}`;
+  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter';
+  const quality = `${CAMERA}; 自然光下的真实随手拍，画面明亮通透、曝光充足，不要欠曝、不要整体发灰发闷、不要把背景压暗；衣服本身必须是整个画面里最亮的部分，人物脸部也要有光，不发白、不套滤镜；白平衡中性，不要整体偏黄、偏橙的暖调滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；面料纹理真实：针织要能看到清晰细密的针脚和平针/罗纹走向，表面紧实平整、不蓬松不厚；${NEG}`;
 
   // 防比价：让主图/商品图在构图结构上与常见同款图不同，平台的同款识别置信度会降下来
   // 参考实测：换角度 + 商品被遮挡约 1/3 + 换个背景结构，主图防比价率可到 95%
