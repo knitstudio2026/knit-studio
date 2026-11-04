@@ -1251,6 +1251,7 @@ function renderStudioResult() {
                   <option value="auto" ${(S.arkCounts.photoStyle || 'auto') === 'auto' ? 'selected' : ''}>自动随机（每款统一风格）</option>
                   <option value="flatlay" ${S.arkCounts.photoStyle === 'flatlay' ? 'selected' : ''}>全平铺挂拍（无模特）</option>
                   <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>全素人模特随手拍</option>
+                  <option value="whitebg" ${S.arkCounts.photoStyle === 'whitebg' ? 'selected' : ''}>纯白棚拍（高调白底，素人脸）</option>
                 </select>
               </label>
             </div>
@@ -1738,7 +1739,7 @@ function arkLightSetup() {
   return S.arkLight;
 }
 function arkFaceSpec(style) {
-  const studio = (style || S.arkCounts.photoStyle || 'blend') === 'studio';
+  const studio = ['studio', 'whitebg'].includes(style || S.arkCounts.photoStyle || 'blend');
   const quality = studio
     ? '真实素人感，不是网红脸：五官自然，左右脸有轻微不对称，眼睛大小正常，鼻子和嘴唇不追求完美；底妆轻薄接近素颜，保留真实皮肤纹理、细小毛孔和轻微肤色不均，不要水光肌不要假睫毛不要浓眼线；头发自然，有几根碎发，发色按身份描述'
     : FACE_QUALITY;
@@ -1819,7 +1820,8 @@ async function swapGenerate() {
   bindRoute();
 }
 
-const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机后置主摄 __LENS__ 拍摄，有细微胶片颗粒；中景偏半身构图、镜头略微后退，人物和毛衣占画面 60%~75%，头部上方留出空间、不要把脸顶到画面顶部，裤子只露一点，不拍全身不拍鞋；背景是真实生活场景的自然浅景深，近处墙面桌椅窗框绿植能看出形状和材质，远处逐渐柔化，不是糊成一片奶油；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；毛衣毛绒蓬松柔软、绒感清晰可见，面料干净平整没有起球脏旧，有自然褶皱和厚度，纽扣质感真实；模特表情自然放松、像朋友随手抓拍的一瞬间，构图略微不完美；头发哑光自然、有碎发和层次；只出现两只手、五指数量正确、手指结构自然；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要过度磨皮、不要塑料感、不要海报感、不要插画或 3D 渲染感、不要暖橙滤镜';
+const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机后置主摄 __LENS__ 拍摄，有细微胶片颗粒；中景偏半身构图、镜头略微后退，人物和毛衣占画面 60%~75%，头部上方留出空间、不要把脸顶到画面顶部，裤子只露一点，不拍全身不拍鞋；背景是真实生活场景的自然浅景深，近处墙面桌椅窗框绿植能看出形状和材质，远处逐渐柔化，不是糊成一片奶油；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；针织纹理清楚：针脚细密平整、罗纹或平针走向清晰可见，表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度，纽扣质感真实；模特表情自然放松、像朋友随手抓拍的一瞬间，构图略微不完美；头发哑光自然、有碎发和层次；只出现两只手、五指数量正确、手指结构自然；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要过度磨皮、不要塑料感、不要海报感、不要插画或 3D 渲染感、不要暖橙滤镜';
+const ARK_PHOTO_WHITE = '纯白无缝背景棚拍、像正规品牌白底主图：大面积柔光箱均匀打的明亮高调光，光线柔和均匀，没有强烈方向光、没有窗影、没有环境色反射，模特脸上和衣服上没有刺眼高光斑；50mm 人像镜头、全身构图，头顶到脚完整入镜，头顶上方留白约画面高度的八分之一，脚下只有一层极淡柔和投影；背景干净到接近纯白，画面里没有任何道具、家具、植物、装饰和文字；皮肤有真实质感：可见毛孔、细纹、轻微肤色不均和小雀斑，不是磨皮不是塑料不是水光肌；针织纹理清楚：针脚细密平整、罗纹或平针走向清晰可见，表面紧实不蓬松，不起球不脏旧；模特姿态放松不摆拍、表情自然，构图略微不完美；中性白平衡、低饱和、低对比、加一点胶片颗粒，不要暖黄调不要 HDR；服装颜色必须和参考图一致、不被灯光染偏；无水印、无文字、无 logo；不要过度磨皮、不要海报精修感、不要插画或 3D 渲染感';
 
 // 每个商品随机一位模特（脸型/发型/身高/年纪都不同），同一商品的各颜色仍共用同一张脸
 const ARK_IDENTITIES = [
@@ -2107,14 +2109,16 @@ function arkAccOpts() {
 // 画质收尾语：按「出图风格」选生活种草或白底影棚；开了「不带装饰」时去掉「装饰与原图一致」
 function arkPhotoTag(style) {
   const mode = style || S.arkCounts.photoStyle || 'blend';
-  const life = mode !== 'studio';
+  const life = mode !== 'studio' && mode !== 'whitebg';
   // 光位保持统一，镜头和白平衡每张略变，避免整批像同一张图复制出来的
   const lens = ARK_LENSES[Math.floor(Math.random() * ARK_LENSES.length)];
-  let s = life
-    ? ARK_PHOTO_LIFE
+  let s = mode === 'whitebg'
+    ? ARK_PHOTO_WHITE
+    : life
+      ? ARK_PHOTO_LIFE
         .replace('__LIGHT__', arkLightSetup())
         .replace('__LENS__', lens)
-    : ARK_PHOTO_STUDIO;
+      : ARK_PHOTO_STUDIO;
   if (mode === 'blend') {
     s += '；这张图要同时兼顾生活氛围和商品可售质感：衣服是绝对主体，正面或半侧面朝向镜头、版型完整，占画面 65%~80%，针织纹理、绒感、纽扣、走线都清晰可辨；背景生活化但简洁、不杂乱不抢主体；像真实店铺拍的高质量买家秀，不是海报不是精修大片';
   }
@@ -2148,7 +2152,7 @@ function arkBuildJobs() {
     batchMode = Math.random() < 0.5 ? 'flatlay' : 'lifestyle';
   }
   // 首图构图策略：每款只抽一种，同款各颜色共用；最近几款用过的策略排到后面，避免连着几款都是同一个姿势
-  const heroTotal = batchMode === 'flatlay' ? HERO_FLAT.length : HERO_MODEL.length;
+  const heroTotal = batchMode === 'flatlay' ? HERO_FLAT.length : (batchMode === 'whitebg' ? WHITE_HERO.length : HERO_MODEL.length);
   const recentHero = Array.isArray(S.arkRecentHero) ? S.arkRecentHero : [];
   let heroType = Math.floor(Math.random() * heroTotal);
   for (let t = 0; t < heroTotal; t++) {
@@ -2491,6 +2495,17 @@ const HERO_FLAT = [
   '衣服旁边放一把软尺或一张手写便签做尺寸参考，衣服平铺但摆放角度偏斜，不是标准商品图',
   '衣服搭在楼梯扶手上，两只袖子向下垂落，楼梯的斜线和扶手一起入镜'
 ];
+// 纯白棚拍首图策略：没有道具、没有场景，只靠站位和机位制造差异（对标大牌白底主图）
+const WHITE_HERO = [
+  '全身构图，模特站在画面偏左三分之一处，右侧留出大片纯白空白',
+  '全身构图，模特站在画面偏右三分之一处，左侧留出大片纯白空白',
+  '全身构图，机位略低（大约膝盖高度）轻微仰拍，模特显得修长',
+  '全身构图，机位略高轻微俯拍，脚尖靠近画面下边缘，上方留白多',
+  '全身构图，模特侧身四分之三面对镜头、重心落在一条腿上，一只手抬起整理头发',
+  '全身构图，模特一只手臂向上抬起、另一只手自然下垂，身体略微扭转，像在伸展',
+  '从膝盖以上取景的半全身构图，画面顶部留白多，衣服占画面比例更大',
+  '全身构图，模特正面站立、双手自然下垂但肩膀一高一低，姿态放松不摆拍'
+];
 
 // 根据标签生成即梦 AI 专用提示词（图生图，以上传的服装图为参考）
 function buildJimengPrompts(input, opts) {
@@ -2540,7 +2555,7 @@ function buildJimengPrompts(input, opts) {
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
   const useLife = true;
   const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
-  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter';
+  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter, no airbrushed skin, no beauty filter, no perfectly symmetrical face, no HDR look';
   const quality = `${CAMERA}; 自然光下的真实随手拍，画面明亮通透、曝光充足，不要欠曝、不要整体发灰发闷、不要把背景压暗；衣服本身必须是整个画面里最亮的部分，人物脸部也要有光，不发白、不套滤镜；白平衡中性，不要整体偏黄、偏橙的暖调滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；面料纹理真实：针织要能看到清晰细密的针脚和平针/罗纹走向，表面紧实平整、不蓬松不厚；${NEG}`;
 
   // 防比价：让主图/商品图在构图结构上与常见同款图不同，平台的同款识别置信度会降下来
@@ -2567,11 +2582,14 @@ function buildJimengPrompts(input, opts) {
     const s = ANTI_STRUCT[idx % ANTI_STRUCT.length];
     return `；这张图的构图要与常见同款商品图明显不同：${s}。不要正面居中的标准商品图，构图和背景都不能和参考图或常见同款图重复`;
   };
-  // 链接第 1 张主图：从模块级「首图构图策略池」抽一种，同款各颜色共用同一种，不同款换着来
+  // 链接第 1 张主图：从策略池抽一种，同款各颜色共用同一种，不同款换着来
   const heroOn = !!(opts && opts.heroShot && opts.antiCompare);
-  const heroIdx = (opts && opts.heroType != null) ? Number(opts.heroType) : Math.floor(Math.random() * HERO_MODEL.length);
+  const heroPool = photoMode === 'whitebg' ? WHITE_HERO : (photoMode === 'flatlay' ? HERO_FLAT : HERO_MODEL);
+  const heroIdx = (opts && opts.heroType != null) ? Number(opts.heroType) : Math.floor(Math.random() * heroPool.length);
   const heroClause = heroOn
-    ? `；这张是链接第 1 张主图：${HERO_MODEL[heroIdx % HERO_MODEL.length]}。衣服的领口、门襟、纽扣、口袋和口袋上的小装饰必须清楚可见，不能因为这个姿势而丢失细节；除了上面描述的构图，不要再额外裁切或遮挡衣服；靠机位高度、背景和陈设的不同来制造差异`
+    ? (photoMode === 'whitebg'
+      ? `；这张是链接第 1 张主图：${heroPool[heroIdx % heroPool.length]}。衣服的领口、门襟、纽扣、口袋和口袋上的小装饰必须清楚可见，不能因为构图丢失细节；背景必须保持纯白干净`
+      : `；这张是链接第 1 张主图：${heroPool[heroIdx % heroPool.length]}。衣服的领口、门襟、纽扣、口袋和口袋上的小装饰必须清楚可见，不能因为这个姿势而丢失细节；除了上面描述的构图，不要再额外裁切或遮挡衣服；靠机位高度、背景和陈设的不同来制造差异`)
     : '';
 
   const base = (model, scene, antiIdx) => {
@@ -2641,8 +2659,8 @@ function buildJimengPrompts(input, opts) {
     lifeVariants.push({
       name: `生活种草图 ${i + 1}（${style0}）`,
       prompt: base(
-        `一位年轻的东亚女生（中国女生面孔），皮肤白皙干净，干净清爽的素人气质，不是网红脸；五官自然、左右脸略有差别、眼睛大小正常、鼻梁不高不矮；素颜感，几乎看不出化妆，自然唇色，没有浓眼线没有假睫毛，皮肤有真实毛孔和细微绒毛、轻微肤色不均；${st[0]}；发色、发型、脸型严格按模特身份描述来，不要一律做成微卷长发加空气刘海`,
-        `${shot}，${pose}，${scene}，${acc}，${expr}，裤子只露出一点，不要全身、不要拍到鞋子`,
+        `一位年轻的东亚女生（中国女生面孔），皮肤白皙干净，干净清爽的素人气质，不是网红脸；脸型不是标准鹅蛋脸、左右脸略有差别、下颌线略方或略圆；眼睛大小正常且两只不完全一样大、鼻梁不高不矮；素颜感，几乎看不出化妆，自然唇色，没有浓眼线没有假睫毛没有美瞳，皮肤有真实毛孔、细纹、轻微肤色不均和小雀斑；${st[0]}；发色、发型、脸型严格按模特身份描述来，不要一律做成微卷长发加空气刘海`,
+        `${shot}，${pose}，${scene}，${acc}，${expr}，裤子只露出一点，不要全身、不要拍到鞋子。背景必须是真实存在的实景，不是虚化背景板也不是假布景，背景里的物件要有真实的阴影、反光和轻微杂乱，不要那种一眼假的干净棚景`,
         start + i
       )
     });
@@ -2729,10 +2747,28 @@ function buildJimengPrompts(input, opts) {
     };
   });
 
+  /* ===== 纯白棚拍：对标大牌白底主图，去 AI 味的核心是「脸真实 + 背景干净到没有信息 + 低饱和低对比」 ===== */
+  const WHITE_POSES = [
+    '全身站立，双手自然垂在身侧，肩膀放松、不摆拍',
+    '全身站立，一只手轻搭在腰侧，另一只手自然垂下',
+    '全身站立，一只手臂向上抬起、另一只手自然下垂，身体略微扭转，像在伸展',
+    '全身站立，侧身四分之三面对镜头、重心落在一条腿上',
+    '全身站立，一只手整理头发或耳侧，视线看向镜头',
+    '全身站立，双手插在上衣或裤子口袋里，肩线自然下沉'
+  ];
+  const realFaceText = '一位年轻的东亚女生（中国女生面孔），素人长相、不是网红脸不是模特脸：脸型不是标准鹅蛋脸、左右脸有轻微不对称、下颌线略方或略圆、鼻子有真实鼻梁、眼睛大小正常且两只不完全一样大；几乎不化妆，只涂一点自然唇色，没有浓眼线没有假睫毛没有美瞳；皮肤有真实毛孔、细纹、轻微肤色不均和小雀斑，不磨皮、不美颜、不做塑料高光；头发有真实的毛躁碎发，发际线自然';
+  const whiteVariants = Array.from({ length: Math.max(2, count) }, (_, i) => ({
+    name: `纯白棚拍 ${i + 1}`,
+    prompt: `纯白色无缝摄影棚背景：没有任何道具、家具、植物、装饰或文字，背景干净到接近纯白，地面上只有一层极淡、非常柔和的投影。${realFaceText}，穿着${garment}；${WHITE_POSES[i % WHITE_POSES.length]}，全身构图，头顶上方留白约画面高度的八分之一，头顶到脚完整入镜，脚上穿简单的白色或裸色平底鞋。画面整体是大面积柔光箱的均匀高调光：明亮、柔和、没有强烈方向光、没有窗影、没有环境色反射，模特脸上和衣服上没有刺眼的高光斑。photorealistic, shot on Canon EOS R5, 50mm f/2.8, large softbox high-key lighting, neutral white balance, low contrast, low saturation, subtle film grain, not airbrushed；调色像手机直出：低饱和、低对比、不加滤镜、不做 HDR、不做暖黄调；皮肤保留真实毛孔和细纹；衣服颜色必须和参考图完全一致，不受灯光影响；${NEG}。${constraint}${antiClause(start + i)}${heroClause}。`,
+    isWhite: true
+  }));
+
   const useFlat = photoMode === 'flatlay';
   let variants;
   if (useFlat) {
     variants = flatVariants.slice(0, count);
+  } else if (photoMode === 'whitebg') {
+    variants = whiteVariants.slice(0, count);
   } else {
     variants = useLife ? lifeVariants : studioVariants.slice(0, count);
   }
