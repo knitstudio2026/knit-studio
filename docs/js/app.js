@@ -1271,7 +1271,7 @@ function renderStudioResult() {
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
               <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
                 <input type="checkbox" id="arkAntiCompare" ${S.arkCounts.antiCompare ? 'checked' : ''}>
-                防比价模式（换角度/遮挡1/3/换构图，让平台认不出是同款）
+                防比价模式（强干扰：每张重构图 + 首图侧身回望 + SKU/标题全随机）
               </label>
             </div>
             <div style="font-size:12px;color:var(--ink-3);line-height:1.6;margin:-4px 0 10px">
@@ -2255,7 +2255,8 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       });
       const raw = r.dataUrl || r.url;
       if (!raw) throw new Error('方舟没返回图片');
-      const url = await gradePhoto(raw);
+      let url = await gradePhoto(raw);
+      if (S.arkCounts.antiCompare) url = await antiShift(url);
       if (!S.arkFaceRef && !job.isDetail && job.photoStyle === 'lifestyle') S.arkFaceRef = url;
       S.studioAiImages.unshift({ url, label: job.label });
       cacheImageNow(url);
@@ -2502,7 +2503,7 @@ function buildJimengPrompts(input, opts) {
   // 链接第 1 张主图单独加码：半侧面 + 换机位/背景/陈设，但衣服必须完整可见（细节不能丢）
   const heroOn = !!(opts && opts.heroShot && opts.antiCompare);
   const heroClause = heroOn
-    ? '；这张是链接第 1 张主图：模特侧身约 45° 半侧面站立或坐、身体不正对镜头，但衣服必须完整入镜（从领口到下摆、两个口袋和口袋上的小装饰都看得见），靠机位高度、背景和陈设的不同来制造差异，不要把衣服裁掉或被前景遮挡；不要正对镜头的正面站姿商品图'
+    ? '；这张是链接第 1 张主图：模特身体侧向约 40°（肩膀斜对镜头），头转回来看向镜头，这样既能看到衣服的侧面轮廓和大部分正面，也完全不是同行那种正面直立的商品图；衣服必须完整入镜（从领口到下摆、两个口袋和口袋上的小装饰都看得见），靠机位高度、背景和陈设的不同来制造差异，不要把衣服裁掉或被前景遮挡；不要正对镜头的正面站姿商品图，也不要侧到看不见衣服主体'
     : '';
 
   const base = (model, scene, antiIdx) => {
@@ -3282,6 +3283,45 @@ function gradePhoto(url) {
           gd[i + 2] += n;
         }
         x.putImageData(grain, 0, 0);
+        resolve(c.toDataURL('image/jpeg', 0.94));
+      } catch (_) {
+        resolve(url);
+      }
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
+
+/* 防比价结构扰动：随机裁边 + 轻微旋转 + 重新构图。
+   图片指纹（pHash/直方图）会明显变化，但衣服本身、颜色、细节都不改，人眼也看不出异常。 */
+function antiShift(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const W = img.naturalWidth;
+        const H = img.naturalHeight;
+        const c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const x = c.getContext('2d');
+        x.fillStyle = '#ffffff';
+        x.fillRect(0, 0, W, H);
+        // 四边各随机裁掉 1.5%~4%，构图重心整体改变
+        const cutL = W * (0.015 + Math.random() * 0.025);
+        const cutR = W * (0.015 + Math.random() * 0.025);
+        const cutT = H * (0.015 + Math.random() * 0.025);
+        const cutB = H * (0.015 + Math.random() * 0.025);
+        const sw = W - cutL - cutR;
+        const sh = H - cutT - cutB;
+        const ang = (Math.random() * 2 - 1) * 1.6 * Math.PI / 180;
+        const k = Math.max(W / sw, H / sh) * 1.06;
+        x.save();
+        x.translate(W / 2, H / 2);
+        x.rotate(ang);
+        x.drawImage(img, cutL, cutT, sw, sh, -sw * k / 2, -sh * k / 2, sw * k, sh * k);
+        x.restore();
         resolve(c.toDataURL('image/jpeg', 0.94));
       } catch (_) {
         resolve(url);
