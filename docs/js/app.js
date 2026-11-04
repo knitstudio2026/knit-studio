@@ -71,7 +71,7 @@ const S = {
   libSearch: '',          // 素材库搜索关键词
   libViewId: null,        // 素材库当前查看的素材 ID
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
-  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto', antiCompare: true, skuPer: 1 },
+  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto', antiCompare: true },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -1240,13 +1240,9 @@ function renderStudioResult() {
                 <input type="checkbox" id="arkAntiCompare" ${S.arkCounts.antiCompare ? 'checked' : ''}>
                 防比价模式（换角度/遮挡1/3/换构图，让平台认不出是同款）
               </label>
-              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
-                <input type="checkbox" id="arkSkuImg" ${S.arkCounts.skuPer ? 'checked' : ''}>
-                每个颜色多出 1 张 SKU 图（防比价必做）
-              </label>
             </div>
             <div style="font-size:12px;color:var(--ink-3);line-height:1.6;margin:-4px 0 10px">
-              防比价原理：平台会比对主图、SKU图、SKU文字（权重最高）、标题、属性，相同特征超阈值就判同款、报活动被压价。开启后每张图构图/角度/遮挡都不同，SKU 文字也做变体，报活动不易被卡。<br>
+              防比价原理：平台会比对主图、SKU图、SKU文字（权重最高）、标题、属性，相同特征超阈值就判同款、报活动被压价。SKU 图直接用生成好的主图就行，不用另外花钱生成；SKU 文字会自动做变体。<br>
               新品标（服装类目有效期 30 天）：需店铺近 90 天 DSR 三项高于同行，且属性填全、图片原创，由平台自动判定，无法手动报名。
             </div>
             <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
@@ -1581,8 +1577,6 @@ function bindStudio() {
   if (arkNoAcc) arkNoAcc.onchange = () => { S.arkCounts.noAccessory = arkNoAcc.checked; };
   const arkAnti = $('#arkAntiCompare');
   if (arkAnti) arkAnti.onchange = () => { S.arkCounts.antiCompare = arkAnti.checked; S.studioInput.antiCompare = arkAnti.checked; };
-  const arkSkuImg = $('#arkSkuImg');
-  if (arkSkuImg) arkSkuImg.onchange = () => { S.arkCounts.skuPer = arkSkuImg.checked ? 1 : 0; };
   const arkPhotoStyle = $('#arkPhotoStyle');
   if (arkPhotoStyle) arkPhotoStyle.onchange = () => { S.arkCounts.photoStyle = arkPhotoStyle.value; };
   const arkAccList = $('#arkAccList');
@@ -2140,13 +2134,6 @@ function arkBuildJobs() {
     }
     const dv = buildJimengDetailPrompts(ci, Object.assign({}, accOpts, { forceColor: fc }));
     for (let i = 0; i < detailPer; i++) jobs.push({ color, label: `${color} 详情图 ${i + 1}`, isDetail: true, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
-    const skuPer = Number(S.arkCounts.skuPer) || 0;
-    if (skuPer) {
-      const sv = buildJimengSkuPrompts(ci, { forceColor: fc });
-      for (let i = 0; i < skuPer; i++) {
-        jobs.push({ color, label: `${color} SKU图`, isSku: true, prompt: sv[(colorIdx + i) % sv.length].prompt + accNote });
-      }
-    }
     startIdx += mainPer;
   });
   if (S.arkCounts.simpleSku) {
@@ -2208,17 +2195,16 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       phase = `正在生成第 ${doneBase + i + 1}/${doneBase + total} 张（${job.label}）`;
       S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
-      // 详情图是局部特写、SKU 图是无模特商品图：都不套用生活种草的半身构图和模特描述
-      const noModel = job.isDetail || job.isSku;
-      let prompt = job.prompt + '。' + styleInfo + (noModel ? '' : '。' + arkFaceSpec(job.photoStyle) + '。' + arkPhotoTag(job.photoStyle));
+      // 详情图是局部特写，不套用生活种草的半身构图和模特描述，免得又被带成一张半身照
+      let prompt = job.prompt + '。' + styleInfo + (job.isDetail ? '' : '。' + arkFaceSpec(job.photoStyle) + '。' + arkPhotoTag(job.photoStyle));
       // 颜色必须以这一张对应的颜色为准：参考图只借款式，颜色要重新上
       if (job.color && job.color !== '图片所示颜色') {
         prompt += `。这一张的衣服必须是「${job.color}」：参考图1只用来对照款式、版型、针织纹理、纽扣和口袋的位置，颜色不要照搬参考图，整件衣服（含领口、袖口、门襟、口袋）都要呈现${job.color}，颜色要准确、均匀、饱和自然；但纽扣保持参考图1原样：数量、大小、位置、排列顺序和每一颗的颜色都不变，彩色纽扣按原顺序还原，不能同色化、不能串色、不能增减`;
       } else {
         prompt += '。颜色严格保持参考图1的原色，不要改色';
       }
-      const body = { prompt, size: job.isSku ? '1024x1024' : '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
-      if (faceRef && !noModel) {
+      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
+      if (faceRef && !job.isDetail) {
         body.images = [garment, faceRef];
         prompt += '。参考图1 是服装图，只对照衣服的款式、版型、面料纹理、纽扣和口袋位置；参考图2 只是模特的脸部特写，只参考五官、脸型、发型、发色和妆容，绝对不要参考参考图2 的姿势、动作、构图、背景、光线角度和衣服';
         body.prompt = prompt;
@@ -2232,7 +2218,7 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       const raw = r.dataUrl || r.url;
       if (!raw) throw new Error('方舟没返回图片');
       const url = await gradePhoto(raw);
-      if (!S.arkFaceRef && !noModel && job.photoStyle === 'lifestyle') S.arkFaceRef = url;
+      if (!S.arkFaceRef && !job.isDetail && job.photoStyle === 'lifestyle') S.arkFaceRef = url;
       S.studioAiImages.unshift({ url, label: job.label });
       cacheImageNow(url);
       done += 1;
@@ -2669,39 +2655,7 @@ function buildJimengDetailPrompts(input, opts) {
   ];
 }
 
-// SKU 图：每个颜色一张，角度和构图各不相同（SKU 图是平台比价的重点项，同款图会被直接判同款）
-function buildJimengSkuPrompts(input, opts) {
-  const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
-  const category = input.category || '毛衣';
-  const materials = (input.materials && input.materials.length) ? input.materials.join('、') : '';
-  const neck = input.neck || '';
-  const fit = input.fit || '';
-  let garment = `${colors}的${category}`;
-  const desc = [];
-  if (materials) desc.push(`材质为${materials}`);
-  if (neck) desc.push(`${neck}设计`);
-  if (fit) desc.push(`${fit}版型`);
-  if (desc.length) garment += '，' + desc.join('，');
-
-  const forceColor = (opts && opts.forceColor) || '';
-  const colorFix = forceColor
-    ? `；颜色必须做成${forceColor}，参考图只对照款式、版型、针织纹理和纽扣位置，颜色不要照搬原图`
-    : '，颜色深浅与原图一致';
-  const constraint = `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}；纽扣的颜色、数量、大小、位置和排列顺序必须与参考图完全一致`;
-  const quality2 = 'photorealistic, shot on Canon EOS R5, 50mm f/2.8 lens, soft natural daylight, neutral white balance, subtle film grain, sharp fabric texture; 真实实拍质感；no plastic texture, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look';
-  const angles = [
-    '衣服平铺在浅米色台面上，正面略微俯拍，主体占画面约 90%，背景干净',
-    '衣服斜向 45° 平铺在浅灰色台面上，只拍上半部分，下摆被画面边缘裁掉一部分',
-    '衣服挂在窄木衣架上，侧面 45° 拍摄，背景是浅灰纯色墙面，光线柔和',
-    '衣服叠放，只露出领口和前半身，紧凑俯拍构图，旁边放一小束干花'
-  ];
-  return angles.map((a, i) => ({
-    name: `SKU图 ${i + 1}`,
-    prompt: `${a}，一件${garment}。${constraint}。${quality2}。画面里不能出现人、人脸、手或任何身体部位，只有衣服和道具。`
-  }));
-}
-
-
+// 即梦「图生视频」提示词（拼多多主图小视频，5~10 秒，1:1）
 function buildJimengVideoPrompts(input) {
   const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
   const category = input.category || '毛衣';
@@ -3019,7 +2973,7 @@ function renderMaterialDetail(m) {
 function viewSettings() {
   const d = S.data;
   return `
-    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1154a</p></div></div>
+    <div class="page-head"><div><h2>设置</h2><p>数据、备份、使用说明 · 当前版本 v1155a</p></div></div>
     <div class="stack">
       <div class="card">
         <div class="card-head"><h3>数据同步</h3><span class="sub">手机与电脑共用同一份数据</span></div>
