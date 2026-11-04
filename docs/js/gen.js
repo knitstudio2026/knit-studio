@@ -257,21 +257,36 @@ export function makeSkus(input) {
   // 防比价：给每个颜色随机一个别名后缀，SKU 规格名不和同行撞
   const colorAlias = {
     燕麦色: ['燕麦奶', '杏奶茶', '米杏色', '燕麦奶白'],
-    奶白色: ['奶油白', '云朵白', '象牙白', '糯米白'],
+    奶白色: ['奶油白', '云朵白', '象牙白', '糯米白', '本白'],
+    米白色: ['米白', '本白', '象牙白', '生椰白', '原色白'],
     雾霾蓝: ['灰雾蓝', '雾感蓝', '烟灰蓝', '雾霾灰蓝'],
     奶茶色: ['焦糖奶', '棕奶茶', '拿铁棕', '奶茶棕'],
     焦糖色: ['焦糖棕', '红棕焦糖', '太妃糖', '焦糖橘'],
     墨绿色: ['森林绿', '复古墨绿', '暗松绿', '墨松绿'],
     藏青色: ['深海蓝', '藏青蓝', '暗夜蓝', '深蓝藏青'],
-    黑色: ['经典黑', '炭黑', '暗夜黑', '纯黑'],
+    黑色: ['经典黑', '炭黑', '暗夜黑', '纯黑', '曜石黑'],
     灰色: ['云雾灰', '高级灰', '烟灰', '浅麻灰'],
     粉色: ['樱花粉', '蜜桃粉', '奶油粉', '雾粉'],
+    浅粉色: ['浅樱粉', '柔粉', '雾面粉', '淡粉', '奶油浅粉'],
+    浅蓝色: ['雾蓝', '天青蓝', '冰川蓝', '淡蓝', '浅雾蓝'],
+    浅紫色: ['丁香紫', '雾紫', '薰衣草紫', '淡紫', '香芋紫'],
+    浅黄色: ['奶油黄', '鹅黄', '淡黄', '香草黄', '浅奶黄'],
     浅杏色: ['浅杏奶', '杏色', '奶茶杏', '裸杏色'],
     酒红色: ['复古酒红', '勃艮第红', '暗酒红', '车厘子红']
   };
-  const randomSuffix = () => String(Math.floor(Math.random() * 900) + 100);
-  // SKU 文字是比价权重最高的一项（实测权重 70%+）：尺码写法做变体 + 追加真实卖点后缀，避免和同行 SKU 完全一致
+  // 表里没有的颜色：用同义前缀生成，保证描述依然准确（浅X色 → 浅X/淡X/柔X）
   const anti = input.antiCompare !== false;
+  const aliasOf = (c) => {
+    if (colorAlias[c]) return colorAlias[c][Math.floor(Math.random() * colorAlias[c].length)];
+    if (!anti) return c;
+    const base = c.replace(/^(浅|淡|深|亮|嫩)/, '').replace(/\s/g, '');
+    const head = /^(浅|淡|嫩|亮)/.test(c) ? c.replace(/\s/g, '') : '';
+    const core = base.replace(/色$/, '');
+    const variants = [c, core, '柔' + core, '淡' + core, (head ? head : '') + core];
+    return variants[Math.floor(Math.random() * variants.length)] || c;
+  };
+  const randomSuffix = () => String(Math.floor(Math.random() * 900) + 100);
+  // SKU 文字是比价权重最高的一项（实测 70%+）：颜色名、尺码写法、分隔符、卖点前后缀全部随机，避免和同行撞
   const sizeText = (s) => {
     if (!anti) return `${s}码`;
     const t = ['码', '碼', '号', '號', ''][Math.floor(Math.random() * 5)];
@@ -279,24 +294,29 @@ export function makeSkus(input) {
   };
   const antiTag = () => {
     if (!anti) return '';
-    const pool = ['现货', '新款', '软糯'];
+    const pool = ['现货', '新款', '软糯', '实拍', '可拍', '包邮', '当天发', '不退不换'];
     const w = String(input.weight || '');
     const se = String(input.season || '');
     if (/加厚|加绒/.test(w)) pool.push('加厚');
     if (/秋|冬/.test(se)) pool.push(se + '款');
     const t = pool[Math.floor(Math.random() * pool.length)];
-    return t ? ['-', '·', ' '][Math.floor(Math.random() * 3)] + t : '';
+    if (!t) return '';
+    // 卖点放在前面或后面随机，进一步降低文字相似度
+    const sep = ['-', '·', ' ', '/', '｜'][Math.floor(Math.random() * 5)];
+    return Math.random() < 0.3 ? `${t}${sep}` : `${sep}${t}`;
   };
   colors.forEach((c) => {
     sizes.forEach((s) => {
-      const alias = (colorAlias[c] && colorAlias[c][Math.floor(Math.random() * colorAlias[c].length)]) || c;
-      const sep = ['-', '/', '·', ' '][Math.floor(Math.random() * 4)];
+      const alias = aliasOf(c);
+      const sep = ['-', '/', '·', ' ', '｜', '_'][Math.floor(Math.random() * 6)];
+      const tag = antiTag();
+      const nameBody = `${alias}${sep}${sizeText(s)}`;
       skus.push({
         id: 'sku-' + n++,
-        spec1: c,
+        spec1: anti ? alias : c,
         spec2: s,
         name: `${alias} ${sizeText(s)}`,
-        pddName: `${alias}${sep}${sizeText(s)}${antiTag()}`,
+        pddName: tag.endsWith(sep) ? `${tag}${nameBody}` : `${nameBody}${tag}`,
         price: price.toFixed(2),
         stock: 100,
         code: `KN${randomSuffix()}${String(n - 1).padStart(2, '0')}`
