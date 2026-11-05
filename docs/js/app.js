@@ -81,7 +81,7 @@ const S = {
   libSearch: '',          // 素材库搜索关键词
   libViewId: null,        // 素材库当前查看的素材 ID
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
-  arkCounts: { mainPer: 2, detailPer: 1, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto', antiCompare: true },
+  arkCounts: { mainPer: 2, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto', antiCompare: true },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -1235,14 +1235,8 @@ function renderStudioResult() {
             </div>
             <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
               <label style="font-size:13px;color:var(--ink-2)">每个颜色主图
-                <select id="arkMainCount" style="margin:0 4px">
-                  ${[2,3,4,5].map((n) => `<option value="${n}" ${S.arkCounts.mainPer === n ? 'selected' : ''}>${n}</option>`).join('')}
-                </select>张
-              </label>
-              <label style="font-size:13px;color:var(--ink-2)">每个颜色详情图
-                <select id="arkDetailCount" style="margin:0 4px">
-                  ${[0,1,2,3].map((n) => `<option value="${n}" ${S.arkCounts.detailPer === n ? 'selected' : ''}>${n}</option>`).join('')}
-                </select>张
+                <input id="arkMainCount" type="number" min="1" max="20" step="1" value="${Number(S.arkCounts.mainPer) || 2}" style="width:64px;margin:0 4px;text-align:center">
+                张
               </label>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
@@ -1600,9 +1594,11 @@ function bindStudio() {
   const arkBalance = $('#arkBalanceBtn');
   if (arkBalance) arkBalance.onclick = () => arkCheckBalance();
   const arkMainCount = $('#arkMainCount');
-  if (arkMainCount) arkMainCount.onchange = () => { S.arkCounts.mainPer = Number(arkMainCount.value); };
-  const arkDetailCount = $('#arkDetailCount');
-  if (arkDetailCount) arkDetailCount.onchange = () => { S.arkCounts.detailPer = Number(arkDetailCount.value); };
+  if (arkMainCount) arkMainCount.onchange = () => {
+    const n = Math.max(1, Math.min(20, Math.round(Number(arkMainCount.value) || 2)));
+    arkMainCount.value = n;
+    S.arkCounts.mainPer = n;
+  };
   const arkSimpleSku = $('#arkSimpleSku');
   if (arkSimpleSku) arkSimpleSku.onchange = () => { S.arkCounts.simpleSku = arkSimpleSku.checked; };
   const arkSimpleNote = $('#arkSimpleNote');
@@ -2141,8 +2137,7 @@ function arkCheckReady() {
 function arkBuildJobs() {
   const colors = (S.studioInput.colors || []).filter(Boolean);
   const colorList = colors.length ? colors : ['图片所示颜色'];
-  const mainPer = Number(S.arkCounts.mainPer) || 2;
-  const detailPer = Number(S.arkCounts.detailPer) || 0;
+  const mainPer = Math.max(1, Math.min(20, Math.round(Number(S.arkCounts.mainPer) || 2)));
   const mode = S.arkCounts.photoStyle || 'auto';
   const accOpts = arkAccOpts() || {};
   const accNote = S.arkCounts.noAccessory ? `。衣服上不要出现${S.arkCounts.accessoryList || '丝带、蕾丝蝴蝶结等装饰'}，只保留衣服本体` : '';
@@ -2179,8 +2174,6 @@ function arkBuildJobs() {
       const one = buildJimengPrompts(ci, Object.assign({ count: 1, start: startIdx + i, poses: posePool, scenes: scenePool, forceColor: fc, photoStyle: batchMode, antiCompare: !!S.arkCounts.antiCompare, heroShot: i === 0, heroType }, accOpts))[0];
       jobs.push({ color, label: `${color} 主图 ${i + 1}`, prompt: one.prompt + accNote, photoStyle: batchMode });
     }
-    const dv = buildJimengDetailPrompts(ci, Object.assign({}, accOpts, { forceColor: fc }));
-    for (let i = 0; i < detailPer; i++) jobs.push({ color, label: `${color} 详情图 ${i + 1}`, isDetail: true, prompt: dv[(colorIdx + i) % dv.length].prompt + accNote });
     startIdx += mainPer;
   });
   if (S.arkCounts.simpleSku) {
@@ -2245,8 +2238,8 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       phase = `正在生成第 ${doneBase + i + 1}/${doneBase + total} 张（${job.label}）`;
       S.arkStatus = phase + '…';
       setArkStatus(S.arkStatus);
-      // 详情图是局部特写，不套用生活种草的半身构图和模特描述，免得又被带成一张半身照
-      let prompt = job.prompt + '。' + styleInfo + (job.isDetail ? '' : '。' + arkFaceSpec(job.photoStyle) + '。' + arkPhotoTag(job.photoStyle));
+      // 主图统一按生活种草/平铺的完整构图出，不再单独出详情图
+      let prompt = job.prompt + '。' + styleInfo + '。' + arkFaceSpec(job.photoStyle) + '。' + arkPhotoTag(job.photoStyle);
       // 颜色必须和参考图完全一致：颜色偏差是退货最大原因，任何提亮/降温/加暖/加饱和都算错
       if (job.color && job.color !== '图片所示颜色') {
         prompt += `。这一张的衣服颜色是「${job.color}」：参考图里这件衣服的这个颜色，色相、明度、饱和度都要照着还原，整件衣服（含领口、袖口、门襟、口袋）颜色完全一致、干净均匀，不要提亮、不要加暖调、不要偏冷、不要加深、不要出现渐变或色块不均；款式、版型、长度、口袋和口袋上的小装饰、针织纹理都照参考图不变；纽扣保持参考图原样：数量、大小、位置、排列顺序和每一颗的颜色都不变，彩色纽扣按原顺序还原，不能同色化、不能串色、不能增减`;
@@ -2255,8 +2248,8 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       }
       // 环境光最容易把白毛衣染成米黄、把浅粉染成橘——衣服颜色必须是本色
       prompt += '。衣服的颜色不受现场环境影响：即使场景是暖光、夕阳、黄灯或玻璃反光，衣服也要呈现参考图的真实颜色（白就是干净的白、粉就是粉、蓝就是蓝、紫就是紫、黑就是黑），不要被环境光染偏黄、偏橘、偏绿，不要整体加暖调滤镜';
-      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
-      if (faceRef && !job.isDetail) {
+      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
+      if (faceRef) {
         body.images = [garment, faceRef];
         prompt += '。参考图1 是服装图，只对照衣服的款式、版型、面料纹理、纽扣和口袋位置；参考图2 只是模特的脸部特写，只参考五官、脸型、发型、发色和妆容，绝对不要参考参考图2 的姿势、动作、构图、背景、光线角度和衣服';
         body.prompt = prompt;
@@ -2271,7 +2264,7 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       if (!raw) throw new Error('方舟没返回图片');
       let url = await gradePhoto(raw);
       if (S.arkCounts.antiCompare) url = await antiShift(url);
-      if (!S.arkFaceRef && !job.isDetail && job.photoStyle === 'lifestyle') S.arkFaceRef = url;
+      if (!S.arkFaceRef && job.photoStyle === 'lifestyle') S.arkFaceRef = url;
       S.studioAiImages.unshift({ url, label: job.label });
       cacheImageNow(url);
       done += 1;
@@ -2539,7 +2532,7 @@ function buildJimengPrompts(input, opts) {
     ? `；这张图的颜色必须是${forceColor}，色相、明度、饱和度都按参考图里这个颜色还原，不许提亮、不许偏冷、不许偏暖；款式、版型、长度、门襟、口袋、纽扣和纹理必须100%照参考图，不能因为改颜色就改款`
     : '；颜色、明度、饱和度必须和参考图完全一致，不许提亮、不许偏色';
   const buttonFix = '；纽扣必须和参考图完全一致：数量、大小、间距、位置、排列顺序都不变，参考图是彩色纽扣的（例如黄、蓝、粉、绿依次排列），要按原顺序保留每一种颜色，不能全部做成同色、不能串色、不能增减纽扣、不能换位置';
-  const pocketFix = '；口袋只存在于衣服正面的两侧，绝对不能画到背面、肩部、袖子背面或侧面；从背面拍时，背面必须是干净的、没有口袋也没有门襟和纽扣（除非参考图背面本来就有口袋）；不管什么角度，口袋的数量和左右位置都不变';
+  const pocketFix = '；口袋只存在于衣服正面的两侧，绝对不能画到背面、肩部、袖子背面或侧面；从背面拍时，背面必须是干净的、没有口袋也没有门襟和纽扣（除非参考图背面本来就有口袋）；不管什么角度，口袋的数量和左右位置都不变；口袋必须是平整的纯色贴袋：参考图口袋里没有的东西一律不许加，不要给口袋加蝴蝶结、丝带结、系带、刺绣、贴花、小挂件、小别针、小标签或任何装饰，参考图口袋上有的才保留';
   const knit = /针织|毛衣|开衫|腈纶|聚酯|涤纶|锦纶|羊毛|羊绒|棉/.test(String(materials) + String(category) + String(crafts));
   const fabricFix = knit
     ? '；这是针织类毛衣，面料必须是细密、平整的针织表面：能看到一列列清晰细密的针脚和平针/罗纹纹理，织物表面紧实、不蓬松、不厚；绝对不要做成毛呢、羊毛呢、抓绒、羊羔绒、泰迪绒、颗粒绒那种厚而蓬松的毛面材质，也不要做成棉服/羽绒/摇粒绒的质感'
@@ -2547,7 +2540,7 @@ function buildJimengPrompts(input, opts) {
   const whiteFix = /白/.test(String(forceColor))
     ? '；这件是白色系，必须是接近纯白的极浅白：不能偏米色、不能偏燕麦色、不能偏卡其、不能偏驼色、不能偏黄，最亮处要接近纯白，整件颜色干净一致'
     : '';
-  const detailFix = '；参考图可能是同一款衣服多个颜色的拼图，请把每一块都当成同一件衣服，取其中看得最清楚的那一块对照细节：衣服长度和整体轮廓不变；门襟、领口、袖口、下摆的样式不变；两个口袋的位置、大小、形状和口袋边缘的细节不变；口袋上的小别针、小挂件、小标签、小刺绣等小装饰必须原样保留，一个都不能省略；针织纹理和绒感不变。只允许更换穿着的人、姿势和背景';
+  const detailFix = '；参考图可能是同一款衣服多个颜色的拼图，请把每一块都当成同一件衣服，取其中看得最清楚的那一块对照细节：衣服长度和整体轮廓不变；门襟、领口、袖口、下摆的样式不变；两个口袋的位置、大小、形状和口袋边缘的细节不变；口袋上原本就有的小别针、小挂件、小标签、小刺绣原样保留，原本没有的就绝对不许添加任何装饰；针织纹理和绒感不变。只允许更换穿着的人、姿势和背景';
   const constraint = accessory
     ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${whiteFix}${fabricFix}${buttonFix}${pocketFix}${detailFix}，但衣服上不要出现${accessory}，只保留衣服本体，不要任何附加挂饰；只改变穿着的人和场景`
     : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${whiteFix}${fabricFix}${buttonFix}${pocketFix}${detailFix}；只改变穿着的人和场景`;
@@ -2556,7 +2549,7 @@ function buildJimengPrompts(input, opts) {
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
   const useLife = true;
   const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
-  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter, no airbrushed skin, no beauty filter, no perfectly symmetrical face, no HDR look';
+  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter, no airbrushed skin, no beauty filter, no perfectly symmetrical face, no HDR look, no bow on pocket, no ribbon knot on pocket, no extra decorations on pocket';
   const quality = `${CAMERA}; 自然光下的真实随手拍，画面明亮通透、曝光充足，不要欠曝、不要整体发灰发闷、不要把背景压暗；衣服本身必须是整个画面里最亮的部分，人物脸部也要有光，不发白、不套滤镜；白平衡中性，不要整体偏黄、偏橙的暖调滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；面料纹理真实：针织要能看到清晰细密的针脚和平针/罗纹走向，表面紧实平整、不蓬松不厚；${NEG}`;
 
   // 防比价：让主图/商品图在构图结构上与常见同款图不同，平台的同款识别置信度会降下来
@@ -2775,49 +2768,6 @@ function buildJimengPrompts(input, opts) {
   }
 
   return variants;
-}
-
-// 即梦/方舟「详情图」提示词（面料、领口、袖口等局部特写）
-function buildJimengDetailPrompts(input, opts) {
-  const colors = (input.colors && input.colors.length) ? input.colors.join('、') : '图片所示颜色';
-  const category = input.category || '毛衣';
-  const materials = (input.materials && input.materials.length) ? input.materials.join('、') : '';
-  const crafts = (input.crafts && input.crafts.length) ? input.crafts.join('、') : '';
-  const neck = input.neck || '';
-  const fit = input.fit || '';
-  const styles = (input.styles && input.styles.length) ? input.styles.join('、') : '';
-  const weight = input.weight || '';
-  const season = input.season || '';
-
-  let garment = `${colors}的${category}`;
-  const desc = [];
-  if (materials) desc.push(`材质为${materials}`);
-  if (crafts) desc.push(`${crafts}工艺`);
-  if (neck) desc.push(`${neck}设计`);
-  if (fit) desc.push(`${fit}版型`);
-  if (weight) desc.push(weight);
-  if (season) desc.push(`${season}款`);
-  if (desc.length) garment += '，' + desc.join('，');
-  if (styles) garment += `，${styles}风格`;
-
-  const accessory = (opts && opts.simple) ? (opts.accessory || '丝带等装饰') : '';
-  const forceColor = (opts && opts.forceColor) || '';
-  const colorFix = forceColor
-    ? `；颜色必须做成${forceColor}，参考图只对照款式、版型、针织纹理和纽扣位置，颜色不要照搬原图`
-    : '，颜色深浅与原图一致';
-  const buttonFix = '；纽扣的颜色、数量、大小、位置和排列顺序必须与参考图完全一致，彩色纽扣按原顺序还原，不能同色化、不能串色、不能增减';
-  const constraint = accessory
-    ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}，但衣服上不要出现${accessory}，只保留衣服本体，局部特写里也不能拍到任何附加挂饰`
-    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}`;
-  const quality2 = 'photorealistic, shot on Canon EOS R5, 100mm macro lens, soft diffused studio light, neutral white balance, subtle film grain, sharp fine detail; 画面只拍衣服的一个局部，不要出现完整上半身、不要拍到脸、不要拍到房间或环境背景，只出现两只手、手指数量正确、结构自然，不要多余的手或手臂；no plastic texture, no cartoon, no watermark, no text';
-  const base = (scene) => `局部特写照片，一位模特穿着${garment}。${constraint}。${scene}。${quality2}。`;
-
-  return [
-    { name: '领口细节', prompt: base('镜头近景聚焦领口，展示领型、走线、拉链或纽扣和毛绒质感，模特下巴以下入镜') },
-    { name: '面料纹理', prompt: base('镜头极近距离微距拍摄面料表面，展示针织纹理、纱线绒毛和真实质感，浅景深') },
-    { name: '袖口与下摆', prompt: base('镜头近景展示袖口螺纹和下摆收口，模特手部轻拉衣摆，体现弹力和做工') },
-    { name: '侧面版型', prompt: base('模特侧身半身展示，体现肩线、袖型和整体版型，室内影棚柔光') }
-  ];
 }
 
 // 即梦「图生视频」提示词（拼多多主图小视频，5~10 秒，1:1）
