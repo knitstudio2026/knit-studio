@@ -2254,7 +2254,7 @@ async function arkRunJobs(jobs, btnId, doneBase) {
       }
       // 环境光最容易把白毛衣染成米黄、把浅粉染成橘——衣服颜色必须是本色
       prompt += '。衣服的颜色不受现场环境影响：即使场景是暖光、夕阳、黄灯或玻璃反光，衣服也要呈现参考图的真实颜色（白就是干净的白、粉就是粉、蓝就是蓝、紫就是紫、黑就是黑），不要被环境光染偏黄、偏橘、偏绿，不要整体加暖调滤镜';
-      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
+      const body = { prompt, size: '1024x1536', negative_prompt: 'plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, gaping button placket, cartoon, illustration, 3D render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs' };
       if (faceRef) {
         body.images = [garment, faceRef];
         prompt += '。参考图1 是服装图，只对照衣服的款式、版型、面料纹理、纽扣和口袋位置；参考图2 只是模特的脸部特写，只参考五官、脸型、发型、发色和妆容，绝对不要参考参考图2 的姿势、动作、构图、背景、光线角度和衣服';
@@ -2533,11 +2533,11 @@ function buildJimengPrompts(input, opts) {
   const colorFix = forceColor
     ? `；这张图的颜色必须是${forceColor}，色相、明度、饱和度都按参考图里这个颜色还原，不许提亮、不许偏冷、不许偏暖；款式、版型、长度、门襟、口袋、纽扣和纹理必须100%照参考图，不能因为改颜色就改款`
     : '；颜色、明度、饱和度必须和参考图完全一致，不许提亮、不许偏色';
-  const buttonFix = '；纽扣必须和参考图完全一致：数量、大小、间距、位置、排列顺序都不变，参考图是彩色纽扣的（例如黄、蓝、粉、绿依次排列），要按原顺序保留每一种颜色，不能全部做成同色、不能串色、不能增减纽扣、不能换位置';
+  const buttonFix = '；纽扣必须和参考图完全一致：数量、大小、间距、位置、排列顺序都不变，参考图是彩色纽扣的（例如黄、蓝、粉、绿依次排列），要按原顺序保留每一种颜色，不能全部做成同色、不能串色、不能增减纽扣、不能换位置；如果这件是带纽扣的开衫，纽扣必须全部整齐扣好、门襟平整闭合，不许敞开门襟、不许只扣上面几颗、不许撑开缝隙露出内搭或皮肤（除非参考图本身就是敞开穿的）'
   const pocketFix = '；口袋只存在于衣服正面的两侧，绝对不能画到背面、肩部、袖子背面或侧面；从背面拍时，背面必须是干净的、没有口袋也没有门襟和纽扣（除非参考图背面本来就有口袋）；不管什么角度，口袋的数量和左右位置都不变；口袋必须是平整的纯色贴袋：参考图口袋里没有的东西一律不许加，不要给口袋加蝴蝶结、丝带结、系带、刺绣、贴花、小挂件、小别针、小标签或任何装饰，参考图口袋上有的才保留';
   const knit = /针织|毛衣|开衫|腈纶|聚酯|涤纶|锦纶|羊毛|羊绒|棉/.test(String(materials) + String(category) + String(crafts));
   const fabricFix = knit
-    ? '；这是针织类毛衣，面料必须是细密、平整的针织表面：能看到一列列清晰细密的针脚和平针/罗纹纹理，织物表面紧实、不蓬松、不厚；绝对不要做成毛呢、羊毛呢、抓绒、羊羔绒、泰迪绒、颗粒绒那种厚而蓬松的毛面材质，也不要做成棉服/羽绒/摇粒绒的质感'
+    ? '；这是针织类毛衣，面料质感必须完全照参考图还原：参考图是带细密绒毛的软糯针织，就要保留同样的细密绒毛和柔和绒光；参考图是平整针织，就保持平整针织。纹理粗细、绒感长短、表面光泽都和参考图一致，不要把带绒的做成死板平针，也不要把平针的加上绒；绝对不要做成毛呢、羊毛呢、抓绒、羊羔绒、泰迪绒、颗粒绒那种粗厚蓬松的毛呢外套质感，也不要做成棉服/羽绒/摇粒绒的质感'
     : '';
   const whiteFix = /白/.test(String(forceColor))
     ? '；这件是白色系，必须是接近纯白的极浅白：不能偏米色、不能偏燕麦色、不能偏卡其、不能偏驼色、不能偏黄，最亮处要接近纯白，整件颜色干净一致'
@@ -2551,8 +2551,8 @@ function buildJimengPrompts(input, opts) {
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
   const useLife = true;
   const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
-  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter, no airbrushed skin, no beauty filter, no perfectly symmetrical face, no HDR look, no bow on pocket, no ribbon knot on pocket, no extra decorations on pocket';
-  const quality = `${CAMERA}; 自然光下的真实随手拍，画面整体高调、非常明亮通透，像白天大窗户旁的室内或阳光充足的户外，曝光充足，不要欠曝、不要整体发灰发闷、不要把背景压暗、背景要亮堂干净；衣服本身必须是整个画面里最亮的部分，人物脸部也要有光，不发白、不套滤镜；白平衡中性，不要整体偏黄、偏橙的暖调滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；面料纹理真实：针织要能看到清晰细密的针脚和平针/罗纹走向，表面紧实平整、不蓬松不厚；${NEG}`;
+  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter, no airbrushed skin, no beauty filter, no perfectly symmetrical face, no HDR look, no bow on pocket, no ribbon knot on pocket, no extra decorations on pocket, no unbuttoned cardigan, no open placket, no gaping button placket';
+  const quality = `${CAMERA}; 自然光下的真实随手拍，画面整体高调、非常明亮通透，像白天大窗户旁的室内或阳光充足的户外，曝光充足，不要欠曝、不要整体发灰发闷、不要把背景压暗、背景要亮堂干净；衣服本身必须是整个画面里最亮的部分，人物脸部也要有光，不发白、不套滤镜；白平衡中性，不要整体偏黄、偏橙的暖调滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；面料纹理真实清晰：针脚、绒感和表面光泽完全照参考图还原，纹理看得清、不糊成一团；${NEG}`;
 
   // 防比价：让主图/商品图在构图结构上与常见同款图不同，平台的同款识别置信度会降下来
   // 参考实测：换角度 + 商品被遮挡约 1/3 + 换个背景结构，主图防比价率可到 95%
