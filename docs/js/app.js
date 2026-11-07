@@ -2537,7 +2537,7 @@ function buildJimengPrompts(input, opts) {
   const pocketFix = '；口袋只存在于衣服正面的两侧，绝对不能画到背面、肩部、袖子背面或侧面；从背面拍时，背面必须是干净的、没有口袋也没有门襟和纽扣（除非参考图背面本来就有口袋）；不管什么角度，口袋的数量和左右位置都不变；口袋必须是平整的纯色贴袋：参考图口袋里没有的东西一律不许加，不要给口袋加蝴蝶结、丝带结、系带、刺绣、贴花、小挂件、小别针、小标签或任何装饰，参考图口袋上有的才保留';
   const knit = /针织|毛衣|开衫|腈纶|聚酯|涤纶|锦纶|羊毛|羊绒|棉/.test(String(materials) + String(category) + String(crafts));
   const fabricFix = knit
-    ? '；这是针织类毛衣，面料质感必须完全照参考图还原：参考图是带细密绒毛的软糯针织，就要保留同样的细密绒毛和柔和绒光；参考图是平整针织，就保持平整针织。纹理粗细、绒感长短、表面光泽都和参考图一致，不要把带绒的做成死板平针，也不要把平针的加上绒；绝对不要做成毛呢、羊毛呢、抓绒、羊羔绒、泰迪绒、颗粒绒那种粗厚蓬松的毛呢外套质感，也不要做成棉服/羽绒/摇粒绒的质感'
+    ? '；这是针织类毛衣，面料质感必须完全照参考图还原：参考图是带细密绒毛的软糯针织，就要保留同样的细密绒毛和柔和绒光；参考图是平整针织，就保持平整针织。纹理粗细、绒感长短、表面光泽都和参考图一致，不要把带绒的做成死板平针，也不要把平针的加上绒；织法纹理也必须和参考图完全一致：坑条的有无、宽窄、间距、方向、密度都和参考图相同，参考图是平针就是平针、是坑条就是同样的坑条，不要自己换成别的织法纹理；绝对不要做成毛呢、羊毛呢、抓绒、羊羔绒、泰迪绒、颗粒绒那种粗厚蓬松的毛呢外套质感，也不要做成棉服/羽绒/摇粒绒的质感'
     : '';
   const whiteFix = /白/.test(String(forceColor))
     ? '；这件是白色系，必须是接近纯白的极浅白：不能偏米色、不能偏燕麦色、不能偏卡其、不能偏驼色、不能偏黄，最亮处要接近纯白，整件颜色干净一致'
@@ -2551,7 +2551,7 @@ function buildJimengPrompts(input, opts) {
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
   const useLife = true;
   const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
-  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter, no airbrushed skin, no beauty filter, no perfectly symmetrical face, no HDR look, no bow on pocket, no ribbon knot on pocket, no extra decorations on pocket, no unbuttoned cardigan, no open placket, no gaping button placket';
+  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter, no airbrushed skin, no beauty filter, no perfectly symmetrical face, no HDR look, no bow on pocket, no ribbon knot on pocket, no extra decorations on pocket, no unbuttoned cardigan, no open placket, no gaping button placket, no different knit structure, no changed rib texture, no decorative bow on props';
   const quality = `${CAMERA}; 自然光下的真实随手拍，画面整体高调、非常明亮通透，像白天大窗户旁的室内或阳光充足的户外，曝光充足，不要欠曝、不要整体发灰发闷、不要把背景压暗、背景要亮堂干净；衣服本身必须是整个画面里最亮的部分，人物脸部也要有光，不发白、不套滤镜；白平衡中性，不要整体偏黄、偏橙的暖调滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；面料纹理真实清晰：针脚、绒感和表面光泽完全照参考图还原，纹理看得清、不糊成一团；${NEG}`;
 
   // 防比价：让主图/商品图在构图结构上与常见同款图不同，平台的同款识别置信度会降下来
@@ -2703,7 +2703,7 @@ function buildJimengPrompts(input, opts) {
   const FLATLAY_SCENES = [
     { t: '平铺·木地板', d: '衣服平铺在浅原木地板上，旁边随意放一杯咖啡和一本杂志，自然光从窗边斜照进来，有柔和阴影，俯拍 45 度' },
     { t: '平铺·大理石', d: '衣服平铺在白色大理石纹台面上，旁边放一副墨镜和一小束干花，干净明亮的自然光，俯拍' },
-    { t: '平铺·棉麻布', d: '衣服平铺在浅米色棉麻背景布上，旁边放一个藤编小包，柔和的室内自然光，俯拍 45 度' },
+    { t: '平铺·棉麻布', d: '衣服平铺在浅米色棉麻背景布上，画面干净只有布面纹理，柔和的室内自然光，俯拍 45 度' },
     { t: '平铺·地毯', d: '衣服平铺在浅灰色短绒地毯上，旁边放一双帆布鞋和一顶棒球帽，自然光，俯拍' },
     { t: '挂拍·白墙', d: '衣服挂在简约木质衣架上，背景是干净的白色墙面，柔和的侧光，正面平视拍摄' },
     { t: '挂拍·百叶窗', d: '衣服挂在衣架上，背景是白色百叶窗，阳光透过百叶窗投下条纹光影，正面拍摄' },
@@ -2717,7 +2717,7 @@ function buildJimengPrompts(input, opts) {
   const flatPool = shuffleArr(FLATLAY_SCENES);
   const flatConstraint = accessory
     ? `严格参考上传的服装图片，保持服装的版型、材质纹理和主体设计100%一致${colorFix}${buttonFix}${detailFix}，但衣服上不要出现${accessory}，只保留衣服本体`
-    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}${detailFix}`;
+    : `严格参考上传的服装图片，保持服装的花纹、图案、材质纹理、纽扣、装饰等所有细节100%一致，不得更改服装的款式和设计${colorFix}${buttonFix}${detailFix}；道具严格按描述原样出现，不要给道具或衣服额外加蝴蝶结、丝带、珍珠、贴标等装饰`;
   const flatQuality = 'photorealistic, shot on Canon EOS R5, 50mm f/2.8 lens, soft natural daylight from a window, neutral white balance, subtle film grain, sharp fine detail on fabric texture; 真实商品平铺实拍质感，不是棚拍灯、不是海报；no plastic texture, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look';
   const FLAT_ANTI = [
     '衣服不平铺居中，而是斜放在画面里、构图偏左，右侧留一排道具，衣服完整入镜',
