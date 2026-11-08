@@ -1,4 +1,4 @@
-const CACHE = 'knit-studio-v2';
+const CACHE = 'knit-studio-v3';
 const ASSETS = ['/', '/index.html', '/css/app.css', '/js/app.js', '/js/gen.js', '/js/img.js', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (event) => {

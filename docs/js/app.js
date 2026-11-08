@@ -999,7 +999,7 @@ function viewStudio() {
           <div class="card-head"><h3>2 · 模特姿势图</h3><span class="sub">换成上面那件衣服，姿势和背景保留</span></div>
           <div class="card-body">
             <p style="font-size:12px;color:#7a5a1e;background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:8px 10px;margin:0 0 10px;line-height:1.7">
-              你要的模特和动作图从这里上传，可以一次传多张。生成时第 1 张是姿势参考、第 2 张是你上传的衣服，衣服的款式、颜色、纽扣、口袋、纹理都会按你的衣服还原。
+              可以一次传多张，每张各出 1 张。姿势、动作、背景<strong>照抄</strong>这里的图；有人脸会<strong>微调</strong>成不一样的人；衣服永远只认第 1 格你上传的。没人穿的平铺/挂拍图也能传，会自动生成模特穿上你的衣服。
             </p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
               ${S.swapImages.map((im, i) => `
@@ -1158,10 +1158,11 @@ function renderStudioResult() {
     ['titles', '标题'],
     ['points', '卖点'],
     ['skus', 'SKU'],
+    ['jimeng', '即梦提示词'],
     ['detail', '详情页'],
     ['attrs', '属性表']
   ];
-  // 老版本可能把 tab 存在 ark/images/jimeng 上，这里兜底回标题
+  // 老版本可能把 tab 存在 ark/images 上，这里兜底回标题
   const tab = tabs.some(([k]) => k === S.studioResultTab) ? S.studioResultTab : (S.studioResultTab = 'titles');
 
   let body = '';
@@ -1296,14 +1297,14 @@ function renderStudioResult() {
   }
 
   if (tab === 'jimeng') {
-    const jmOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'blend', count: 4, seed: 0 }, arkAccOpts() || {});
+    const jmOpts = Object.assign({ photoStyle: S.arkCounts.photoStyle || 'blend', count: 4, seed: 0, antiCompare: true, heroShot: true, heroType: 0 }, arkAccOpts() || {});
     const variants = buildJimengPrompts(S.studioInput, jmOpts);
     const videoVariants = buildJimengVideoPrompts(S.studioInput);
     body = `
       <div class="card">
-        <div class="card-head"><h3>即梦图片提示词</h3><span class="sub">免费，复制的越少越好用</span></div>
+        <div class="card-head"><h3>即梦图片提示词</h3><span class="sub">免费 · 已内置防比价：每张重构图 + 第 1 张侧身回望</span></div>
         <div class="card-body">
-          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生图」，上传同一张实拍图，粘贴下面任意一条即可。</p>
+          <p style="font-size:12px;color:var(--ink-3);margin:0 0 12px">即梦选「图生图」，上传你的衣服实拍图当参考，粘贴下面任意一条即可。每条的人脸、场景、构图都不一样，平台搜同款搜不到你的图。<strong>第 1 条用作链接首图</strong>，后面几张轮换当主图。</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:13px">
             <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
               <select id="jimengPhotoStyle" style="margin:0 4px">
@@ -1695,11 +1696,12 @@ async function autoRecognize() {
     if (s.price) S.studioInput.price = String(s.price);
     if (s.extra) S.studioInput.extra = s.extra;
     S.studioKit = generateKit(S.studioInput, Number(S.studioInput.price) || 0);
+    S.studioResultTab = 'jimeng';
     const colN = (S.studioInput.colors || []).length;
-    S.aiStatus = '✅ 识别成功：' + (colN ? `认出 ${colN} 个颜色（${(S.studioInput.colors || []).join('、')}）` : '已填好属性');
+    S.aiStatus = '✅ 识别成功：' + (colN ? `认出 ${colN} 个颜色（${(S.studioInput.colors || []).join('、')}）` : '已填好属性') + '。即梦提示词已生成，在右侧「即梦提示词」页';
     renderRoute();
     bindRoute();
-    toast('识别完成，属性已自动填好');
+    toast('识别完成，即梦提示词已生成');
   } catch (e) {
     S.aiStatus = '❌ 识别失败：' + ((e.body && e.body.message) || e.message);
     renderRoute();
@@ -1764,7 +1766,7 @@ async function swapGenerate() {
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
   const swapTail = S.arkCounts.noAccessory
     ? `，参考图2是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、颜色、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图2一模一样还原，不能改款不能改色，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
-    : '，参考图2是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、颜色、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图2一模一样还原，不能改款不能改色，不能换成参考图1原来的衣服';
+    : '，参考图2是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、颜色、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图2一模一样还原，不能改款不能改色，不能换成参考图1原来的衣服，也不能直接输出参考图1里那件衣服本身';
   let done = 0;
   for (let i = 0; i < n; i++) {
     try {
@@ -1775,10 +1777,10 @@ async function swapGenerate() {
       const r = await api('/api/ai/generate', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: SWAP_PROMPT + swapTail + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景保留参考图1的场景氛围；无水印、无文字、无 logo',
+          prompt: SWAP_PROMPT + swapTail + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景照搬参考图1不做更换；无水印、无文字、无 logo',
           images: [ref.aiUrl, garment],
           size: '1024x1536',
-          negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands'
+          negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands, flat lay, hanging garment, mannequin, product-only photo'
         })
       });
       const raw = r.dataUrl || r.url;
@@ -1872,7 +1874,7 @@ const ARK_PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片�
 
 const ARK_PHOTO = ARK_PHOTO_LIFE;
 
-const SWAP_PROMPT = '参考图1是模特姿势和构图，参考图2是我要卖的衣服实拍。请生成一张全新照片：完全保留参考图1的姿势、镜头角度、构图和背景氛围；把人物脸换成一位全新的、与参考图1不同的亚洲年轻女性：漂亮耐看、让人有购买欲，五官清秀、不是流水线网红脸不是整容脸，化自然清透的日常淡妆——干净底妆、淡淡棕色眼妆、自然眉形、提气色唇色、没有厚重假睫毛，皮肤白皙干净但保留真实皮肤质感（轻微毛孔纹理、不磨皮不塑料），不能是参考图1原图的脸；把身上的衣服换成参考图2这件';
+const SWAP_PROMPT = '参考图1只提供四样东西：姿势动作、构图取景、拍摄角度、背景环境，除此之外参考图1里的一切都不得带进新照片；参考图2是我要卖的衣服实拍，新照片里人物穿的只能是参考图2这件。生成一张全新照片：姿势、动作、手臂和手的位置、身体朝向、构图、镜头角度、背景环境全部照搬参考图1，不重新设计姿势、不更换背景、不换场景；参考图1里出现的任何衣服（包括穿在人身上的、也包括平铺或挂着没有人穿的那件）必须完全丢弃，绝对不要出现在新照片里；如果参考图1里有人脸，保留这个人的五官轮廓、脸型和发型发色，只做轻微调整（眼型、鼻型、嘴型、眉形细微变化，妆容更清淡、皮肤更自然），让新脸和原图不是同一个人但气质相近；如果参考图1里没有人，只是一件衣服的平铺图或挂拍图，必须忽略参考图1里那件衣服本身，改为生成一位25岁左右的年轻亚洲女性模特，在参考图1类似的场景氛围里穿着参考图2这件衣服，站姿自然生活化，露出脸';
 
 /* ===== 生活种草：姿势池 + 场景池（按风格自动匹配，随机不重复） ===== */
 const LIFE_POSES = [
@@ -2557,8 +2559,8 @@ function buildJimengPrompts(input, opts) {
   const photoMode = (opts && opts.photoStyle) || S.arkCounts.photoStyle || 'auto';
   const useLife = true;
   const CAMERA = 'photorealistic, shot on Canon EOS R5, 85mm f/1.8 prime lens, soft natural daylight, neutral white balance, shallow depth of field, subtle film grain, fine texture detail';
-  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter, no airbrushed skin, no beauty filter, no perfectly symmetrical face, no HDR look, no bow on pocket, no ribbon knot on pocket, no extra decorations on pocket, no unbuttoned cardigan, no open placket, no gaping button placket, no different knit structure, no changed rib texture, no decorative bow on props';
-  const quality = `${CAMERA}; 自然光下的真实随手拍，画面整体高调、非常明亮通透，像白天大窗户旁的室内或阳光充足的户外，曝光充足，不要欠曝、不要整体发灰发闷、不要把背景压暗、背景要亮堂干净；衣服本身必须是整个画面里最亮的部分，人物脸部也要有光，不发白、不套滤镜；白平衡中性，不要整体偏黄、偏橙的暖调滤镜；人物和衣服清晰对焦，背景保留可辨识真实细节、自然浅景深；面料纹理真实清晰：针脚、绒感和表面光泽完全照参考图还原，纹理看得清、不糊成一团；${NEG}`;
+  const NEG = 'no plastic skin, no over-saturated colors, no cartoon, no illustration, no 3D render, no watermark, no text, no AI look, no glossy face, no heavy makeup, no fake eyelashes, no dark skin, no african features, no wool coat texture, no fleece texture, no teddy fleece, no boucle, no beige color cast, no warm yellow filter, no airbrushed skin, no beauty filter, no HDR look, no overexposed face, no face in shadow, no dim lighting, no muddy grey background, no bow on pocket, no ribbon knot on pocket, no extra decorations on pocket, no unbuttoned cardigan, no open placket, no gaping button placket, no different knit structure, no changed rib texture, no decorative bow on props';
+  const quality = `${CAMERA}; 自然光下的真实随手拍，画面明亮通透、曝光充足，但保留真实的明暗层次：不要过曝死白、不要整片均匀亮到像渲染图，背景和人物身上有自然的光影过渡和柔和的暗部；人物脸部必须有光、曝光准确、清晰明亮，眼睛里有自然的眼神光，脸不能发暗、不能陷在阴影里、不能半张脸黑掉；衣服本身曝光准确，纹理看得清；白平衡中性，不要整体偏黄偏橙的暖调滤镜，也不要冷白到发蓝；人物和衣服清晰对焦，背景保留可辨识的真实细节、自然浅景深，不一片死糊；整体质感像拼多多和淘宝上销量几万的毛衣爆款主图——真实相机拍的原图，不是AI精修图、不是海报大片；面料纹理真实清晰：针脚、绒感和表面光泽完全照参考图还原，纹理看得清、不糊成一团；${NEG}`;
 
   // 防比价：让主图/商品图在构图结构上与常见同款图不同，平台的同款识别置信度会降下来
   // 参考实测：换角度 + 商品被遮挡约 1/3 + 换个背景结构，主图防比价率可到 95%
@@ -2650,6 +2652,18 @@ function buildJimengPrompts(input, opts) {
   const shotPool = shuffleArr(SHOT_TYPES);
   const accPool = shuffleArr(ACC_POOL);
   const exprPool = shuffleArr(EXPR_POOL);
+  // 脸型池：以当下主流审美为主（瓜子脸优先），每张图换一种脸型，防比价的同时避免全店一张脸
+  const FACE_POOL = [
+    '瓜子脸、下颌线柔和、眼睛清澈',
+    '鹅蛋脸、五官比例舒服、气质温婉',
+    '小圆脸、苹果肌饱满、笑起来亲和',
+    '心形脸、额头饱满、下巴小巧',
+    '小方脸、下颌线干净、气质清冷',
+    '菱形脸、颧骨柔和、眼神有灵气',
+    '鹅蛋脸、眼尾微垂、初恋脸感觉',
+    '瓜子脸、鼻梁秀挺、长相干净'
+  ];
+  const facePool = shuffleArr(FACE_POOL);
 
   const lifeVariants = [];
   for (let i = 0; i < count; i++) {
@@ -2661,7 +2675,7 @@ function buildJimengPrompts(input, opts) {
     lifeVariants.push({
       name: `生活种草图 ${i + 1}（${style0}）`,
       prompt: base(
-        `一位年轻漂亮的东亚女生（中国女生面孔），长得好看、第一眼就让人想点开，但不是流水线的网红整容脸：五官清秀耐看、脸型自然（不是标准锥子脸）、皮肤白皙干净有真实皮肤质感（能看到轻微毛孔纹理、不磨皮成塑料），化自然清透的日常淡妆——干净的底妆、淡淡的棕色眼妆、自然的眉毛和提气色的唇色，不浓艳、不夸张、没有厚重假睫毛；头发是打理过的柔顺深色系（自然黑或深棕）微卷长发或自然直发，有光泽但真实、带一点碎发和自然的毛流感；${st[0]}；发色、发型、脸型严格按模特身份描述来，不要一律做成微卷长发加空气刘海`,
+        `一位年轻漂亮的东亚女生（中国女生面孔），长得好看、第一眼就让人想点开：${facePool[(start + i) % facePool.length]}，不是流水线网红脸不是整容脸；皮肤白皙干净有真实皮肤质感（能看到轻微毛孔纹理、不磨皮成塑料），化自然清透的日常淡妆——干净的底妆、淡淡的棕色眼妆、自然的眉毛和提气色的唇色，不浓艳、不夸张、没有厚重假睫毛；头发是打理过的柔顺深色系（自然黑或深棕）微卷长发或自然直发，有光泽但真实、带一点碎发和自然的毛流感；${st[0]}`,
         `${shot}，${pose}，${scene}，${acc}，${expr}，裤子只露出一点，不要全身、不要拍到鞋子。背景必须是真实存在的实景，不是虚化背景板也不是假布景，并且背景要干净精致、有美感——像精心布置过的咖啡馆或好看的室内空间，物件摆放有秩序感、不杂乱不邋遢，不要出租屋感、不要像乱糟糟的家，背景里的物件有真实的阴影和反光，不要那种一眼假的干净棚景`,
         start + i
       )
@@ -2700,7 +2714,7 @@ function buildJimengPrompts(input, opts) {
   const studioVariants = Array.from({ length: Math.max(2, count) }, (_, i) => ({
     name: `电商主图 ${i + 1}`,
     prompt: base(
-      '一位年轻漂亮的亚洲女生模特，五官清秀耐看、让人有购买欲，不是流水线网红脸不是整容脸；化自然清透的日常淡妆——干净底妆、淡淡棕色眼妆、提气色唇色，不浓艳没有厚重假睫毛；皮肤白皙干净但有真实皮肤质感（轻微毛孔纹理、不磨皮成塑料），发色发型按模特身份描述来',
+      `一位年轻漂亮的亚洲女生模特，${facePool[(start + i) % facePool.length]}，五官清秀耐看、让人有购买欲，不是流水线网红脸不是整容脸；化自然清透的日常淡妆——干净底妆、淡淡棕色眼妆、提气色唇色，不浓艳没有厚重假睫毛；皮肤白皙干净但有真实皮肤质感（轻微毛孔纹理、不磨皮成塑料），深色系柔顺头发、有碎发和毛流感`,
       `${stPosePool[(start + i) % stPosePool.length]}，${bgPool[(start + i) % bgPool.length]}，半身构图，上衣占画面 60%~78%，裤子只露一点，不要拍全身、不要拍到鞋子`
     )
   }));
