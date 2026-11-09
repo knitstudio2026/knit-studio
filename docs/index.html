@@ -2,57 +2,565 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<meta name="theme-color" content="#faf7f2">
-<meta name="description" content="一人多店毛衣电商效率工具：利润核算 + AI 出图">
-<title>编织台 · 毛衣电商效率工具</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="css/app.css?v=1156X">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>编织台 · AI 生图</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f4f5f7;--card:#fff;--ink:#14171a;--sub:#6b7280;--line:#e8eaee;
+  --brand:#1a1d21;--accent:#c4683f;--soft:#eef0f3;
+}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+button{font-family:inherit}
+
+/* ============ 侧边栏 ============ */
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:236px;background:#15181c;color:#fff;
+  z-index:60;display:flex;flex-direction:column;transform:translateX(-100%);
+  transition:transform .25s ease;padding:18px 14px}
+#sidebar.open{transform:translateX(0)}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 6px 18px}
+.brand .logo{width:34px;height:34px;border-radius:10px;background:#2a2e34;display:grid;place-items:center;
+  font-size:17px}
+.brand b{font-size:15px;font-weight:600;display:block;letter-spacing:.4px}
+.brand span{font-size:11px;color:#8b929c;display:block}
+.nav{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.nav button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:0;border-radius:9px;
+  background:none;color:#b9c0c9;font-size:14px;text-align:left}
+.nav button .ico{width:18px;text-align:center;font-size:15px;opacity:.85}
+.nav button.on{background:#262b32;color:#fff;font-weight:600}
+.side-foot{margin-top:auto;font-size:11px;color:#697079;padding:10px 8px;line-height:1.6}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:55;opacity:0;pointer-events:none;
+  transition:opacity .2s}
+#overlay.on{opacity:1;pointer-events:auto}
+
+/* ============ 主区域 ============ */
+main{min-height:100vh;transition:margin .25s ease}
+.topbar{position:sticky;top:0;z-index:40;background:rgba(244,245,247,.92);
+  backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--line)}
+.topbar .inner{display:flex;align-items:center;gap:10px;padding:10px 14px}
+#menuBtn{width:36px;height:36px;border:1px solid var(--line);background:#fff;border-radius:9px;
+  font-size:16px;line-height:1;color:var(--ink)}
+.topbar h1{font-size:16px;margin:0;font-weight:600;flex:1;letter-spacing:.3px}
+.topbar .ver{font-size:11px;color:var(--sub);background:#fff;border:1px solid var(--line);
+  padding:3px 8px;border-radius:20px}
+.wrap{max-width:940px;margin:0 auto;padding:14px 14px 70px}
+
+.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;
+  box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{font-size:13px;margin:0 0 12px;color:var(--sub);font-weight:600;letter-spacing:.4px}
+.card h2 em{font-style:normal;color:#9aa3ad;font-weight:400;font-size:12px;margin-left:6px}
+
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0}
+.row label{flex:1;font-size:14px;color:#374151}
+.row label small{display:block;font-size:11px;color:#9aa3ad}
+input[type=text],input[type=password],input[type=number]{
+  width:130px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#fafbfc;
+  font-size:15px;font-family:inherit;color:var(--ink);outline:none}
+input:focus{border-color:#b9c4d6;background:#fff}
+input.wide{width:100%}
+
+/* 上传 */
+.drop{border:1.5px dashed #cfd5dd;border-radius:12px;min-height:168px;display:grid;place-items:center;
+  background:#fafbfc;position:relative;overflow:hidden;text-align:center;padding:14px}
+.drop .ph{color:#98a1ac;font-size:13px;line-height:1.9}
+.drop .ph b{display:block;font-size:15px;color:#4b5563;margin-bottom:4px}
+.drop img{width:100%;height:100%;max-height:320px;object-fit:contain;display:block;border-radius:10px}
+.drop .del{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;border:0;
+  background:rgba(0,0,0,.55);color:#fff;font-size:15px;line-height:1}
+.hidden{display:none!important}
+
+.seg{display:flex;background:var(--soft);border-radius:10px;padding:3px;gap:2px}
+.seg button{flex:1;border:0;background:none;padding:9px 2px;border-radius:8px;font-size:13px;color:var(--sub)}
+.seg button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.07)}
+
+.chk{display:flex;align-items:center;gap:9px;padding:11px 0}
+.chk input{width:20px;height:20px;accent-color:var(--accent);flex:none}
+.chk span{font-size:14px;color:#374151}
+.chk small{display:block;color:#9aa3ad;font-size:11px}
+.chk input[type=text]{flex:1;width:auto;margin-left:4px}
+
+.btn{width:100%;padding:14px;border:0;border-radius:12px;background:var(--brand);color:#fff;
+  font-size:16px;font-weight:600;letter-spacing:.5px}
+.btn:disabled{opacity:.55}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.accent{background:var(--accent)}
+.btn-row{display:grid;grid-template-columns:1fr;gap:9px;margin-top:12px}
+.hint{font-size:12px;color:var(--sub);margin-top:10px;line-height:1.7}
+
+.status{display:flex;align-items:center;gap:8px;font-size:13px;color:#4b5563;margin-top:12px;
+  background:var(--soft);border-radius:10px;padding:10px 12px}
+.spin{width:14px;height:14px;border:2px solid #c9cfd8;border-top-color:var(--ink);border-radius:50%;
+  animation:sp .8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(min-width:700px){.grid{grid-template-columns:repeat(3,1fr)}}
+.tile{background:#f7f8fa;border-radius:12px;overflow:hidden;position:relative}
+.tile img{width:100%;display:block;aspect-ratio:2/3;object-fit:cover;background:#eceff3}
+.tile .cap{font-size:11px;color:var(--sub);padding:7px 9px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.tile .cap button{border:0;background:#fff;border:1px solid var(--line);border-radius:7px;
+  font-size:11px;padding:4px 8px;color:#374151;flex:none}
+.tile .skel{width:100%;aspect-ratio:2/3;background:linear-gradient(100deg,#eef0f3 30%,#f7f8fa 50%,#eef0f3 70%);
+  background-size:200% 100%;animation:sh 1.2s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+
+/* 大图查看 */
+#viewer{position:fixed;inset:0;background:rgba(10,12,14,.94);z-index:90;display:none;
+  flex-direction:column;align-items:center;justify-content:center;padding:18px}
+#viewer.on{display:flex}
+#viewer img{max-width:100%;max-height:78vh;border-radius:10px}
+#viewer .tip{color:#cfd5dd;font-size:13px;margin-top:14px}
+#viewer .close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;
+  border:0;background:rgba(255,255,255,.14);color:#fff;font-size:17px}
+
+.toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:rgba(20,23,26,.92);
+  color:#fff;font-size:13px;padding:10px 16px;border-radius:22px;z-index:120;max-width:86vw;
+  text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+</style>
 </head>
 <body>
-<div id="authScreen" class="auth-screen" hidden style="display:none">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <svg viewBox="0 0 48 48" width="40" height="40" aria-hidden="true"><path d="M14 8h20l4 6v26H10V14z" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M14 8v26M34 8v26" stroke="currentColor" stroke-width="1.6" opacity=".45"/><path d="M10 20h28" stroke="currentColor" stroke-width="1.6" opacity=".45"/></svg>
-    </div>
-    <h1>编织台</h1>
-    <p class="auth-sub" id="authSub">请输入访问口令，手机与电脑共用同一份数据</p>
-    <input id="authInput" type="password" inputmode="text" autocomplete="current-password" placeholder="访问口令" />
-    <button id="authBtn" class="btn primary block">进入</button>
-    <p class="auth-tip" id="authTip">首次进入会自动设置口令，请牢记。</p>
+
+<aside id="sidebar">
+  <div class="brand">
+    <div class="logo">织</div>
+    <div><b>编织台</b><span>毛衣电商效率工具</span></div>
   </div>
-</div>
-
-<div id="shell" hidden>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 48 48" width="20" height="20"><path d="M14 8h20l4 6v26H10V14z" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M14 8v26M34 8v26M10 20h28" stroke="currentColor" stroke-width="1.4" opacity=".5"/></svg>
-      </span>
-      <span class="brand-name">编织台</span>
-    </div>
-    <div class="topbar-meta">
-      <span class="sync-dot" id="syncDot" title="同步状态"></span>
-      <span class="sync-text" id="syncText">已同步</span>
-    </div>
-    <button class="icon-btn" id="logoutBtn" title="退出登录">退出</button>
-  </header>
-
-  <nav class="tabs" id="tabs">
-    <button class="tab" data-route="dashboard">看板</button>
-    <button class="tab" data-route="products">利润</button>
-    <button class="tab" data-route="studio">AI出图</button>
-    <button class="tab" data-route="shops">店铺</button>
-    <button class="tab" data-route="settings">设置</button>
+  <nav class="nav">
+    <button data-page="gen" class="on"><span class="ico">✦</span>AI 生图</button>
+    <button data-page="set"><span class="ico">⚙</span>设置</button>
   </nav>
+  <div class="side-foot">
+    纯前端直连火山方舟<br>图片只存在你手机里
+  </div>
+</aside>
+<div id="overlay"></div>
 
-  <main id="view" class="view"></main>
+<main id="main">
+  <div class="topbar">
+    <div class="inner">
+      <button id="menuBtn">☰</button>
+      <h1 id="pageTitle">AI 生图</h1>
+      <span class="ver">v2.0</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- ============ 生图 ============ -->
+    <section id="page-gen">
+      <div class="card">
+        <h2>① 商品图 <em>上传你自己的毛衣实拍</em></h2>
+        <div class="drop" id="drop">
+          <div class="ph" id="dropPh">
+            <b>＋ 上传商品图</b>
+            平铺、挂拍、细节图都行<br>衣服的款式颜色以这张为准
+          </div>
+          <img id="preview" class="hidden" alt="商品图">
+          <button class="del hidden" id="delBtn">×</button>
+        </div>
+        <input type="file" id="file" accept="image/*" class="hidden">
+      </div>
+
+      <div class="card">
+        <h2>② 出图设置</h2>
+        <div class="row" style="display:block">
+          <label style="margin-bottom:8px;display:block">出图风格</label>
+          <div class="seg" id="styleSeg">
+            <button data-style="lifestyle" class="on">生活种草</button>
+            <button data-style="whitebg">白底棚拍</button>
+            <button data-style="flatlay">平铺挂拍</button>
+          </div>
+        </div>
+        <div class="row">
+          <label>衣服颜色<small>填了就按这个颜色还原，不填按图</small></label>
+          <input type="text" id="color" placeholder="燕麦色">
+        </div>
+        <div class="row">
+          <label>生成张数<small>先出 1 张预览，满意再出剩下的</small></label>
+          <input type="number" id="count" value="3" min="1" max="12">
+        </div>
+        <div class="chk">
+          <input type="checkbox" id="noAcc">
+          <span>不带小装饰<small>丝带、蕾丝蝴蝶结、胸针等，生成时去掉</small></span>
+        </div>
+        <input type="text" id="accList" class="wide" value="丝带、蕾丝蝴蝶结、胸针" placeholder="要去掉的装饰">
+        <div class="chk" style="margin-top:8px">
+          <input type="checkbox" id="anti" checked>
+          <span>防比价<small>每张换不同模特和场景，同款搜不出来</small></span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn accent" id="genBtn">生成预览（1 张）</button>
+        <button class="btn ghost" id="restBtn" style="display:none">继续生成剩余</button>
+      </div>
+      <div class="status hidden" id="status"><div class="spin"></div><span id="statusText"></span></div>
+      <div class="hint" id="tip">提示：第一张满意再继续，不满意就重出预览，不浪费额度。</div>
+
+      <div class="grid" id="results" style="margin-top:14px"></div>
+    </section>
+
+    <!-- ============ 设置 ============ -->
+    <section id="page-set" class="hidden">
+      <div class="card">
+        <h2>火山方舟</h2>
+        <div class="row" style="display:block">
+          <label style="display:block;margin-bottom:6px">API Key</label>
+          <input type="password" id="apiKey" class="wide" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+        </div>
+        <div class="row">
+          <label>生图模型</label>
+          <input type="text" id="imageModel" value="doubao-seedream-4-0-250828">
+        </div>
+        <div class="row">
+          <label>接口地址</label>
+          <input type="text" id="baseUrl" value="https://ark.cn-beijing.volces.com/api/v3">
+        </div>
+        <button class="btn" id="saveBtn" style="margin-top:14px">保存设置</button>
+        <div class="hint">
+          到火山方舟控制台创建 Key：console.volcengine.com/ark<br>
+          需要先开通 doubao-seedream 系列出图模型。Key 只存在本机浏览器里。
+        </div>
+      </div>
+      <div class="card">
+        <h2>使用说明</h2>
+        <div class="hint" style="margin-top:0">
+          · 上传你家毛衣实拍 → 选风格 → 先生成 1 张预览<br>
+          · 满意点「继续生成剩余」，不满意点「生成预览」重出<br>
+          · 点图片看大图，手机上长按保存到相册<br>
+          · 防比价会换脸换场景，避免和同行撞图被比价
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<div id="viewer">
+  <button class="close" id="viewerClose">×</button>
+  <img id="viewerImg" alt="生成图">
+  <div class="tip">长按图片 → 存储到相册</div>
 </div>
+<div class="toast" id="toast"></div>
 
-<div id="toast" class="toast" hidden></div>
-<script src="js/local-api.js?v=1156X"></script>
-<script type="module" src="js/app.js?v=1159A"></script>
+<script>
+/* ================= 基础 ================= */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+let toastTimer;
+function toast(msg, ms) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), ms || 2400);
+}
+const rand = (a) => a[Math.floor(Math.random() * a.length)];
+
+/* ================= 设置 ================= */
+const KEY = 'ks2.settings';
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; }
+}
+let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-4-0-250828' }, loadSettings());
+function fillSettings() {
+  $('#apiKey').value = settings.apiKey || '';
+  $('#imageModel').value = settings.imageModel || 'doubao-seedream-4-0-250828';
+  $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
+}
+$('#saveBtn').addEventListener('click', () => {
+  settings.apiKey = $('#apiKey').value.trim();
+  settings.imageModel = $('#imageModel').value.trim();
+  settings.baseUrl = $('#baseUrl').value.trim().replace(/\/$/, '');
+  localStorage.setItem(KEY, JSON.stringify(settings));
+  toast('已保存');
+});
+
+/* ================= 侧边栏 ================= */
+function openSide(on) {
+  $('#sidebar').classList.toggle('open', on);
+  $('#overlay').classList.toggle('on', on);
+}
+$('#menuBtn').addEventListener('click', () => openSide(true));
+$('#overlay').addEventListener('click', () => openSide(false));
+$$('.nav button').forEach(b => b.addEventListener('click', () => {
+  openSide(false);
+  $$('.nav button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  const p = b.dataset.page;
+  $('#page-gen').classList.toggle('hidden', p !== 'gen');
+  $('#page-set').classList.toggle('hidden', p !== 'set');
+  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : '设置';
+  window.scrollTo(0, 0);
+}));
+
+/* ================= 图片素材 ================= */
+const IDENTITIES = [
+  '23 岁亚洲女生，鹅蛋脸、鼻梁秀气、单眼皮内双，棕黑色中长发微卷、齐眉碎刘海、发梢刚过肩，身高 163cm、身形纤细',
+  '25 岁亚洲女生，小圆脸、眼睛偏圆、苹果肌明显，深棕色大波浪长卷发、法式空气刘海、发量蓬松，身高 168cm、身材匀称',
+  '22 岁亚洲女生，瓜子脸、眼尾略微上扬、唇形小巧，黑色长直发中分、发尾微内扣，身高 170cm、身形高挑偏瘦',
+  '26 岁亚洲女生，脸型偏长、五官立体、鼻头小巧，栗棕色短锁骨发带轻微内扣、八字刘海，身高 165cm、身材苗条',
+  '24 岁亚洲女生，脸颊有点婴儿肥、圆圆的眼睛、笑起来有卧蚕，深栗色大波浪及胸长发、侧分刘海，身高 160cm、身形娇小',
+  '27 岁亚洲女生，鹅蛋脸、鼻梁高、眼型偏细长，冷棕色顺直长发、中分、几缕碎发，身高 172cm、气质偏成熟',
+  '21 岁亚洲女生，小小一张脸、眼睛大而圆、嘴唇饱满，奶茶棕微卷长发、漫画刘海、发梢蓬松，身高 158cm、身形小巧',
+  '25 岁亚洲女生，颧骨略高、面部线条清楚、下颌线利落，黑茶色微卷过肩发、偏分，身高 166cm、身形匀称',
+  '23 岁亚洲女生，脸型柔和、眼距略宽、眼睛清亮，黑色大波浪长卷发、空气刘海，身高 164cm、身材匀称',
+  '28 岁亚洲女生，鹅蛋脸、眼神温婉、唇形薄而清晰，深棕色低盘发、两侧几缕碎发，身高 162cm、气质知性',
+  '24 岁亚洲女生，小方脸偏柔、眼尾略下垂、鼻子小巧，黑色长直发低马尾、额前碎发，身高 169cm、身形修长',
+  '22 岁亚洲女生，圆润娃娃脸、眼睛略圆、卧蚕自然，浅棕色齐肩微卷发、碎刘海，身高 161cm、身形纤细',
+  '29 岁亚洲女生，鹅蛋脸、眼窝稍深、唇色偏浅，深棕色长直发低发髻、鬓角碎发，身高 167cm、气质安静',
+  '23 岁亚洲女生，脸型清瘦、颧骨柔和、眼睛内双，黑色及腰长直发半扎、前面留两缕碎发，身高 171cm、身形偏瘦',
+  '26 岁亚洲女生，圆脸、鼻头略圆、嘴唇饱满，红棕色大卷发及胸、斜分刘海，身高 165cm、微胖匀称',
+  '24 岁亚洲女生，菱形脸偏柔、眼型细长、鼻梁直，焦糖棕色中长微卷发、中分、发尾外翻，身高 164cm、身形匀称'
+];
+const LIGHTS = [
+  '从一侧窗户照进来的柔和自然光，阴影柔和过渡自然',
+  '白天明亮的漫射自然光，均匀柔和、颜色真实不偏色',
+  '清晨侧逆光，发丝有柔和轮廓光，面部有自然补光',
+  '午后明亮的侧光，阳光从侧面45度照入，明亮通透不发橘',
+  '咖啡馆窗边日光，背景有柔和光斑，主光自然柔和',
+  '上午明亮的自然光，偏冷白、干净通透',
+  '纱帘柔化后的日光，光线柔和发亮，整体清爽'
+];
+const LENSES = ['50mm f/2.0', '85mm f/2.0', '35mm f/2.8', '50mm f/2.8'];
+const POSES = [
+  '坐在木桌旁，一只手撑着下巴，另一只手放在桌面上扶着玻璃杯，侧脸看向镜头',
+  '坐在沙发上，一只手撑着脸颊，另一只手放在腿上，身体微微侧向镜头',
+  '坐在桌边，一只手扶着杯子，另一只手自然搭在桌沿，肩膀放松',
+  '侧身靠在沙发背上，一只手搭在扶手上，头微微侧向镜头',
+  '坐在椅子上，身体前倾，双手捧着杯子，视线从杯子上抬起看向镜头',
+  '坐在沙发上双腿交叠，一只手撑在身后，另一只手放在膝盖上',
+  '半躺在沙发上，一只手撑着头，另一只手搭在抱枕上，慵懒看向镜头',
+  '站在窗边，一只手扶窗框，侧脸看向窗外，上半身占满画面',
+  '靠在墙边，双手抱臂，侧头看向镜头',
+  '坐在桌前，双手捧着纸杯咖啡，身体微微前倾，抬起眼睛看向镜头',
+  '抬手把头发别到耳后，脸正对镜头，微微侧头',
+  '坐在床边，一只手撑着床沿，另一只手放在腿上，侧脸看向镜头',
+  '坐在咖啡店窗边，手肘撑在桌上，手指轻轻抵着下巴，直视镜头',
+  '侧身站着，一只手轻提衣摆展示下摆，脸转向镜头',
+  '双手抱着杯子靠近胸口，肩膀放松，看向镜头自然微笑',
+  '坐在沙发上抱着抱枕，下巴轻轻搭在抱枕上'
+];
+const SCENES = [
+  '家里客厅沙发旁的落地窗前，有浅色窗帘和绿植',
+  '奶油色系的卧室，床边有木质小柜和台灯',
+  '原木餐桌旁，桌上有玻璃杯和一块小蛋糕',
+  '街角咖啡馆靠窗座位，窗外街道略微虚化',
+  '原木书架前，书架上有几本书和小摆件',
+  '阳台上铺着毛毯的椅子旁，有绿植和自然光',
+  '干净的浅色墙面旁，放着一把布艺椅子'
+];
+
+const PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机后置主摄 50mm f/2.0 拍摄，有细微胶片颗粒；中景偏半身构图、镜头略微后退，人物和毛衣占画面 60%~75%，头部上方留出空间、不要把脸顶到画面顶部，裤子只露一点，不拍全身不拍鞋；背景是真实生活场景的自然浅景深，近处墙面桌椅窗框绿植能看出形状和材质，远处逐渐柔化；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；针织纹理清楚：针脚细密平整、罗纹或平针走向清晰可见，表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度，纽扣质感真实；模特表情自然放松、像朋友随手抓拍的一瞬间，构图略微不完美；头发哑光自然、有碎发和层次；只出现两只手、五指数量正确、手指结构自然；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要过度磨皮、不要塑料感、不要海报感、不要插画或 3D 渲染感、不要暖橙滤镜';
+const PHOTO_WHITE = '纯白无缝背景棚拍、像正规品牌白底主图：大面积柔光箱均匀打的明亮高调光，光线柔和均匀，没有强烈方向光、没有窗影、没有环境色反射；50mm 人像镜头、全身构图，头顶到脚完整入镜，头顶上方留白约画面高度的八分之一，脚下只有一层极淡柔和投影；背景干净到接近纯白，画面里没有任何道具、家具、植物、装饰和文字；模特漂亮耐看、化自然清透的日常淡妆，皮肤白皙干净但有真实质感；针织纹理清楚：针脚细密平整，表面紧实不蓬松，不起球不脏旧；姿态放松不摆拍、表情自然；中性白平衡、低饱和、低对比、加一点胶片颗粒，不要暖黄调不要 HDR；服装颜色必须和参考图一致、不被灯光染偏；无水印、无文字、无 logo；不要过度磨皮、不要海报精修感、不要插画或 3D 渲染感';
+const PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片，不是商品渲染图、不是3D建模、不是插画、不是广告精修图：白天自然光从一侧窗户照进来，光线有方向和明暗过渡，衣服与台面/地面/衣架之间有真实的接触阴影和柔和投影，背景自然渐暗不发光；针织实物质感可控：一根根纱线的走向、细密绒毛、轻微起球、织纹的厚薄起伏、袖口下摆的自然褶皱都看得见；颜色是日常光线下的真实颜色，允许轻微噪点、轻微曝光不均；背景的木头/棉布/墙面/地板有真实纹理和细小磨损，近处清楚、远处轻微虚化；构图是随手拍的，略微不正、留白不刻意；无水印、无文字、无logo；不要棚拍打光、不要强烈高光反射、不要完美干净的纯色背景和CG级干净阴影、不要3D渲染感、不要插画感、不要塑料感、不要人台模特、不要假人躯干';
+const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs';
+const FACE_QUALITY = '漂亮但真实：五官清秀耐看、让人有购买欲，不是流水线网红脸；清透自然的日常淡妆——干净底妆、淡淡棕色眼妆、自然眉形、提气色唇色，没有厚重假睫毛不浓艳；皮肤白皙干净但保留真实皮肤纹理和细小毛孔，不要水光肌不要磨皮假面；头发柔顺有光泽带几根碎发';
+
+/* ================= 提示词 ================= */
+function buildPrompt(opts) {
+  const { style, color, noAcc, accList, anti, identity, pose, scene, light } = opts;
+  const colorNote = color
+    ? `这件衣服是「${color}」：色相、明度、饱和度都要照着参考图还原，整件衣服（含领口、袖口、门襟、口袋）颜色完全一致、干净均匀，不要提亮、不要加暖调、不要偏冷、不要加深、不要出现渐变`
+    : '衣服颜色严格保持参考图的原色和原明度，色相、明度、饱和度一点都不能改，不要提亮、不要加深、不要加暖调或冷调';
+  const noAccNote = noAcc ? `。衣服上不要出现${accList || '丝带、蕾丝蝴蝶结、胸针等装饰'}，只保留衣服本体` : '';
+  const keep = '。款式、版型、领型、袖长、门襟、纽扣数量与颜色、口袋位置、针织纹理必须与参考图完全一致，不能换成别的衣服';
+
+  if (style === 'flatlay') {
+    return `参考图1是一件针织毛衣的实拍图。请生成这张衣服的平铺实物图：把这件毛衣平铺在浅色棉麻布面上，自然摊开、袖口略微弯折，俯拍 45 度角。${colorNote}${keep}${noAccNote}。${PHOTO_FLAT}`;
+  }
+  const photo = (style === 'whitebg' ? PHOTO_WHITE : PHOTO_LIFE).replace('__LIGHT__', light);
+  if (style === 'whitebg') {
+    return `参考图1是一件针织毛衣的实拍图。请生成一张照片：一位模特穿着参考图1这件毛衣，全身站姿，自然站立、双手自然垂放，正面看向镜头。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}。${photo}。无水印、无文字、无logo。`;
+  }
+  return `参考图1是一件针织毛衣的实拍图。请生成一张照片：一位模特穿着参考图1这件毛衣，${pose}。场景：${scene}。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}。${photo}。无水印、无文字、无logo。`;
+}
+
+/* ================= 生成 ================= */
+let productImage = '';       // dataUrl
+let style = 'lifestyle';
+let jobs = [];               // 待生成任务
+let results = [];            // 已生成
+let running = false;
+let previewDone = false;
+
+function setStatus(text) {
+  const el = $('#status');
+  if (!text) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  $('#statusText').textContent = text;
+}
+
+async function callArk(prompt) {
+  const key = (settings.apiKey || '').trim();
+  if (!key) throw new Error('先去「设置」里填 API Key');
+  if (!settings.imageModel) throw new Error('先去「设置」里填生图模型');
+  const payload = {
+    model: settings.imageModel,
+    prompt,
+    size: '1024x1536',
+    response_format: 'b64_json',
+    watermark: false,
+    n: 1,
+    seed: Math.floor(Math.random() * 1e9),
+    negative_prompt: NEGATIVE
+  };
+  if (productImage) payload.image = productImage;
+  const r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+    body: JSON.stringify(payload)
+  });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) {
+    const msg = (j && j.error && (j.error.message || j.error.code)) || ('HTTP ' + r.status);
+    throw new Error(msg);
+  }
+  const img0 = j && j.data && j.data[0];
+  if (!img0) throw new Error('方舟没返回图片');
+  if (img0.b64_json) return 'data:image/png;base64,' + img0.b64_json;
+  if (img0.url) return img0.url;
+  throw new Error('返回格式看不懂');
+}
+
+function makeJobs(n) {
+  const out = [];
+  const color = $('#color').value.trim();
+  const noAcc = $('#noAcc').checked;
+  const accList = $('#accList').value.trim();
+  const anti = $('#anti').checked;
+  for (let i = 0; i < n; i++) {
+    const identity = rand(IDENTITIES);
+    const light = rand(LIGHTS);
+    const pose = rand(POSES);
+    const scene = rand(SCENES);
+    const prompt = buildPrompt({ style, color, noAcc, accList, anti, identity, pose, scene, light });
+    out.push({ prompt, label: color || '商品图', style });
+  }
+  return out;
+}
+
+function tileHTML(item, idx) {
+  return `<div class="tile" data-idx="${idx}">
+    <img src="${item.url}" alt="生成图">
+    <div class="cap"><span>${item.label}</span><button data-open="${idx}">看大图</button></div>
+  </div>`;
+}
+function renderResults() {
+  $('#results').innerHTML = results.map(tileHTML).join('');
+  $$('#results [data-open]').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openViewer(results[Number(b.dataset.open)].url);
+  }));
+  $$('#results .tile').forEach(el => el.addEventListener('click', () => {
+    openViewer(results[Number(el.dataset.idx)].url);
+  }));
+}
+
+async function runJobs(list, btn) {
+  if (running) return;
+  running = true;
+  btn.disabled = true;
+  const old = btn.textContent;
+  let done = 0;
+  const total = list.length;
+  for (let i = 0; i < total; i++) {
+    setStatus(`正在生成第 ${i + 1}/${total} 张…别关页面`);
+    btn.textContent = `生成中 ${i + 1}/${total}`;
+    try {
+      const url = await callArk(list[i].prompt);
+      results.unshift({ url, label: list[i].label });
+      renderResults();
+    } catch (e) {
+      toast('第 ' + (i + 1) + ' 张失败：' + e.message, 4200);
+    }
+    done++;
+  }
+  setStatus('');
+  btn.disabled = false;
+  btn.textContent = old;
+  running = false;
+  return done;
+}
+
+$('#genBtn').addEventListener('click', async () => {
+  if (!productImage) { toast('先上传一张商品图'); return; }
+  if (!settings.apiKey) { toast('先去「设置」里填火山方舟 API Key'); return; }
+  jobs = makeJobs(1);
+  await runJobs(jobs, $('#genBtn'));
+  if (results.length) {
+    previewDone = true;
+    $('#restBtn').style.display = '';
+    $('#tip').textContent = '满意就点「继续生成剩余」，不满意就在上面重新点「生成预览」重出。';
+  }
+});
+
+$('#restBtn').addEventListener('click', async () => {
+  if (!productImage) { toast('先上传商品图'); return; }
+  const n = Math.max(1, Number($('#count').value) || 1);
+  const remain = Math.max(0, n - results.length);
+  if (remain <= 0) { toast('已经够 ' + n + ' 张了，改张数或重出预览'); return; }
+  const list = makeJobs(remain);
+  await runJobs(list, $('#restBtn'));
+  if (results.length >= n) {
+    $('#restBtn').style.display = 'none';
+    $('#tip').textContent = '这批出完了。要新一批就改张数或重新生成预览。';
+  }
+});
+
+/* ================= 上传 ================= */
+$('#drop').addEventListener('click', (e) => {
+  if (e.target.id === 'delBtn') return;
+  $('#file').click();
+});
+$('#file').addEventListener('change', () => {
+  const f = $('#file').files && $('#file').files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    productImage = reader.result;
+    $('#preview').src = productImage;
+    $('#preview').classList.remove('hidden');
+    $('#dropPh').classList.add('hidden');
+    $('#delBtn').classList.remove('hidden');
+  };
+  reader.readAsDataURL(f);
+});
+$('#delBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  productImage = '';
+  $('#file').value = '';
+  $('#preview').classList.add('hidden');
+  $('#preview').src = '';
+  $('#dropPh').classList.remove('hidden');
+  $('#delBtn').classList.add('hidden');
+});
+
+/* ================= 风格切换 ================= */
+$$('#styleSeg button').forEach(b => b.addEventListener('click', () => {
+  $$('#styleSeg button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  style = b.dataset.style;
+}));
+
+/* ================= 大图 ================= */
+function openViewer(url) {
+  $('#viewerImg').src = url;
+  $('#viewer').classList.add('on');
+}
+$('#viewerClose').addEventListener('click', () => $('#viewer').classList.remove('on'));
+$('#viewer').addEventListener('click', (e) => {
+  if (e.target.id === 'viewer') $('#viewer').classList.remove('on');
+});
+
+/* ================= 启动 ================= */
+fillSettings();
+if (!settings.apiKey) {
+  $('#tip').innerHTML = '第一次用：先点左上角 ☰ → 设置，填火山方舟 API Key。';
+}
+</script>
 </body>
 </html>
