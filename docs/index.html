@@ -81,6 +81,10 @@ input.wide{width:100%}
 .chk span{font-size:14px;color:#374151}
 .chk small{display:block;color:#9aa3ad;font-size:11px}
 .chk input[type=text]{flex:1;width:auto;margin-left:4px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px solid var(--line);background:#fff;color:#4b5563;border-radius:20px;
+  padding:7px 14px;font-size:13px}
+.chips button.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
 
 .btn{width:100%;padding:14px;border:0;border-radius:12px;background:var(--brand);color:#fff;
   font-size:16px;font-weight:600;letter-spacing:.5px}
@@ -218,6 +222,10 @@ input.wide{width:100%}
           <span>不带小装饰<small>丝带、蕾丝蝴蝶结、胸针等，生成时去掉</small></span>
         </div>
         <input type="text" id="accList" class="wide" value="丝带、蕾丝蝴蝶结、胸针" placeholder="要去掉的装饰">
+        <div id="colorWrap" class="hidden" style="margin-top:10px">
+          <div style="font-size:13px;color:#6b7280;margin-bottom:7px">先用哪个颜色试一张</div>
+          <div class="chips" id="colorChips"></div>
+        </div>
         <div class="chk" style="margin-top:8px">
           <input type="checkbox" id="anti" checked>
           <span>防比价<small>每张换不同模特和场景，同款搜不出来</small></span>
@@ -575,22 +583,50 @@ function updateRestBtn() {
   if (remain > 0) {
     $('#restBtn').style.display = '';
     $('#restBtn').textContent = `继续生成剩余 ${remain} 张`;
-    $('#tip').textContent = `还剩 ${remain} 个颜色/张数没出，点上面的按钮继续。`;
+    $('#tip').textContent = `预览那张满意的话，点上面继续出剩下的 ${remain} 张。`;
   } else {
     $('#restBtn').style.display = 'none';
-    $('#tip').textContent = '这批出完了。换图或重新识别可以再来一批。';
+    $('#tip').textContent = '这批出完了。要换颜色或重出，点「生成预览」。';
   }
+}
+
+function renderColorChips() {
+  const wrap = $('#colorWrap'), box = $('#colorChips');
+  if (!recColors.length) {
+    wrap.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  if (!previewColor || recColors.indexOf(previewColor) < 0) previewColor = recColors[0];
+  wrap.classList.remove('hidden');
+  box.innerHTML = recColors.map(c =>
+    `<button data-c="${String(c).replace(/"/g, '&quot;')}" class="${c === previewColor ? 'on' : ''}">${String(c).replace(/</g, '&lt;')}</button>`
+  ).join('');
+  $$('#colorChips button').forEach(b => b.addEventListener('click', () => {
+    previewColor = b.dataset.c;
+    renderColorChips();
+    $('#tip').textContent = `已选「${previewColor}」，点「生成预览」只出这一张，看好质感再继续。`;
+  }));
 }
 
 $('#genBtn').addEventListener('click', async () => {
   if (!productImage) { toast('先上传一张商品图'); return; }
   if (!settings.apiKey) { toast('先去「设置」里填火山方舟 API Key'); return; }
-  genColors = recColors.length ? recColors.slice() : [''];
-  batchTotal = recColors.length ? recColors.length : Math.max(1, Number($('#count').value) || 1);
+  if (recColors.length) {
+    const first = previewColor || recColors[0];
+    genColors = [first].concat(recColors.filter(c => c !== first));
+    batchTotal = genColors.length;
+  } else {
+    genColors = [''];
+    batchTotal = Math.max(1, Number($('#count').value) || 1);
+  }
   batchProduced = 0;
   const start = results.length;
   await runJobs(makeJobs(1, genColors, 0), $('#genBtn'));
   batchProduced = results.slice(start).filter(x => x.url).length;
+  if (batchProduced > 0) {
+    $('#tip').textContent = `预览「${genColors[0]}」已出，满意就点「继续生成剩余」，不满意再点一次「生成预览」重出这张。`;
+  }
   updateRestBtn();
 });
 
@@ -623,6 +659,8 @@ $('#file').addEventListener('change', () => {
       // 换图后清空上一张的识别结果
       recData = null;
       recColors = [];
+      previewColor = '';
+      $('#colorWrap').classList.add('hidden');
       $('#recFields').classList.add('hidden');
       $('#copyRow').classList.add('hidden');
       $('#results').innerHTML = '';
@@ -663,6 +701,15 @@ $('#delBtn').addEventListener('click', (e) => {
   $('#preview').src = '';
   $('#dropPh').classList.remove('hidden');
   $('#delBtn').classList.add('hidden');
+  recData = null;
+  recColors = [];
+  previewColor = '';
+  $('#colorWrap').classList.add('hidden');
+  $('#recFields').classList.add('hidden');
+  $('#copyRow').classList.add('hidden');
+  results = [];
+  $('#results').innerHTML = '';
+  $('#restBtn').style.display = 'none';
 });
 
 /* ================= 风格切换 ================= */
@@ -731,6 +778,7 @@ const VISION_PROMPT = [
 let recData = null;
 let recBusy = false;
 let recColors = [];
+let previewColor = '';
 let genColors = [''];
 
 function makeTimer(el, label) {
@@ -811,10 +859,12 @@ async function recognize() {
     }
     if (recColors.length) {
       $('#count').value = recColors.length;
+      previewColor = recColors[0];
+      renderColorChips();
     }
 
     timer.done('识别完成');
-    toast('识别完成，自动开始出图');
+    toast('识别完成，先出 1 张预览');
 
     // 不需要手动点，识别完直接出第一张预览
     setTimeout(() => {
