@@ -171,7 +171,7 @@ input.wide{width:100%}
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v3.7</span>
+      <span class="ver">v3.8</span>
     </div>
   </div>
 
@@ -642,7 +642,7 @@ const PHOTO_WHITE = '纯白无缝背景棚拍、像正规品牌白底主图：�
 const PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片，不是商品渲染图、不是3D建模、不是插画、不是广告精修图：白天自然光从一侧窗户照进来，光线有方向和明暗过渡，衣服与台面/地面/衣架之间有真实的接触阴影和柔和投影，背景自然渐暗不发光；针织实物质感可控：一根根纱线的走向、细密绒毛、轻微起球、织纹的厚薄起伏、袖口下摆的自然褶皱都看得见；颜色是日常光线下的真实颜色，允许轻微噪点、轻微曝光不均；背景的木头/棉布/墙面/地板有真实纹理和细小磨损，近处清楚、远处轻微虚化；构图是随手拍的，略微不正、留白不刻意；无水印、无文字、无logo；不要棚拍打光、不要强烈高光反射、不要完美干净的纯色背景和CG级干净阴影、不要3D渲染感、不要插画感、不要塑料感、不要人台模特、不要假人躯干';
 const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, plain cuff, missing rib knit, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter';
 const POSES_CLEAR = POSES.filter(p => !/捧|抱|托腮|撑着脸|挡|杯子|马克杯|咖啡杯|拿书|扶着杯子/.test(p));
-const GARMENT_CLEAR = '衣服必须和参考图一模一样，版型和边口细节都严格照抄参考图：这是常规偏短的短款开衫，衣长约 50~55 厘米，下摆落在髋骨上方、刚好到裤腰下面一点，绝对不能拉长盖住臀部或到大腿；衣身宽松度适中、不紧不垮，肩线自然，袖长到手腕，比例完全按参考图，不许自己改长短；边口细节也不许自己加宽：领口是一圈细窄的滚边包边（宽约 0.5~0.8 厘米，平整贴边，只有很细的纹理，不是宽坑条罗纹）；袖口是窄边收口，只有极细的一圈罗纹或平针卷边，绝对不能做成 3~4 厘米宽的粗坑条；下摆平直收口，同样是窄边，不是宽罗纹；只有门襟是细窄的坑条边。领口、袖口、下摆的宽度和纹理必须和参考图一致，宽了就错；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸，双手放在身侧、腿上或口袋里；头发全部拨到肩后或耳后，不能遮住领口、门襟和纽扣；领型、门襟、全部纽扣、胸口图案、下摆、袖口都要完整可见，衣服占画面主体';
+const GARMENT_BASE = '衣服必须和参考图一模一样，版型和边口细节都严格照抄参考图：这是常规偏短的短款开衫，衣长约 50~55 厘米，下摆落在髋骨上方、刚好到裤腰下面一点，绝对不能拉长盖住臀部或到大腿；衣身宽松度适中、不紧不垮，肩线自然，袖长到手腕，比例完全按参考图，不许自己改长短；边口细节也不许自己加宽：领口是一圈细窄的滚边包边（宽约 0.5~0.8 厘米，平整贴边，只有很细的纹理，不是宽坑条罗纹）；袖口是窄边收口，只有极细的一圈罗纹或平针卷边，绝对不能做成 3~4 厘米宽的粗坑条；下摆平直收口，同样是窄边，不是宽罗纹；只有门襟是细窄的坑条边。领口、袖口、下摆的宽度和纹理必须和参考图一致，宽了就错；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸，双手放在身侧、腿上或口袋里；头发全部拨到肩后或耳后，不能遮住领口、门襟和纽扣；领型、门襟、全部纽扣、胸口图案、下摆、袖口都要完整可见，衣服占画面主体';
 const FACE_QUALITY = '当代都市年轻女生、小红书女装模特气质，时髦不做作：五官清秀耐看、有辨识度，不是流水线网红脸；脸部左右略微不对称、五官不是完美对称；表情是自然抓拍的一瞬间，不是摆拍假笑；发型是 2026 年流行的日常发型，蓬松发根蓬松、有层次有空气感，绝不是古装盘发、民国学生头或影楼造型；清透自然的日常淡妆——干净底妆、淡淡棕色眼妆、自然眉形、提气色唇色，没有厚重假睫毛不浓艳；皮肤白皙干净但保留真实皮肤纹理和细小毛孔，不要水光肌不要磨皮假面；头发柔顺有光泽带几根碎发';
 
 
@@ -701,6 +701,14 @@ function postProcess(url) {
 }
 
 /* ================= 提示词 ================= */
+function garmentClause() {
+  const detail = recData && typeof recData.garmentDetail === 'string' ? recData.garmentDetail.trim() : '';
+  const core = detail
+    ? `衣服必须和参考图一模一样，版型和边口都严格照抄：${detail}。上面写到的衣长位置、边口宽度和织法就是唯一标准，不许加长、不许加宽、不许改短、不许改松紧`
+    : GARMENT_BASE;
+  return core + '；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸，双手放在身侧、腿上或口袋里；头发全部拨到肩后或耳后，不能遮住领口、门襟和纽扣；领型、门襟、全部纽扣、胸口图案、下摆、袖口都要完整可见，衣服占画面主体';
+}
+
 function buildPrompt(opts) {
   const { style, color, noAcc, accList, anti, identity, pose, scene, light } = opts;
   const colorNote = color
@@ -717,7 +725,7 @@ function buildPrompt(opts) {
     return `参考图1是一件针织毛衣的实拍图。请生成一张照片：一位模特穿着参考图1这件毛衣，全身站姿，自然站立、双手自然垂放，正面看向镜头。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}。${photo}。无水印、无文字、无logo。`;
   }
   const antiNote = anti ? `。${antiClause()}` : '';
-  return `参考图1是一件针织毛衣的实拍图。请生成一张照片：一位模特穿着参考图1这件毛衣，${pose}。场景：${scene}。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}。${GARMENT_CLEAR}${antiNote}。${photo}。无水印、无文字、无logo。`;
+  return `参考图1是一件针织毛衣的实拍图。请生成一张照片：一位模特穿着参考图1这件毛衣，${pose}。场景：${scene}。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}。${garmentClause()}${antiNote}。${photo}。无水印、无文字、无logo。`;
 }
 
 /* ================= 生成 ================= */
@@ -1086,6 +1094,7 @@ const VISION_PROMPT = [
   'price: 数字，预估拼多多定价，单位元',
   'extra: 卖点关键词，逗号分隔，如"不起球,可机洗"',
   'description: 详情页文案，60-90字，写清楚面料手感、版型、适合身材和穿着场景，口吻像卖家自述，不用违禁词',
+  'garmentDetail: 一句话写清这件衣服的版型和边口细节，供生图模型照抄，60-110字。必须包含：衣长属于短款还是常规款、下摆大概落在身体哪个位置（如髋骨上方/盖住一半臀部/到大腿）、衣身松紧、肩型、袖长到哪；领口做法（是细窄滚边还是宽坑条罗纹，估计宽度多少厘米）；袖口做法和宽度；下摆做法和宽度；门襟做法；纽扣数量和颜色；图案或刺绣在什么位置。只描述图里真实看到的，不许猜测或补充没有的装饰',
   '只返回 JSON。'
 ].join('\n');
 
