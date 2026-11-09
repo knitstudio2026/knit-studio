@@ -140,6 +140,9 @@ input.wide{width:100%}
   background:#fafbfc;font-size:13.5px;padding:8px 9px;font-family:inherit;color:var(--ink);outline:none}
 .field textarea{min-height:74px;resize:vertical;line-height:1.6}
 .field input:focus,.field textarea:focus{border-color:#b9c4d6;background:#fff}
+.field .cp{flex:none;padding:7px 10px;border-radius:8px;border:1px solid var(--line);
+  background:#fff;font-size:12.5px;color:#374151;cursor:pointer}
+.field .cp:active{background:#eef2f8}
 .copyrow{display:flex;gap:8px;margin-top:12px}
 .copyrow button{flex:1;padding:10px;border-radius:9px;border:1px solid var(--line);background:#fff;
   font-size:13px;color:#374151}
@@ -171,7 +174,7 @@ input.wide{width:100%}
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v4.1</span>
+      <span class="ver">v4.2</span>
     </div>
   </div>
 
@@ -240,6 +243,8 @@ input.wide{width:100%}
       <div class="hint" id="tip">提示：第一张满意再继续，不满意就重出预览，不浪费额度。</div>
 
       <div class="grid" id="results" style="margin-top:14px"></div>
+      <button class="btn" id="saveAllBtn" style="display:none;margin-top:12px">一键保存全部图片到相册</button>
+      <div class="hint hidden" id="saveTip" style="text-align:center">iPhone：弹出分享面板后点「存储图像」即进相册；安卓会直接下载。也可长按单张图保存。</div>
     </section>
 
     <!-- ============ 设置 ============ -->
@@ -859,6 +864,7 @@ function tileHTML(item, idx) {
 }
 function renderResults() {
   $('#results').innerHTML = results.map(tileHTML).join('');
+  $('#saveAllBtn').style.display = results.some(r => r.url) ? '' : 'none';
   $$('#results [data-open]').forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();
     openViewer(results[Number(b.dataset.open)].url);
@@ -871,6 +877,48 @@ function renderResults() {
     openViewer(results[Number(el.dataset.idx)].url);
   }));
 }
+
+/* ================= 一键保存全部 ================= */
+async function urlToFile(url, name) {
+  const res = await fetch(url);           // dataURL / blob URL 都可以
+  const blob = await res.blob();
+  return new File([blob], name, { type: blob.type || 'image/png' });
+}
+
+function downloadOne(url, name) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+$('#saveAllBtn').addEventListener('click', async () => {
+  const ok = results.filter(r => r.url);
+  if (!ok.length) { toast('还没有生成好的图'); return; }
+  const nameOf = (r, i) => `毛衣_${(r.label || '图').replace(/[\\/:*?"<>|\s]+/g, '')}_${i + 1}.png`;
+  $('#saveTip').classList.remove('hidden');
+
+  // 优先走系统分享：iPhone 弹分享面板，点「存储图像」直接进相册
+  try {
+    const files = [];
+    for (let i = 0; i < ok.length; i++) files.push(await urlToFile(ok[i].url, nameOf(ok[i], i)));
+    if (navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({ files, title: '保存全部图片' });
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;   // 用户自己取消了分享面板
+  }
+
+  // 降级：逐张触发下载（安卓进下载目录，部分机型自动进相册）
+  for (let i = 0; i < ok.length; i++) {
+    downloadOne(ok[i].url, nameOf(ok[i], i));
+    await new Promise(r => setTimeout(r, 350));   // 间隔触发，防止浏览器拦截多文件
+  }
+  toast(`已开始下载 ${ok.length} 张，去相册或下载目录查看`);
+});
 
 async function retryOne(idx) {
   if (running) { toast('正在生成中，稍等一下再重试'); return; }
@@ -1258,12 +1306,16 @@ function renderFields(data) {
   wrap.innerHTML = PDD_FIELDS.map(([k, label, type]) => {
     const v = valText(data[k]);
     if (type === 'textarea') {
-      return `<div class="field"><div class="k">${label}</div><textarea data-k="${k}">${esc(v)}</textarea></div>`;
+      return `<div class="field"><div class="k">${label}</div><textarea data-k="${k}">${esc(v)}</textarea><button class="cp" data-cp="${k}">复制</button></div>`;
     }
-    return `<div class="field"><div class="k">${label}</div><input data-k="${k}" value="${esc(v)}"></div>`;
+    return `<div class="field"><div class="k">${label}</div><input data-k="${k}" value="${esc(v)}"><button class="cp" data-cp="${k}">复制</button></div>`;
   }).join('');
   wrap.classList.remove('hidden');
   $('#copyRow').classList.remove('hidden');
+  $$('#recFields [data-cp]').forEach(b => b.addEventListener('click', () => {
+    const el = $('#recFields [data-k="' + b.dataset.cp + '"]');
+    copyText(el ? el.value : '');
+  }));
   $$('#recFields [data-k]').forEach(el => {
     el.addEventListener('input', () => {
       if (!recData) recData = {};
