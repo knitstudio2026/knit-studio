@@ -13,7 +13,7 @@ window.addEventListener('error', (e) => {
 
 /* ================= 基础设施 ================= */
 
-const APP_VER = '1157D';
+const APP_VER = '1157E';
 
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -1006,9 +1006,9 @@ function viewStudio() {
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
               ${S.swapImages.map((im, i) => `
                 <div style="position:relative;width:90px">
-                  <img src="${im.dataUrl}" style="width:90px;height:120px;object-fit:cover;border-radius:6px;border:1px solid var(--line)" alt="参考图${i+1}">
+                  <img src="${im.dataUrl}" style="width:90px;height:120px;object-fit:cover;border-radius:6px;border:1px solid var(--line)" alt="姿势图${i+1}">
                   <button class="reup" data-swap-del="${i}" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#fff;border:1px solid var(--line);font-size:12px;line-height:1;padding:0">×</button>
-                  <div style="font-size:11px;color:var(--ink-3);text-align:center;margin-top:2px">参考图 ${i+1}</div>
+                  <div style="font-size:11px;color:var(--ink-3);text-align:center;margin-top:2px">姿势图 ${i+1}</div>
                 </div>`).join('')}
               <div class="dropzone" id="swapDz" style="width:90px;height:120px;min-height:auto;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
                 <div class="dz-icon" style="font-size:20px">+</div>
@@ -1022,6 +1022,15 @@ function viewStudio() {
                 不带小装饰
               </label>
               <input id="swapAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结、胸针" style="flex:1;min-width:130px">
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin:4px 0 6px;font-size:12px;color:var(--ink-2)">
+              <span style="flex:0 0 auto">发送顺序</span>
+              <select id="swapOrder" style="flex:1;font-size:12px">
+                <option value="garmentFirst" ${((S.arkCounts.swapOrder || 'garmentFirst') === 'garmentFirst') ? 'selected' : ''}>① 产品图在前（推荐）</option>
+                <option value="poseFirst" ${S.arkCounts.swapOrder === 'poseFirst' ? 'selected' : ''}>② 模特图在前</option>
+                <option value="garmentOnly" ${S.arkCounts.swapOrder === 'garmentOnly' ? 'selected' : ''}>③ 只发产品图（模特由AI生成）</option>
+                <option value="poseOnly" ${S.arkCounts.swapOrder === 'poseOnly' ? 'selected' : ''}>④ 只发模特图（衣服靠文字还原）</option>
+              </select>
             </div>
             ${S.swapImages.length ? (() => {
               const cn = Math.max(1, (i.colors || []).length);
@@ -1477,6 +1486,8 @@ function bindStudio() {
   if (swapNoAcc) swapNoAcc.onchange = () => { S.arkCounts.noAccessory = swapNoAcc.checked; };
   const swapAccList = $('#swapAccList');
   if (swapAccList) swapAccList.oninput = () => { S.arkCounts.accessoryList = swapAccList.value; };
+  const swapOrder = $('#swapOrder');
+  if (swapOrder) swapOrder.onchange = () => { S.arkCounts.swapOrder = swapOrder.value; toast('已切换：' + swapOrder.options[swapOrder.selectedIndex].text); };
   if (fileInput) {
     fileInput.onchange = async () => {
       const file = fileInput.files && fileInput.files[0];
@@ -1817,11 +1828,21 @@ async function swapGenerate() {
   renderRoute();
   bindRoute();
 
-  // 换装必须保留参考图1的姿势和背景，所以这里不带生活方式收尾语
+  // 换装保留模特图的姿势和背景，所以这里不带生活方式收尾语
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
-  const baseTail = S.arkCounts.noAccessory
-    ? `，参考图1是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图1一模一样还原，不能改款不能改色，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
-    : '，参考图1是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图1一模一样还原，不能改款不能改色，不能换成参考图2原来的衣服，也不能直接输出参考图1里那件衣服本身';
+  const mode = S.arkCounts.swapOrder || 'garmentFirst';
+  const poseOnly = mode === 'poseOnly';
+  const garmentOnly = mode === 'garmentOnly';
+  const G = poseOnly ? '文字描述的衣服' : (mode === 'poseFirst' ? '参考图2' : '参考图1');
+  const P = poseOnly ? '参考图1' : (mode === 'poseFirst' ? '参考图1' : '参考图2');
+  const head = garmentOnly
+    ? `参考图1是我要卖的毛衣实拍，是唯一服装依据。请生成一位25岁左右的年轻亚洲女性，穿着参考图1这件毛衣，站在普通家庭的室内一角，自然站姿、露出脸、半身中景`
+    : poseOnly
+      ? `${P}是一张人物照片，只提供这个人的脸和头发、姿势动作、身体朝向、构图和背景。把这个人身上原来的上衣整件抹掉，换成一件图里没有、只能按文字重建的针织毛衣；原上衣的颜色、织法、纽扣、图案、刺绣、logo、口袋一律不得残留`
+      : SWAP_HEAD(G, P) + SWAP_TASK(G, P);
+  const gRule = S.arkCounts.noAccessory
+    ? `，${G}是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部一模一样还原，不能改款不能改色，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
+    : `，${G}是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部一模一样还原，不能改款不能改色，不能换成${poseOnly || garmentOnly ? '任何其他衣服' : P + '原来的那件衣服'}，也不能直接输出衣服图本身`;
   const faceScale = '，构图用半身中景，人物面部不要占太大：脸的高度约占画面高度的五分之一到四分之一，头顶上方留出空间，不要大头贴、不要脸部特写、不要脸顶到画面顶部';
   const gDesc = swapGarmentDesc();
   const garmentDesc = gDesc ? `；这件衣服的准确特征（必须逐条对上）：${gDesc}` : '';
@@ -1832,16 +1853,17 @@ async function swapGenerate() {
     try {
       const ref = S.swapImages[pi];
       const colorHint = color && colors.length
-        ? `；参考图1这件衣服原色是「${colors[0]}」，这一张要出的是「${color}」色版本：款式、版型、织法纹理、纽扣数量和每颗颜色、口袋位置完全一致，只把衣服主体颜色改成${color}，不要改变任何结构`
+        ? `；这件衣服原色是「${colors[0]}」，这一张要出的是「${color}」色版本：款式、版型、织法纹理、纽扣数量和每颗颜色、口袋位置完全一致，只把衣服主体颜色改成${color}，不要改变任何结构`
         : '';
       S.swapStatus = `正在换装第 ${k + 1}/${todo.length} 张…`;
       const el = $('#swapStatus');
       if (el) el.textContent = S.swapStatus;
+      const images = garmentOnly ? [garment] : poseOnly ? [ref.aiUrl] : mode === 'poseFirst' ? [ref.aiUrl, garment] : [garment, ref.aiUrl];
       const r = await api('/api/ai/generate', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: SWAP_PROMPT + baseTail + garmentDesc + colorHint + faceScale + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景照搬参考图2不做更换；无水印、无文字、无 logo',
-          images: [garment, ref.aiUrl],
+          prompt: head + gRule + garmentDesc + colorHint + faceScale + (garmentOnly ? '' : SWAP_FACE) + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影' + (garmentOnly ? '，背景是简洁真实的室内一角' : `，背景照搬${P}不做更换`) + '；无水印、无文字、无 logo',
+          images,
           size: '1024x1536',
           negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands, flat lay, hanging garment, mannequin, product-only photo, big close-up face, cropped head' + (S.arkCounts.noAccessory ? ', ribbon, bow, brooch, lace trim, bowknot, decorative pin' : '')
         })
@@ -1850,7 +1872,7 @@ async function swapGenerate() {
       if (!raw) throw new Error('方舟没返回图片');
       const url = await gradePhoto(raw);
       lastUrl = url;
-      S.studioAiImages.unshift({ url, label: `换装图（参考图 ${pi + 1}${color ? '·' + color : ''}）` });
+      S.studioAiImages.unshift({ url, label: `换装图（姿势 ${pi + 1}${color ? '·' + color : ''}）` });
       cacheImageNow(url);
       done++;
       if (btn) btn.textContent = `换装中…（${done}/${todo.length}）`;
@@ -1960,7 +1982,9 @@ const ARK_PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片�
 
 const ARK_PHOTO = ARK_PHOTO_LIFE;
 
-const SWAP_PROMPT = '参考图1是我要卖的毛衣实拍，是画面里唯一的服装依据；参考图2是一张人物照片，只提供这个人的脸、头发、姿势动作、手的位置、身体朝向、构图取景和背景环境。任务：把参考图2里人物身上原来那件上衣整件抹掉，只保留这个人（脸、头发、姿势、手、腿和裤子）以及背景，然后让这个人穿上参考图1这件毛衣。参考图2原上衣的颜色、织法、纽扣、图案、刺绣、logo、口袋一律不得残留，绝对不能把参考图1和参考图2原上衣混合设计；两边冲突时一律以参考图1为准。输出必须是一个真实的人穿着这件毛衣的生活照，不是衣服平铺图、不是挂拍图、不是人台、不是商品图；参考图1里的衣架、桌面、背景、杂志杂物一律不得带进新照片。如果参考图2里有人脸，保留这个人的五官轮廓、脸型和发型发色，只做轻微调整（眼型、鼻型、嘴型、眉形细微变化，妆容更清淡、皮肤更自然），让新脸和原图不是同一个人但气质相近；如果参考图2里没有脸或没人穿，就生成一位25岁左右的年轻亚洲女性模特，站姿自然生活化，露出脸';
+const SWAP_HEAD = (G, P) => `${G}是我要卖的毛衣实拍，是画面里唯一的服装依据；${P}是一张人物照片，只提供这个人的脸、头发、姿势动作、手的位置、身体朝向、构图取景和背景环境`;
+const SWAP_TASK = (G, P) => `。任务：把${P}里人物身上原来那件上衣整件抹掉，只保留这个人（脸、头发、姿势、手、腿和裤子）以及背景，然后让这个人穿上${G}这件毛衣。${P}原上衣的颜色、织法、纽扣、图案、刺绣、logo、口袋一律不得残留，绝对不能把${G}和${P}原上衣混合设计；两边冲突时一律以${G}为准。输出必须是一个真实的人穿着这件毛衣的生活照，不是衣服平铺图、不是挂拍图、不是人台、不是商品图；${G}里的衣架、桌面、背景、杂志杂物一律不得带进新照片`;
+const SWAP_FACE = '。如果人物图里有人脸，保留这个人的五官轮廓、脸型和发型发色，只做轻微调整（眼型、鼻型、嘴型、眉形细微变化，妆容更清淡、皮肤更自然），让新脸和原图不是同一个人但气质相近；如果人物图里没有脸或没人穿，就生成一位25岁左右的年轻亚洲女性模特，站姿自然生活化，露出脸';
 
 /* ===== 生活种草：姿势池 + 场景池（按风格自动匹配，随机不重复） ===== */
 const LIFE_POSES = [
