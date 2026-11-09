@@ -1014,10 +1014,17 @@ function viewStudio() {
               </div>
             </div>
             <input type="file" id="swapFile" accept="image/*" multiple hidden>
-            <div style="margin-top:8px">
-              <button class="btn primary" id="swapBtn" style="width:100%">${S.swapImages.length ? '一键全部换装（' + S.swapImages.length + ' 张）' : '换装生成（收费）'}</button>
-            </div>
-            <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || (S.swapImages.length ? '点「一键全部换装」会对每张参考图各出 1 张' : '会先提示费用，确认后才扣钱'))}</div>
+            ${S.swapImages.length ? (() => {
+              const cn = Math.max(1, (i.colors || []).length);
+              const total = S.swapImages.length * cn;
+              const rest = total - 1;
+              return `<div style="font-size:12px;color:var(--ink-3);margin:6px 0 4px">${S.swapImages.length} 张姿势图 × ${cn} 个颜色 = 共 ${total} 张</div>
+              <div style="display:flex;gap:8px">
+                <button class="btn primary" id="swapBtn" style="flex:1">${S.swapPreviewReady ? `继续生成剩余 ${rest} 张` : '换装生成（先出 1 张预览）'}</button>
+                ${S.swapPreviewReady ? '<button class="btn" id="swapRedo">重出预览</button>' : ''}
+              </div>`;
+            })() : `<div style="margin-top:8px"><button class="btn primary" id="swapBtn" style="width:100%">换装生成（收费）</button></div>`}
+            <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || (S.swapImages.length ? '先出 1 张预览，满意再生成全部，避免白花钱' : '会先提示费用，确认后才扣钱'))}</div>
             ${S.studioAiImages && S.studioAiImages.some((x) => /换装/.test(x.label)) ? `<div class="canvas-grid" style="margin-top:10px">${S.studioAiImages.filter((x) => /换装/.test(x.label)).map((it) => `
               <div class="canvas-card">
                 <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
@@ -1436,6 +1443,8 @@ function bindStudio() {
       }
       if (added) {
         S.swapStatus = '';
+        S.swapPreviewReady = false;
+        S.swapPreviewUrl = '';
         renderRoute();
         bindRoute();
       }
@@ -1446,12 +1455,16 @@ function bindStudio() {
     b.onclick = () => {
       const idx = Number(b.dataset.swapDel);
       S.swapImages.splice(idx, 1);
+      S.swapPreviewReady = false;
+      S.swapPreviewUrl = '';
       renderRoute();
       bindRoute();
     };
   });
   const swapBtn = $('#swapBtn');
   if (swapBtn) swapBtn.onclick = swapGenerate;
+  const swapRedoBtn = $('#swapRedo');
+  if (swapRedoBtn) swapRedoBtn.onclick = swapRedo;
   if (fileInput) {
     fileInput.onchange = async () => {
       const file = fileInput.files && fileInput.files[0];
@@ -1748,65 +1761,104 @@ async function swapGenerate() {
   if (!S.swapImages.length) { toast('先上传至少一张模特姿势图'); return; }
   const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
   if (!ai.apiKey) { toast('先去「设置」里填火山方舟 Key'); return; }
-  const n = S.swapImages.length;
-  const low = (n * 0.1).toFixed(1);
-  if (!confirm(`对 ${n} 张参考图各出 1 张换装图，共 ${n} 张，约 ${low}~${n} 元，从你的方舟余额扣。继续吗？`)) return;
+  const colors = (S.studioInput.colors || []).filter(Boolean);
+  const colorList = colors.length ? colors : [''];
+  const combs = [];
+  S.swapImages.forEach((_, pi) => colorList.forEach((c) => combs.push({ pi, color: c })));
+  const total = combs.length;
+  const isPreview = !S.swapPreviewReady;
+  const todo = isPreview ? combs.slice(0, 1) : combs.slice(1);
+  if (!todo.length) { toast('已经全部生成完了'); return; }
+  const low = (todo.length * 0.1).toFixed(1);
+  const msg = isPreview
+    ? `先出 1 张预览（${S.swapImages.length} 张姿势图 × ${colorList.length} 个颜色 = 共 ${total} 张），约 0.1~1 元。满意再生成剩余 ${total - 1} 张。继续吗？`
+    : `继续生成剩余 ${todo.length} 张，约 ${low}~${todo.length} 元，从你的方舟余额扣。继续吗？`;
+  if (!confirm(msg)) return;
   const btn = $('#swapBtn');
   const startedAt = Date.now();
   const timer = setInterval(() => {
     const el = $('#swapStatus');
     if (el) el.textContent = `换装中…已等 ${Math.round((Date.now() - startedAt) / 1000)} 秒，别关页面`;
   }, 1000);
-  S.swapStatus = `正在换装（1/${n}）…`;
-  if (btn) { btn.disabled = true; btn.textContent = `换装中…（0/${n}）`; }
+  S.swapStatus = `正在换装（1/${todo.length}）…`;
+  if (btn) { btn.disabled = true; btn.textContent = `换装中…（0/${todo.length}）`; }
   renderRoute();
   bindRoute();
 
   // 换装必须保留参考图1的姿势和背景，所以这里不带生活方式收尾语
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
-  const swapTail = S.arkCounts.noAccessory
-    ? `，参考图2是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、颜色、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图2一模一样还原，不能改款不能改色，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
-    : '，参考图2是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、颜色、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图2一模一样还原，不能改款不能改色，不能换成参考图1原来的衣服，也不能直接输出参考图1里那件衣服本身';
+  const baseTail = S.arkCounts.noAccessory
+    ? `，参考图2是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图2一模一样还原，不能改款不能改色，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
+    : '，参考图2是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图2一模一样还原，不能改款不能改色，不能换成参考图1原来的衣服，也不能直接输出参考图1里那件衣服本身';
+  const faceScale = '，构图用半身中景，人物面部不要占太大：脸的高度约占画面高度的五分之一到四分之一，头顶上方留出空间，不要大头贴、不要脸部特写、不要脸顶到画面顶部';
   let done = 0;
-  for (let i = 0; i < n; i++) {
+  let lastUrl = '';
+  for (let k = 0; k < todo.length; k++) {
+    const { pi, color } = todo[k];
     try {
-      const ref = S.swapImages[i];
-      S.swapStatus = `正在换装第 ${i + 1}/${n} 张…`;
+      const ref = S.swapImages[pi];
+      const colorHint = color && colors.length
+        ? `；参考图2这件衣服原色是「${colors[0]}」，这一张要出的是「${color}」色版本：款式、版型、织法纹理、纽扣数量和每颗颜色、口袋位置完全一致，只把衣服主体颜色改成${color}，不要改变任何结构`
+        : '';
+      S.swapStatus = `正在换装第 ${k + 1}/${todo.length} 张…`;
       const el = $('#swapStatus');
       if (el) el.textContent = S.swapStatus;
       const r = await api('/api/ai/generate', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: SWAP_PROMPT + swapTail + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景照搬参考图1不做更换；无水印、无文字、无 logo',
+          prompt: SWAP_PROMPT + baseTail + colorHint + faceScale + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景照搬参考图1不做更换；无水印、无文字、无 logo',
           images: [ref.aiUrl, garment],
           size: '1024x1536',
-          negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands, flat lay, hanging garment, mannequin, product-only photo'
+          negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands, flat lay, hanging garment, mannequin, product-only photo, big close-up face, cropped head'
         })
       });
       const raw = r.dataUrl || r.url;
       if (!raw) throw new Error('方舟没返回图片');
       const url = await gradePhoto(raw);
-      S.studioAiImages.unshift({ url, label: `换装图（参考图 ${i + 1}）` });
+      lastUrl = url;
+      S.studioAiImages.unshift({ url, label: `换装图（参考图 ${pi + 1}${color ? '·' + color : ''}）` });
       cacheImageNow(url);
       done++;
-      if (btn) btn.textContent = `换装中…（${done}/${n}）`;
+      if (btn) btn.textContent = `换装中…（${done}/${todo.length}）`;
       renderRoute();
       bindRoute();
     } catch (e) {
-      S.swapStatus = `第 ${i + 1} 张失败：${(e.body && e.body.message) || e.message}。已成功 ${done} 张，失败的不扣钱。`;
+      S.swapStatus = `第 ${k + 1} 张失败：${(e.body && e.body.message) || e.message}。已成功 ${done} 张，失败的不扣钱。`;
       renderRoute();
       bindRoute();
       break;
     }
   }
   clearInterval(timer);
-  if (btn) { btn.disabled = false; btn.textContent = S.swapImages.length ? '一键全部换装（' + S.swapImages.length + ' 张）' : '换装生成（收费）'; }
-  if (done === n) {
-    S.swapStatus = `✅ 全部完成，共 ${n} 张，图在下面`;
-    toast('换装完成');
+  if (btn) btn.disabled = false;
+  if (done === todo.length) {
+    if (isPreview) {
+      S.swapPreviewReady = true;
+      S.swapPreviewUrl = lastUrl;
+      S.swapStatus = `✅ 预览已出。满意就点「继续生成剩余 ${total - 1} 张」，不满意点「重出预览」`;
+      toast('预览已出，看看衣服像不像');
+    } else {
+      S.swapPreviewReady = true;
+      S.swapStatus = `✅ 全部完成，共 ${total} 张，图在下面`;
+      toast('换装完成');
+    }
   }
   renderRoute();
   bindRoute();
+}
+
+async function swapRedo() {
+  const old = S.swapPreviewUrl;
+  if (old) {
+    const idx = S.studioAiImages.findIndex((x) => x.url === old);
+    if (idx >= 0) S.studioAiImages.splice(idx, 1);
+  }
+  S.swapPreviewReady = false;
+  S.swapPreviewUrl = '';
+  S.swapStatus = '';
+  renderRoute();
+  bindRoute();
+  await swapGenerate();
 }
 
 const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机后置主摄 __LENS__ 拍摄，有细微胶片颗粒；中景偏半身构图、镜头略微后退，人物和毛衣占画面 60%~75%，头部上方留出空间、不要把脸顶到画面顶部，裤子只露一点，不拍全身不拍鞋；背景是真实生活场景的自然浅景深，近处墙面桌椅窗框绿植能看出形状和材质，远处逐渐柔化，不是糊成一片奶油；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；针织纹理清楚：针脚细密平整、罗纹或平针走向清晰可见，表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度，纽扣质感真实；模特表情自然放松、像朋友随手抓拍的一瞬间，构图略微不完美；头发哑光自然、有碎发和层次；只出现两只手、五指数量正确、手指结构自然；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要过度磨皮、不要塑料感、不要海报感、不要插画或 3D 渲染感、不要暖橙滤镜';
