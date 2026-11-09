@@ -208,6 +208,7 @@ input.wide{width:100%}
           <label>衣服颜色<small>填了就按这个颜色还原，不填按图</small></label>
           <input type="text" id="color" placeholder="燕麦色">
         </div>
+        <div class="hint hidden" id="colorHint" style="margin-top:-2px;color:#c4683f"></div>
         <div class="row">
           <label>生成张数<small>先出 1 张预览，满意再出剩下的</small></label>
           <input type="number" id="count" value="3" min="1" max="12">
@@ -461,13 +462,14 @@ async function callArk(prompt) {
   throw new Error('返回格式看不懂');
 }
 
-function makeJobs(n) {
+function makeJobs(n, colors, from) {
   const out = [];
-  const color = $('#color').value.trim();
+  const list = (colors && colors.length) ? colors : [''];
   const noAcc = $('#noAcc').checked;
   const accList = $('#accList').value.trim();
   const anti = $('#anti').checked;
   for (let i = 0; i < n; i++) {
+    const color = list[(from + i) % list.length];
     const identity = rand(IDENTITIES);
     const light = rand(LIGHTS);
     const pose = rand(POSES);
@@ -535,29 +537,41 @@ async function runJobs(list, btn) {
   return done;
 }
 
+let batchTotal = 0;
+let batchProduced = 0;
+
+function updateRestBtn() {
+  const remain = batchTotal - batchProduced;
+  if (remain > 0) {
+    $('#restBtn').style.display = '';
+    $('#restBtn').textContent = `继续生成剩余 ${remain} 张`;
+    $('#tip').textContent = `还剩 ${remain} 个颜色/张数没出，点上面的按钮继续。`;
+  } else {
+    $('#restBtn').style.display = 'none';
+    $('#tip').textContent = '这批出完了。换图或重新识别可以再来一批。';
+  }
+}
+
 $('#genBtn').addEventListener('click', async () => {
   if (!productImage) { toast('先上传一张商品图'); return; }
   if (!settings.apiKey) { toast('先去「设置」里填火山方舟 API Key'); return; }
-  jobs = makeJobs(1);
-  await runJobs(jobs, $('#genBtn'));
-  if (results.length) {
-    previewDone = true;
-    $('#restBtn').style.display = '';
-    $('#tip').textContent = '满意就点「继续生成剩余」，不满意就在上面重新点「生成预览」重出。';
-  }
+  genColors = recColors.length ? recColors.slice() : [''];
+  batchTotal = recColors.length ? recColors.length : Math.max(1, Number($('#count').value) || 1);
+  batchProduced = 0;
+  const start = results.length;
+  await runJobs(makeJobs(1, genColors, 0), $('#genBtn'));
+  batchProduced = results.length - start;
+  updateRestBtn();
 });
 
 $('#restBtn').addEventListener('click', async () => {
   if (!productImage) { toast('先上传商品图'); return; }
-  const n = Math.max(1, Number($('#count').value) || 1);
-  const remain = Math.max(0, n - results.length);
-  if (remain <= 0) { toast('已经够 ' + n + ' 张了，改张数或重出预览'); return; }
-  const list = makeJobs(remain);
-  await runJobs(list, $('#restBtn'));
-  if (results.length >= n) {
-    $('#restBtn').style.display = 'none';
-    $('#tip').textContent = '这批出完了。要新一批就改张数或重新生成预览。';
-  }
+  const remain = batchTotal - batchProduced;
+  if (remain <= 0) { toast('已经出完了'); return; }
+  const start = results.length;
+  await runJobs(makeJobs(remain, genColors, batchProduced), $('#restBtn'));
+  batchProduced += results.length - start;
+  updateRestBtn();
 });
 
 /* ================= 上传 ================= */
@@ -578,8 +592,12 @@ $('#file').addEventListener('change', () => {
       $('#delBtn').classList.remove('hidden');
       // 换图后清空上一张的识别结果
       recData = null;
+      recColors = [];
       $('#recFields').classList.add('hidden');
       $('#copyRow').classList.add('hidden');
+      $('#colorHint').classList.add('hidden');
+      $('#results').innerHTML = '';
+      results = [];
     });
   };
   reader.readAsDataURL(f);
@@ -683,6 +701,8 @@ const VISION_PROMPT = [
 
 let recData = null;
 let recBusy = false;
+let recColors = [];
+let genColors = [''];
 
 function makeTimer(el, label) {
   el.classList.remove('hidden');
@@ -752,8 +772,29 @@ async function recognize() {
     if (!data) throw new Error('识别结果没看懂，再试一次');
     recData = data;
     renderFields(data);
+
+    // 识别出的颜色直接排成出图队列，颜色数就是出图张数
+    recColors = (Array.isArray(data.colors) ? data.colors : [])
+      .map(x => String(x || '').trim()).filter(Boolean).slice(0, 12);
+    if (!recColors.length) {
+      const one = valText(data.colors).trim();
+      if (one) recColors = [one];
+    }
+    if (recColors.length) {
+      $('#color').value = recColors[0];
+      $('#count').value = recColors.length;
+      const h = $('#colorHint');
+      h.textContent = `识别到 ${recColors.length} 个颜色：${recColors.join(' · ')}，将按颜色各出 1 张`;
+      h.classList.remove('hidden');
+    }
+
     timer.done('识别完成');
-    toast('识别完成，字段可以改');
+    toast('识别完成，自动开始出图');
+
+    // 不需要手动点，识别完直接出第一张预览
+    setTimeout(() => {
+      if (!running && productImage && settings.apiKey) $('#genBtn').click();
+    }, 400);
   } catch (e) {
     timer.fail('失败');
     toast('识别失败：' + e.message, 4200);
@@ -841,6 +882,11 @@ $('#viewer').addEventListener('click', (e) => {
 
 /* ================= 启动 ================= */
 fillSettings();
+/* 手动改颜色 = 改成单色出图，不再按识别出的多色排队 */
+$('#color').addEventListener('input', () => {
+  recColors = [];
+  $('#colorHint').classList.add('hidden');
+});
 if (!settings.apiKey) {
   $('#tip').innerHTML = '第一次用：先点左上角 ☰ → 设置，填火山方舟 API Key。';
 }
