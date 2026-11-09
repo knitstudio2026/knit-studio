@@ -171,7 +171,7 @@ input.wide{width:100%}
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v2.7</span>
+      <span class="ver">v2.8</span>
     </div>
   </div>
 
@@ -406,6 +406,63 @@ const PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片，不
 const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs';
 const FACE_QUALITY = '漂亮但真实：五官清秀耐看、让人有购买欲，不是流水线网红脸；清透自然的日常淡妆——干净底妆、淡淡棕色眼妆、自然眉形、提气色唇色，没有厚重假睫毛不浓艳；皮肤白皙干净但保留真实皮肤纹理和细小毛孔，不要水光肌不要磨皮假面；头发柔顺有光泽带几根碎发';
 
+
+/* 防比价：每次随机换机位、构图、前景、焦段、光比，让同款图搜不到同一张 */
+const ANTI_ANGLE = ['略低角度仰拍，人物显得更高挑', '略高角度俯拍，像朋友从上往下随手拍', '与视线齐平的平视机位，画面平稳自然', '从侧前方 45 度拍，身体略有透视'];
+const ANTI_FRAME = ['人物偏画面左侧三分之一，右侧留出生活场景', '人物略偏画面右侧，左侧留出大面积背景', '镜头再贴近一点，上半身和毛衣占画面 80%', '镜头稍稍后退，拍到大腿以上，留白多一点', '人物在画面正中但身体转向一侧，构图不对称'];
+const ANTI_PROP = ['前景有一株虚化的绿植叶子挡住一角', '前景有一只虚化的玻璃杯', '画面边缘有虚化的窗帘或门框', '前景有虚化的椅背，人从椅背后探出'];
+const ANTI_DEVICE = ['像手机 2 倍人像模式随手拍的，细节略有涂抹感', '像微单 35mm 扫街抓拍，画面有轻微呼吸感', '像室内灯光下手机直出，白平衡略微偏冷', '像午后自然光手机实拍，暗部略微发灰'];
+function antiClause() {
+  return `机位${rand(ANTI_ANGLE)}；构图${rand(ANTI_FRAME)}；${rand(ANTI_PROP)}；质感${rand(ANTI_DEVICE)}；整套照片看起来是不同时间不同地点随手拍的，不要像同一批商品图`;
+}
+
+/* 出图后再做一次像素级扰动：裁切、轻微旋转、色温/对比/颗粒，专门破坏图搜特征 */
+function postProcess(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const cropX = 0.02 + Math.random() * 0.035;
+        const cropY = 0.015 + Math.random() * 0.03;
+        const sw = img.width * (1 - cropX * 2);
+        const sh = img.height * (1 - cropY * 2);
+        const outW = 1000, outH = 1500;
+        const c = document.createElement('canvas');
+        c.width = outW; c.height = outH;
+        const g = c.getContext('2d');
+        g.save();
+        const rot = (Math.random() - 0.5) * 2.2 * Math.PI / 180;
+        g.translate(outW / 2, outH / 2);
+        g.rotate(rot);
+        const scale = 1.06;
+        g.drawImage(img, img.width * cropX, img.height * cropY, sw, sh, -outW * scale / 2, -outH * scale / 2, outW * scale, outH * scale);
+        g.restore();
+        // 色温 / 明度 / 对比扰动
+        const d = g.getImageData(0, 0, outW, outH);
+        const px = d.data;
+        const warm = (Math.random() - 0.5) * 8;
+        const bright = (Math.random() - 0.5) * 8;
+        const contrast = 1 + (Math.random() - 0.5) * 0.06;
+        const grain = 6 + Math.random() * 5;
+        for (let i = 0; i < px.length; i += 4) {
+          let r = px[i], gg = px[i + 1], b = px[i + 2];
+          r = (r - 128) * contrast + 128 + bright + warm;
+          gg = (gg - 128) * contrast + 128 + bright;
+          b = (b - 128) * contrast + 128 + bright - warm;
+          const n = (Math.random() - 0.5) * grain;
+          px[i] = r + n; px[i + 1] = gg + n; px[i + 2] = b + n;
+        }
+        g.putImageData(d, 0, 0);
+        resolve(c.toDataURL('image/jpeg', 0.92));
+      } catch (_) {
+        resolve(url);
+      }
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
+
 /* ================= 提示词 ================= */
 function buildPrompt(opts) {
   const { style, color, noAcc, accList, anti, identity, pose, scene, light } = opts;
@@ -422,7 +479,8 @@ function buildPrompt(opts) {
   if (style === 'whitebg') {
     return `参考图1是一件针织毛衣的实拍图。请生成一张照片：一位模特穿着参考图1这件毛衣，全身站姿，自然站立、双手自然垂放，正面看向镜头。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}。${photo}。无水印、无文字、无logo。`;
   }
-  return `参考图1是一件针织毛衣的实拍图。请生成一张照片：一位模特穿着参考图1这件毛衣，${pose}。场景：${scene}。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}。${photo}。无水印、无文字、无logo。`;
+  const antiNote = anti ? `。${antiClause()}` : '';
+  return `参考图1是一件针织毛衣的实拍图。请生成一张照片：一位模特穿着参考图1这件毛衣，${pose}。场景：${scene}。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}${antiNote}。${photo}。无水印、无文字、无logo。`;
 }
 
 /* ================= 生成 ================= */
@@ -469,6 +527,8 @@ async function callArk(prompt) {
   if (img0.url) return img0.url;
   throw new Error('返回格式看不懂');
 }
+
+function antiOn() { const el = $('#anti'); return !!(el && el.checked); }
 
 function makeJobs(n, colors, from) {
   const out = [];
@@ -522,7 +582,8 @@ async function retryOne(idx) {
   running = true;
   setStatus('正在重试 1 张…');
   try {
-    const url = await callArk(item.prompt);
+    let url = await callArk(item.prompt);
+    if (antiOn()) url = await postProcess(url);
     results[idx] = { url, label: item.label };
     renderResults();
     toast('重试成功');
@@ -554,7 +615,8 @@ async function runJobs(list, btn) {
     while (next < total) {
       const i = next++;
       try {
-        const url = await callArk(list[i].prompt);
+        let url = await callArk(list[i].prompt);
+        if (antiOn()) url = await postProcess(url);
         results.unshift({ url, label: list[i].label });
         renderResults();
       } catch (e) {
