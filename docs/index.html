@@ -161,6 +161,7 @@ input.wide{width:100%}
   </div>
   <nav class="nav">
     <button data-page="gen" class="on"><span class="ico">✦</span>AI 生图</button>
+    <button data-page="lib"><span class="ico">▦</span>素材库</button>
     <button data-page="set"><span class="ico">⚙</span>设置</button>
   </nav>
   <div class="side-foot">
@@ -174,7 +175,7 @@ input.wide{width:100%}
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v4.2</span>
+      <span class="ver">v4.3</span>
     </div>
   </div>
 
@@ -243,8 +244,21 @@ input.wide{width:100%}
       <div class="hint" id="tip">提示：第一张满意再继续，不满意就重出预览，不浪费额度。</div>
 
       <div class="grid" id="results" style="margin-top:14px"></div>
-      <button class="btn" id="saveAllBtn" style="display:none;margin-top:12px">一键保存全部图片到相册</button>
+      <div class="btn-row" id="saveRow" style="display:none;margin-top:12px">
+        <button class="btn" id="saveAllBtn">一键保存全部到相册</button>
+        <button class="btn ghost" id="libSaveBtn">存到素材库</button>
+      </div>
       <div class="hint hidden" id="saveTip" style="text-align:center">iPhone：弹出分享面板后点「存储图像」即进相册；安卓会直接下载。也可长按单张图保存。</div>
+    </section>
+
+    <!-- ============ 素材库 ============ -->
+    <section id="page-lib" class="hidden">
+      <div class="card">
+        <h2>素材库 <em id="libCount"></em></h2>
+        <div class="hint" style="margin-top:0">图生成后点「存到素材库」就会收在这里，以后打开这个网页随时能看。注意：清除浏览器数据会一起删掉，重要的图记得存相册。</div>
+        <div class="grid" id="libGrid" style="margin-top:12px"></div>
+        <div class="hint hidden" id="libEmpty" style="text-align:center;padding:26px 0">素材库是空的，去「AI 生图」出图后点「存到素材库」</div>
+      </div>
     </section>
 
     <!-- ============ 设置 ============ -->
@@ -344,8 +358,10 @@ $$('.nav button').forEach(b => b.addEventListener('click', () => {
   b.classList.add('on');
   const p = b.dataset.page;
   $('#page-gen').classList.toggle('hidden', p !== 'gen');
+  $('#page-lib').classList.toggle('hidden', p !== 'lib');
   $('#page-set').classList.toggle('hidden', p !== 'set');
-  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : '设置';
+  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : '设置';
+  if (p === 'lib') renderLib();
   window.scrollTo(0, 0);
 }));
 
@@ -864,7 +880,7 @@ function tileHTML(item, idx) {
 }
 function renderResults() {
   $('#results').innerHTML = results.map(tileHTML).join('');
-  $('#saveAllBtn').style.display = results.some(r => r.url) ? '' : 'none';
+  $('#saveRow').style.display = results.some(r => r.url) ? '' : 'none';
   $$('#results [data-open]').forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();
     openViewer(results[Number(b.dataset.open)].url);
@@ -886,12 +902,17 @@ async function urlToFile(url, name) {
 }
 
 function downloadOne(url, name) {
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  // 先取成 blob 再生成临时地址下载，避免下到"已被删除"的坏文件
+  return fetch(url).then(r => r.blob()).then(blob => {
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = u;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 60000);
+  });
 }
 
 $('#saveAllBtn').addEventListener('click', async () => {
@@ -919,6 +940,74 @@ $('#saveAllBtn').addEventListener('click', async () => {
   }
   toast(`已开始下载 ${ok.length} 张，去相册或下载目录查看`);
 });
+
+/* ================= 素材库（存在本机浏览器里，换设备/清数据会丢） ================= */
+let _db = null;
+function libDB() {
+  if (!_db) _db = new Promise((res, rej) => {
+    const rq = indexedDB.open('knitlib', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('assets', { keyPath: 'id', autoIncrement: true });
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+  return _db;
+}
+function libPut(item) {
+  return libDB().then(d => new Promise((res, rej) => {
+    const tx = d.transaction('assets', 'readwrite');
+    tx.objectStore('assets').add(item);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  }));
+}
+function libAll() {
+  return libDB().then(d => new Promise((res, rej) => {
+    const rq = d.transaction('assets').objectStore('assets').getAll();
+    rq.onsuccess = () => res(rq.result || []);
+    rq.onerror = () => rej(rq.error);
+  }));
+}
+function libDel(id) {
+  return libDB().then(d => new Promise((res, rej) => {
+    const tx = d.transaction('assets', 'readwrite');
+    tx.objectStore('assets').delete(id);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  }));
+}
+
+$('#libSaveBtn').addEventListener('click', async () => {
+  const ok = results.filter(r => r.url);
+  if (!ok.length) { toast('还没有生成好的图'); return; }
+  try {
+    for (const r of ok) await libPut({ ts: Date.now(), label: r.label || '', img: r.url });
+    toast(`已存 ${ok.length} 张到素材库，侧边栏「素材库」里随时看`, 3000);
+  } catch (e) {
+    toast('存不下了：浏览器空间已满，先把重要的存相册，再去素材库删旧的', 4200);
+  }
+});
+
+async function renderLib() {
+  let list = [];
+  try { list = await libAll(); } catch (_) {}
+  list.sort((a, b) => b.ts - a.ts);
+  $('#libCount').textContent = list.length ? `（${list.length} 张）` : '';
+  $('#libEmpty').classList.toggle('hidden', list.length > 0);
+  $('#libGrid').innerHTML = list.map(it => `<div class="tile" data-lid="${it.id}">
+    <img src="${it.img}" alt="素材">
+    <div class="cap"><span>${esc(it.label || '')}</span><button data-del="${it.id}">删除</button></div>
+  </div>`).join('');
+  $$('#libGrid [data-del]').forEach(b => b.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await libDel(Number(b.dataset.del));
+    renderLib();
+    toast('已删除');
+  }));
+  $$('#libGrid .tile').forEach(el => el.addEventListener('click', () => {
+    const it = list.find(x => x.id === Number(el.dataset.lid));
+    if (it) openViewer(it.img);
+  }));
+}
 
 async function retryOne(idx) {
   if (running) { toast('正在生成中，稍等一下再重试'); return; }
@@ -1076,6 +1165,7 @@ $('#file').addEventListener('change', () => {
       $('#copyRow').classList.add('hidden');
       $('#results').innerHTML = '';
       results = [];
+      $('#saveRow').style.display = 'none';
     });
   };
   reader.readAsDataURL(f);
@@ -1120,6 +1210,7 @@ $('#delBtn').addEventListener('click', (e) => {
   $('#copyRow').classList.add('hidden');
   results = [];
   $('#results').innerHTML = '';
+  $('#saveRow').style.display = 'none';
   $('#restBtn').style.display = 'none';
 });
 
