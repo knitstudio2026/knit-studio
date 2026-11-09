@@ -1014,6 +1014,13 @@ function viewStudio() {
               </div>
             </div>
             <input type="file" id="swapFile" accept="image/*" multiple hidden>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 4px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+                <input type="checkbox" id="swapNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
+                不带小装饰
+              </label>
+              <input id="swapAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结、胸针" style="flex:1;min-width:130px">
+            </div>
             ${S.swapImages.length ? (() => {
               const cn = Math.max(1, (i.colors || []).length);
               const total = S.swapImages.length * cn;
@@ -1465,6 +1472,10 @@ function bindStudio() {
   if (swapBtn) swapBtn.onclick = swapGenerate;
   const swapRedoBtn = $('#swapRedo');
   if (swapRedoBtn) swapRedoBtn.onclick = swapRedo;
+  const swapNoAcc = $('#swapNoAcc');
+  if (swapNoAcc) swapNoAcc.onchange = () => { S.arkCounts.noAccessory = swapNoAcc.checked; };
+  const swapAccList = $('#swapAccList');
+  if (swapAccList) swapAccList.oninput = () => { S.arkCounts.accessoryList = swapAccList.value; };
   if (fileInput) {
     fileInput.onchange = async () => {
       const file = fileInput.files && fileInput.files[0];
@@ -1809,7 +1820,7 @@ async function swapGenerate() {
           prompt: SWAP_PROMPT + baseTail + colorHint + faceScale + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景照搬参考图1不做更换；无水印、无文字、无 logo',
           images: [ref.aiUrl, garment],
           size: '1024x1536',
-          negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands, flat lay, hanging garment, mannequin, product-only photo, big close-up face, cropped head'
+          negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands, flat lay, hanging garment, mannequin, product-only photo, big close-up face, cropped head' + (S.arkCounts.noAccessory ? ', ribbon, bow, brooch, lace trim, bowknot, decorative pin' : '')
         })
       });
       const raw = r.dataUrl || r.url;
