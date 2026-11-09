@@ -171,7 +171,7 @@ input.wide{width:100%}
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v2.6</span>
+      <span class="ver">v2.7</span>
     </div>
   </div>
 
@@ -252,7 +252,7 @@ input.wide{width:100%}
         </div>
         <div class="row">
           <label>生图模型</label>
-          <input type="text" id="imageModel" value="doubao-seedream-4-0-250828">
+          <input type="text" id="imageModel" value="doubao-seedream-5-0-pro-260628">
         </div>
         <div class="row">
           <label>识别模型</label>
@@ -307,10 +307,12 @@ const KEY = 'ks2.settings';
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; }
 }
-let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-4-0-250828', visionModel: 'doubao-seed-2-1-pro-260915' }, loadSettings());
+let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-0-pro-260628', visionModel: 'doubao-seed-2-1-pro-260915' }, loadSettings());
+if (!settings.imageModel || /seedream-4-0|seedream-3-0/.test(settings.imageModel)) settings.imageModel = 'doubao-seedream-5-0-pro-260628';
+if (!settings.visionModel) settings.visionModel = 'doubao-seed-2-1-pro-260915';
 function fillSettings() {
   $('#apiKey').value = settings.apiKey || '';
-  $('#imageModel').value = settings.imageModel || 'doubao-seedream-4-0-250828';
+  $('#imageModel').value = settings.imageModel || 'doubao-seedream-5-0-pro-260628';
   $('#visionModel').value = settings.visionModel || 'doubao-seed-2-1-pro-260915';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
 }
