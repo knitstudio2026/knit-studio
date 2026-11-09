@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>单品算账 · 拼多多</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#ffffff; --text:#14171a; --sub:#6b7280;
+  --line:#e6e8eb; --green:#12a150; --red:#e5484d; --blue:#2563eb;
+  --soft:#f0f2f5;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.5;padding-bottom:40px}
+.wrap{max-width:720px;margin:0 auto;padding:0 12px}
+header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+header .wrap{display:flex;align-items:center;justify-content:space-between;height:52px}
+h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.5px}
+.tag{font-size:11px;color:var(--sub);background:var(--soft);padding:3px 8px;border-radius:20px}
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:52px;z-index:9}
+.tabs button{flex:1;border:0;background:none;padding:12px 4px;font-size:14px;color:var(--sub);
+  border-bottom:2px solid transparent;font-family:inherit}
+.tabs button.on{color:var(--text);font-weight:600;border-bottom-color:var(--text)}
+.card{background:var(--card);border-radius:12px;padding:14px;margin-top:12px;
+  box-shadow:0 1px 2px rgba(0,0,0,.04)}
+h2{font-size:13px;color:var(--sub);font-weight:600;margin:0 0 10px;letter-spacing:.5px}
+.row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0}
+.row label{flex:1;font-size:14px;color:#374151;min-width:0}
+.row .hint{display:block;font-size:11px;color:#9aa3ad;margin-top:1px}
+input[type=number],input[type=text]{
+  width:96px;flex:none;text-align:right;font-size:16px;font-family:inherit;
+  padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fafbfc;
+  color:var(--text);outline:none;-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input:focus{border-color:#9fb4d8;background:#fff}
+input.small{width:76px}
+.btn{width:100%;padding:13px;border:0;border-radius:10px;background:var(--text);color:#fff;
+  font-size:15px;font-weight:600;font-family:inherit;margin-top:10px}
+.btn.ghost{background:var(--soft);color:var(--text)}
+.seg{display:flex;background:var(--soft);border-radius:10px;padding:3px}
+.seg button{flex:1;border:0;background:none;padding:9px 4px;border-radius:8px;
+  font-size:14px;color:var(--sub);font-family:inherit}
+.seg button.on{background:#fff;color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.result{margin-top:12px;background:#111417;color:#fff;border-radius:14px;padding:18px 16px}
+.result .big{font-size:34px;font-weight:700;letter-spacing:-.5px;line-height:1.1}
+.result .big small{font-size:15px;font-weight:500;opacity:.7;margin-left:4px}
+.result .lbl{font-size:12px;opacity:.62;margin-bottom:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.kpi{background:rgba(255,255,255,.08);border-radius:10px;padding:10px}
+.kpi .v{font-size:18px;font-weight:600;margin-top:2px}
+.kpi .k{font-size:11px;opacity:.65}
+.plus{color:#5ee08a}.minus{color:#ff8d90}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--sub);font-weight:500;font-size:12px}
+tr.total td{font-weight:700;border-top:2px solid #d6dae0;border-bottom:0}
+.matrix td{text-align:center;font-size:12px;padding:7px 2px;border:1px solid #fff}
+.matrix th{text-align:center;font-size:11px;padding:6px 2px}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--sub);margin-top:8px;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.note{font-size:12px;color:var(--sub);line-height:1.7;margin-top:10px}
+.note b{color:#374151}
+.bar{height:8px;border-radius:4px;background:var(--soft);overflow:hidden;margin-top:6px;display:flex}
+.bar i{display:block;height:100%}
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <h1>单品算账</h1>
+  <span class="tag">拼多多 · 单链接盈亏 v2</span>
+</div></header>
+
+<div class="tabs">
+  <button class="on" data-tab="unit">单均快算</button>
+  <button data-tab="bill">账单反推</button>
+  <button data-tab="matrix">保本矩阵</button>
+</div>
+
+<div class="wrap">
+
+<!-- ============ 单均快算 ============ -->
+<section id="tab-unit">
+  <div class="card">
+    <h2>要不要开运费险</h2>
+    <div class="seg" id="uInsSeg">
+      <button data-ins="0" class="on">不开运费险</button>
+      <button data-ins="1">开运费险</button>
+    </div>
+    <div class="note" id="uInsHint" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>单均模型</h2>
+    <div class="row"><label>售价（实收）S</label><input type="number" id="uP" value="37.6" step="0.1"></div>
+    <div class="row"><label>拿货成本 / 件 C</label><input type="number" id="uC" value="23" step="0.1"></div>
+    <div class="row"><label>发出快递 K<span class="hint">含包装袋、面单，不另算</span></label><input type="number" id="uK" value="3" step="0.1"></div>
+    <div class="row"><label>运费险 / 单 Y<span class="hint">不开就填 0</span></label><input type="number" id="uY" value="0" step="0.01"></div>
+    <div class="row"><label>退货率 % r<span class="hint">退货退款的占比</span></label><input type="number" id="uR" value="25" step="1"></div>
+    <div class="row"><label>仅退款率 % q<span class="hint">货不退、钱退的占比</span></label><input type="number" id="uQ" value="2" step="1"></div>
+    <div class="row"><label>退回运费平均承担 / 退货单<span class="hint">无运费险约 5×10%=0.5；有运费险填 0</span></label><input type="number" id="uRet" value="0.5" step="0.1"></div>
+    <div class="row"><label>退回重新包装 / 退货单</label><input type="number" id="uRepack" value="0.5" step="0.1"></div>
+    <div class="row"><label>退货可二次销售 %<span class="hint">100% = 拿货成本能收回</span></label><input type="number" id="uRec" value="100"></div>
+    <div class="row"><label>二次处理成本 / 退货单<span class="hint">熨烫、去毛球等，没有填 0</span></label><input type="number" id="uExtra" value="0" step="0.1"></div>
+    <div class="row"><label>退货商品折损 / 单<span class="hint">无法二次销售时的额外损失</span></label><input type="number" id="uDmg" value="0" step="0.1"></div>
+    <div class="row"><label>平台扣点 % t<span class="hint">拼多多基础技术服务费 0.6%</span></label><input type="number" id="uFee" value="0.6" step="0.1"></div>
+    <div class="row"><label>平台补贴 / 单<span class="hint">券结算等，没有填 0</span></label><input type="number" id="uSub" value="0" step="0.01"></div>
+    <div class="row"><label>发货单量 N<span class="hint">用来折算这期总利润</span></label><input type="number" id="uN" value="326"></div>
+  </div>
+
+  <div class="result">
+    <div class="lbl">平均每单净利</div>
+    <div class="big" id="uUnit">—</div>
+    <div class="grid3">
+      <div class="kpi"><div class="k">这期总净利</div><div class="v" id="uTotal">—</div></div>
+      <div class="kpi"><div class="k">保本售价</div><div class="v" id="uBeP">—</div></div>
+      <div class="kpi"><div class="k">保本退货率</div><div class="v" id="uBeR">—</div></div>
+    </div>
+    <div class="grid3">
+      <div class="kpi"><div class="k">成交率</div><div class="v" id="uOk">—</div></div>
+      <div class="kpi"><div class="k">正常单利润 P</div><div class="v" id="uP0">—</div></div>
+      <div class="kpi"><div class="k">退货单损失 L</div><div class="v" id="uL">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>单均拆解</h2>
+    <table id="uTable"></table>
+  </div>
+</section>
+
+<!-- ============ 账单反推 ============ -->
+<section id="tab-bill" style="display:none">
+  <div class="card">
+    <h2>① 对账中心汇总（照抄金额+笔数，不用导明细）</h2>
+    <div class="row">
+      <label>交易收入 <span class="hint">货款账户 › 账务类型「交易收入」</span></label>
+      <input type="number" id="A" value="8277.38" step="0.01"> <input type="number" class="small" id="nA" value="209">
+    </div>
+    <div class="row">
+      <label>退款 <span class="hint">账务类型「退款」，含退货退款+仅退款</span></label>
+      <input type="number" id="R" value="7098.10" step="0.01"> <input type="number" class="small" id="nR" value="183">
+    </div>
+    <div class="row">
+      <label>其中仅退款笔数 <span class="hint">没有就填 0</span></label>
+      <input type="number" id="nQ" value="0">
+    </div>
+    <div class="row">
+      <label>运费险 <span class="hint">「其他服务」= 消费者体验提升计划费用</span></label>
+      <input type="number" id="I" value="997.40" step="0.01"> <input type="number" class="small" id="nI" value="326">
+    </div>
+    <div class="row">
+      <label>技术服务费 <span class="hint">左=支出，右=返还收入</span></label>
+      <input type="number" id="F" value="50.14" step="0.01"> <input type="number" class="small" id="Fin" value="40.62">
+    </div>
+    <div class="row">
+      <label>优惠券结算 <span class="hint">平台补贴，算收入</span></label>
+      <input type="number" id="C" value="140.79" step="0.01">
+    </div>
+    <div class="row">
+      <label>多多进宝 <span class="hint">左=收入，右=佣金支出</span></label>
+      <input type="number" id="Din" value="140.79" step="0.01"> <input type="number" class="small" id="Dout" value="128.54">
+    </div>
+    <div class="row">
+      <label>扣款/售后补偿 <span class="hint">「扣款」+「其他服务」里的杂项</span></label>
+      <input type="number" id="K" value="15" step="0.01">
+    </div>
+    <div class="row">
+      <label>实际发货单数 <span class="hint">默认＝运费险扣费笔数</span></label>
+      <input type="number" id="N" value="326">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>② 你的成本参数</h2>
+    <div class="row"><label>拿货价 / 件 C</label><input type="number" id="goods" value="23" step="0.1"></div>
+    <div class="row"><label>发货运费 / 单 K</label><input type="number" id="ship" value="3" step="0.1"></div>
+    <div class="row"><label>退回运费平均承担 / 退货单<span class="hint">无运费险 0.5，有运费险 0</span></label><input type="number" id="ret" value="0.5" step="0.1"></div>
+    <div class="row"><label>退货重新包装 / 单</label><input type="number" id="repack" value="0.5" step="0.1"></div>
+    <div class="row"><label>退货可二次销售比例
+      <span class="hint">100% = 货能原价再卖；有污损就填 80/90</span></label>
+      <input type="number" id="rec" value="100" step="1"></div>
+    <div class="row"><label>二次处理 + 折损 / 单<span class="hint">不计就填 0</span></label>
+      <input type="number" id="dmg" value="0" step="0.1"></div>
+    <div class="row"><label>售价（实收）<span class="hint">用于算保本价对比</span></label>
+      <input type="number" id="P" value="37.6" step="0.1"></div>
+  </div>
+
+  <button class="btn ghost" id="fillDemo">一键填入 10 月实际账单（简叙气质毛衫馆）</button>
+
+  <div class="result">
+    <div class="lbl">这条链接这期净利</div>
+    <div class="big" id="oProfit">—</div>
+    <div class="grid3">
+      <div class="kpi"><div class="k">单均净利</div><div class="v" id="oUnit">—</div></div>
+      <div class="kpi"><div class="k">退货率</div><div class="v" id="oRate">—</div></div>
+      <div class="kpi"><div class="k">净利率</div><div class="v" id="oMargin">—</div></div>
+    </div>
+    <div class="grid2">
+      <div class="kpi"><div class="k">保本售价</div><div class="v" id="oBeP">—</div></div>
+      <div class="kpi"><div class="k">保本退货率</div><div class="v" id="oBeR">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>③ 钱都去哪了</h2>
+    <table id="oTable"></table>
+    <div class="bar" id="oBar"></div>
+    <div class="legend" id="oLegend"></div>
+  </div>
+
+  <div class="note">
+    <b>口径说明：</b>「交易收入」是确认收货后才入账的，所以账单里的笔数会少于实际发货单，退货率用<b>退款笔数 ÷ 实际发货单数</b>才算得准；仅退款单独拆出来，因为货退不回来，损失比退货大。
+  </div>
+</section>
+
+<!-- ============ 保本矩阵 ============ -->
+<section id="tab-matrix" style="display:none">
+  <div class="card">
+    <h2>成本参数</h2>
+    <div class="row"><label>拿货价 C</label><input type="number" id="mC" value="23" step="0.1"></div>
+    <div class="row"><label>发出快递 K</label><input type="number" id="mK" value="3" step="0.1"></div>
+    <div class="row"><label>运费险 Y<span class="hint">不开填 0</span></label><input type="number" id="mY" value="0" step="0.01"></div>
+    <div class="row"><label>退回运费平均承担</label><input type="number" id="mRet" value="0.5" step="0.1"></div>
+    <div class="row"><label>退货重包</label><input type="number" id="mRepack" value="0.5" step="0.1"></div>
+    <div class="row"><label>仅退款率 %</label><input type="number" id="mQ" value="2" step="1"></div>
+    <div class="row"><label>技术服务费 %</label><input type="number" id="mFee" value="0.6" step="0.1"></div>
+    <div class="row"><label>平台补贴 / 单</label><input type="number" id="mSub" value="0" step="0.01"></div>
+  </div>
+  <div class="card" style="overflow-x:auto">
+    <h2>售价 × 退货率 → 单均净利（元）</h2>
+    <table class="matrix" id="mTable"></table>
+    <div class="legend">
+      <span><i class="dot" style="background:#e5484d"></i>亏损</span>
+      <span><i class="dot" style="background:#f5a524"></i>白干（0~2元）</span>
+      <span><i class="dot" style="background:#12a150"></i>赚钱</span>
+    </div>
+  </div>
+  <div class="note">
+    纵向是售价，横向是退货率（另含 2% 仅退款）。红区就是「卖得越多亏得越多」，黄区基本白干，只有绿区才值得冲量。
+  </div>
+</section>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const num = id => { const v = parseFloat($(id).value); return isFinite(v) ? v : 0; };
+const money = v => (v < 0 ? '-' : '') + '¥' + Math.abs(v).toFixed(2);
+const pct = v => (isFinite(v) ? (v * 100).toFixed(1) + '%' : '—');
+const cls = v => v > 0.005 ? 'plus' : (v < -0.005 ? 'minus' : '');
+const signed = v => (v > 0 ? '+' : '') + money(v);
+
+/* ================= 统一单均公式 =================
+   P0（正常成交单利润） = S − C − K − Y − S×t
+   L （退货单损失）      = K + Y + 退回运费 + 重包 + (二次处理+折损) − C×rec 回收获利
+   R （仅退款损失）      = C + K + Y + (二次处理+折损)
+   平均每单利润 = P0×(1−r−q) − L×r − R×q
+   等价写法（下面直接用）：S×(1−r−q)×(1−t) − C×(1−r×rec) − K − Y
+                          − r×(重包+退回运费) − (r+q)×(二次+折损)
+================================================== */
+function unitProfit(o) {
+  const { S, r, q, C, K, Y, ret, repack, rec, extra, dmg, t, sub } = o;
+  return S * (1 - r - q) * (1 - t) - C * (1 - r * rec) - K - Y
+       - r * (repack + ret) - (r + q) * (extra + dmg) + sub;
+}
+/* 保本售价：给定 r、q，求 S 使利润为 0 */
+function bePrice(o) {
+  const { r, q, C, K, Y, ret, repack, rec, extra, dmg, t, sub } = o;
+  const den = (1 - r - q) * (1 - t);
+  if (den <= 0) return NaN;
+  const cost = C * (1 - r * rec) + K + Y + r * (repack + ret) + (r + q) * (extra + dmg) - sub;
+  return cost / den;
+}
+/* 保本退货率：给定 S、q，求 r 使利润为 0 */
+function beRate(o) {
+  const { S, q, C, K, Y, ret, repack, rec, extra, dmg, t, sub } = o;
+  const a = S * (1 - t);
+  const b = C * rec + repack + ret + extra + dmg;
+  const num2 = a * (1 - q) - C - K - Y - q * (extra + dmg) + sub;
+  const den = a + b;
+  if (den <= 0) return NaN;
+  return num2 / den;
+}
+
+/* ---------- 单均 ---------- */
+function readUnit() {
+  return {
+    S: num('uP'), r: num('uR') / 100, q: num('uQ') / 100,
+    C: num('uC'), K: num('uK'), Y: num('uY'),
+    ret: num('uRet'), repack: num('uRepack'), rec: num('uRec') / 100,
+    extra: num('uExtra'), dmg: num('uDmg'),
+    t: num('uFee') / 100, sub: num('uSub')
+  };
+}
+function calcUnit() {
+  const o = readUnit();
+  const up = unitProfit(o);
+  const N = num('uN');
+  const total = up * N;
+
+  const el = $('uUnit'); el.textContent = signed(up); el.className = 'big ' + cls(up);
+  $('uTotal').innerHTML = '<span class="' + cls(total) + '">' + signed(total) + '</span>';
+
+  const beP = bePrice(o), beR = beRate(o);
+  $('uBeP').textContent = isFinite(beP) ? money(beP) : '—';
+  $('uBeR').textContent = (isFinite(beR) && beR >= 0 && beR <= 1) ? pct(beR) : '—';
+
+  const ok = 1 - o.r - o.q;
+  const P0 = o.S * (1 - o.t) - o.C - o.K - o.Y + o.sub;
+  const L = o.K + o.Y + o.ret + o.repack + o.extra + o.dmg - o.C * o.rec;
+  const Rl = o.C + o.K + o.Y + o.extra + o.dmg;
+  $('uOk').textContent = pct(ok);
+  $('uP0').innerHTML = '<span class="' + cls(P0) + '">' + money(P0) + '</span>';
+  $('uL').innerHTML = '<span class="' + (L > 0 ? 'minus' : 'plus') + '">' + money(L) + '</span>';
+
+  const rows = [
+    ['成交收入 S×(1−r−q)', o.S * ok, ''],
+    ['平台扣点 −S×t×(1−r−q)', -o.S * ok * o.t, ''],
+    ['货品成本（退不回的）', -o.C * (1 - o.r * o.rec), '退回可收回 ' + (o.rec * 100).toFixed(0) + '%'],
+    ['发出快递 K', -o.K, '按发货单扣'],
+    ['运费险 Y', -o.Y, o.Y ? '开险' : '未开险'],
+    ['退货重包', -o.r * o.repack, pct(o.r) + ' 退货'],
+    ['退回运费承担', -o.r * o.ret, ''],
+    ['二次处理+折损', -(o.r + o.q) * (o.extra + o.dmg), ''],
+    ['平台补贴', o.sub, '']
+  ];
+  $('uTable').innerHTML = '<tr><th>项目</th><th>每单</th></tr>' +
+    rows.map(x => '<tr><td>' + x[0] + (x[2] ? ' <span style="color:#9aa3ad;font-size:11px">' + x[2] + '</span>' : '') +
+      '</td><td class="' + cls(x[1]) + '">' + money(x[1]) + '</td></tr>').join('') +
+    '<tr class="total"><td>平均每单净利</td><td class="' + cls(up) + '">' + money(up) + '</td></tr>';
+}
+
+/* ---------- 账单反推 ---------- */
+function calcBill() {
+  const A = num('A'), nA = num('nA'), R = num('R'), nR = num('nR'), nQ = Math.min(num('nQ'), num('nR'));
+  const I = num('I'), nI = num('nI'), F = num('F'), Fin = num('Fin');
+  const Csub = num('C'), Din = num('Din'), Dout = num('Dout'), Kd = num('K');
+  let N = num('N'); if (!N) N = nI;
+  const goods = num('goods'), ship = num('ship'), repack = num('repack'), ret = num('ret');
+  const rec = num('rec') / 100, dmg = num('dmg'), Pinput = num('P');
+
+  if (!N) { $('oProfit').textContent = '—'; return; }
+
+  const P = nA > 0 ? A / nA : Pinput;      // 平均实收单价
+  const base = nA > 0 ? nA : N;
+  const perSub = (Csub + Din - Dout) / base;
+  const perFee = (F - Fin) / base;
+  const perK   = Kd / base;
+  const perIns = I / N;
+
+  const nRet = Math.max(0, nR - nQ);        // 退货退款笔数
+  const rate = nRet / N;                    // 退货率
+  const qRate = nQ / N;                     // 仅退款率
+  const keptUnits = N - nRet * rec - nQ;    // 净消耗货品件数（仅退款的货丢了）
+  const netRevenue = (N - nR) * P;
+  const subsidy = N * perSub;
+
+  const goodsCost = keptUnits * goods;
+  const shipCost = N * ship;
+  const repackCost = nRet * repack;
+  const returnShip = nRet * ret;
+  const dmgCost = (nRet + nQ) * dmg;
+  const insCost = I;
+  const feeCost = N * perFee;
+  const kCost = N * perK;
+
+  const costTotal = goodsCost + shipCost + repackCost + returnShip + dmgCost + insCost + feeCost + kCost;
+  const profit = netRevenue + subsidy - costTotal;
+  const unit = profit / N;
+
+  const denP = 1 - rate - qRate;
+  const beP = denP > 0
+    ? (goodsCost + shipCost + repackCost + returnShip + dmgCost + insCost + feeCost + kCost - subsidy) / (N * denP)
+    : NaN;
+
+  // 保本退货率：固定 q，数值解，避免口径误差
+  const profitAt = (rt) => {
+    const kept = N - rt * N * rec - nQ;
+    return (N - nQ - rt * N) * P + subsidy - (kept * goods + shipCost + rt * N * (repack + ret) + dmgCost + insCost + feeCost + kCost);
+  };
+  let lo = 0, hi = 0.995, beR = NaN;
+  if (profitAt(0) > 0) {
+    if (profitAt(hi) > 0) beR = hi;
+    else {
+      for (let i = 0; i < 60; i++) {
+        const mid = (lo + hi) / 2;
+        if (profitAt(mid) > 0) lo = mid; else hi = mid;
+      }
+      beR = (lo + hi) / 2;
+    }
+  } else beR = NaN;
+
+  const el = $('oProfit');
+  el.textContent = signed(profit);
+  el.className = 'big ' + cls(profit);
+
+  $('oUnit').innerHTML = '<span class="' + cls(unit) + '">' + signed(unit) + '</span>';
+  $('oRate').textContent = pct(rate);
+  $('oMargin').textContent = netRevenue > 0 ? pct(profit / netRevenue) : '—';
+  $('oBeP').textContent = isFinite(beP) ? money(beP) : '—';
+  $('oBeR').textContent = isFinite(beR) ? pct(beR) : '—';
+
+  const rows = [
+    { l: '成交（净收入）', v: netRevenue, n: '' },
+    { l: '　平均实收单价', v: P, n: '实收' },
+    { l: '　发货 / 退货 / 仅退款', v: null, n: N.toFixed(0) + ' / ' + nRet.toFixed(0) + ' / ' + nQ.toFixed(0) },
+    { l: '平台补贴', v: subsidy, n: '券+进宝-佣金' },
+    { l: '货品成本', v: -goodsCost, n: keptUnits.toFixed(0) + ' 件' },
+    { l: '发货运费', v: -shipCost, n: N.toFixed(0) + ' 单' },
+    { l: '运费险', v: -insCost, n: perIns.toFixed(2) + '/单' },
+    { l: '退货重包', v: -repackCost, n: nRet.toFixed(0) + ' 单' },
+    { l: '退回运费承担', v: -returnShip, n: ret.toFixed(2) + '/单' },
+    { l: '二次处理+折损', v: -dmgCost, n: '' },
+    { l: '技术服务费', v: -feeCost, n: '' },
+    { l: '扣款/补偿', v: -kCost, n: '' },
+    { l: '净利', v: profit, n: '', total: true }
+  ];
+  $('oTable').innerHTML = '<tr><th>项目</th><th>金额</th></tr>' +
+    rows.map(r => {
+      if (r.v === null)
+        return '<tr><td>' + r.l + '</td><td>' + r.n + '</td></tr>';
+      const note = r.n ? ' <span style="color:#9aa3ad;font-size:11px">' + r.n + '</span>' : '';
+      return '<tr class="' + (r.total ? 'total' : '') + '"><td>' + r.l + note +
+        '</td><td class="' + (r.total ? cls(r.v) : '') + '">' + money(r.v) + '</td></tr>';
+    }).join('');
+
+  const barItems = [
+    ['货品', goodsCost, '#2563eb'],
+    ['快递', shipCost, '#7c3aed'],
+    ['运费险', insCost, '#f5a524'],
+    ['退货+杂费', repackCost + returnShip + dmgCost + feeCost + kCost, '#e5484d']
+  ];
+  const bt = barItems.reduce((s, x) => s + x[1], 0) || 1;
+  $('oBar').innerHTML = barItems.map(x =>
+    '<i style="width:' + (x[1] / bt * 100) + '%;background:' + x[2] + '"></i>').join('');
+  $('oLegend').innerHTML = barItems.map(x =>
+    '<span><i class="dot" style="background:' + x[2] + '"></i>' + x[0] + ' ' + money(x[1]) + '</span>').join('');
+}
+
+/* ---------- 矩阵 ---------- */
+function renderMatrix() {
+  const base = {
+    C: num('mC'), K: num('mK'), Y: num('mY'), ret: num('mRet'),
+    repack: num('mRepack'), rec: 1, extra: 0, dmg: 0,
+    q: num('mQ') / 100, t: num('mFee') / 100, sub: num('mSub')
+  };
+  const prices = [29.9, 33, 35, 37.6, 39.9, 42, 45, 49.9, 55, 59.9];
+  const rates = [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7];
+  let html = '<tr><th>售价\\退货率</th>' + rates.map(r => '<th>' + (r * 100) + '%</th>').join('') + '</tr>';
+  prices.forEach(S => {
+    html += '<tr><th>' + S + '</th>';
+    rates.forEach(r => {
+      const v = unitProfit(Object.assign({}, base, { S, r }));
+      const bg = v < 0 ? '#fde8e8' : (v < 2 ? '#fff4e0' : '#e3f7ec');
+      const fg = v < 0 ? '#c0343a' : (v < 2 ? '#9a6510' : '#0d7a3d');
+      html += '<td style="background:' + bg + ';color:' + fg + '">' + v.toFixed(1) + '</td>';
+    });
+    html += '</tr>';
+  });
+  $('mTable').innerHTML = html;
+}
+
+/* ---------- 运费险开关 ---------- */
+function applyIns(on) {
+  if (on) {
+    $('uY').value = 3.5; $('uRet').value = 0;
+    $('uInsHint').innerHTML = '开险：每单固定扣 <b>3.5 元</b>（按发货扣，退不回），退回运费由平台承担，所以「退回运费承担」填 0。';
+  } else {
+    $('uY').value = 0; $('uRet').value = 0.5;
+    $('uInsHint').innerHTML = '不开险：没有保险扣费，但约 10% 的退货要你自己承担退回运费，按 <b>5×10% = 0.5 元/退货单</b> 折算。';
+  }
+  document.querySelectorAll('#uInsSeg button').forEach(b =>
+    b.classList.toggle('on', (b.dataset.ins === '1') === on));
+  calcUnit();
+}
+
+/* ---------- 绑定 ---------- */
+['uP','uC','uK','uY','uR','uQ','uRet','uRepack','uRec','uExtra','uDmg','uFee','uSub','uN']
+  .forEach(id => $(id).addEventListener('input', calcUnit));
+['A','nA','R','nR','nQ','I','nI','F','Fin','C','Din','Dout','K','N','goods','ship','ret','repack','rec','dmg','P']
+  .forEach(id => $(id).addEventListener('input', calcBill));
+['mC','mK','mY','mRet','mRepack','mQ','mFee','mSub']
+  .forEach(id => $(id).addEventListener('input', renderMatrix));
+document.querySelectorAll('#uInsSeg button').forEach(b =>
+  b.addEventListener('click', () => applyIns(b.dataset.ins === '1')));
+
+$('fillDemo').addEventListener('click', () => {
+  const d = {A:8277.38,nA:209,R:7098.10,nR:183,nQ:0,I:997.40,nI:326,F:50.14,Fin:40.62,
+             C:140.79,Din:140.79,Dout:128.54,K:15,N:326,goods:23,ship:3,ret:0,repack:0.5,rec:100,dmg:0,P:37.6};
+  for (const k in d) $(k).value = d[k];
+  calcBill();
+});
+
+document.querySelectorAll('.tabs button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    ['unit','bill','matrix'].forEach(t => {
+      $('tab-' + t).style.display = (t === b.dataset.tab) ? '' : 'none';
+    });
+    if (b.dataset.tab === 'matrix') renderMatrix();
+  });
+});
+
+applyIns(false);
+calcBill(); renderMatrix();
+</script>
+</body>
+</html>
