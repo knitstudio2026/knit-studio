@@ -13,7 +13,7 @@ window.addEventListener('error', (e) => {
 
 /* ================= 基础设施 ================= */
 
-const APP_VER = '1157E';
+const APP_VER = '1158A';
 
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -83,7 +83,7 @@ const S = {
   libSearch: '',          // 素材库搜索关键词
   libViewId: null,        // 素材库当前查看的素材 ID
   arkPendingJobs: null,   // 预览后待生成的剩余 jobs
-  arkCounts: { mainPer: 2, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto', antiCompare: true },
+  arkCounts: { mainPer: 2, simpleSku: false, simpleNote: '不带丝带', noAccessory: false, accessoryList: '丝带、蕾丝蝴蝶结、胸针等装饰', photoStyle: 'auto', antiCompare: true, swapOrder: 'garmentOnly' },
   aiStatus: '',
   arkStatus: '',
   studioInput: {
@@ -1001,7 +1001,7 @@ function viewStudio() {
           <div class="card-head"><h3>2 · 模特姿势图</h3><span class="sub">换成上面那件衣服，姿势和背景保留</span></div>
           <div class="card-body">
             <p style="font-size:12px;color:#7a5a1e;background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:8px 10px;margin:0 0 10px;line-height:1.7">
-              可以一次传多张，每张各出 1 张。姿势、动作、背景<strong>照抄</strong>这里的图；有人脸会<strong>微调</strong>成不一样的人；衣服永远只认第 1 格你上传的。没人穿的平铺/挂拍图也能传，会自动生成模特穿上你的衣服。
+              这里传<strong>真人穿着衣服</strong>的照片，只取它的姿势、动作和背景，衣服会换成第 1 格你上传的产品。<strong>如果是挂着或平铺的衣服图（图里没人），不要用②③</strong>——模型会把那件挂着的衣服当成要穿的衣服，换装一定失败，这种情况请用①只发产品图。
             </p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
               ${S.swapImages.map((im, i) => `
@@ -1026,12 +1026,18 @@ function viewStudio() {
             <div style="display:flex;gap:8px;align-items:center;margin:4px 0 6px;font-size:12px;color:var(--ink-2)">
               <span style="flex:0 0 auto">发送顺序</span>
               <select id="swapOrder" style="flex:1;font-size:12px">
-                <option value="garmentFirst" ${((S.arkCounts.swapOrder || 'garmentFirst') === 'garmentFirst') ? 'selected' : ''}>① 产品图在前（推荐）</option>
-                <option value="poseFirst" ${S.arkCounts.swapOrder === 'poseFirst' ? 'selected' : ''}>② 模特图在前</option>
-                <option value="garmentOnly" ${S.arkCounts.swapOrder === 'garmentOnly' ? 'selected' : ''}>③ 只发产品图（模特由AI生成）</option>
-                <option value="poseOnly" ${S.arkCounts.swapOrder === 'poseOnly' ? 'selected' : ''}>④ 只发模特图（衣服靠文字还原）</option>
+                <option value="garmentOnly" ${((S.arkCounts.swapOrder || 'garmentOnly') === 'garmentOnly') ? 'selected' : ''}>① 只发产品图（最稳，模特和背景AI生成）</option>
+                <option value="garmentFirst" ${S.arkCounts.swapOrder === 'garmentFirst' ? 'selected' : ''}>② 产品图在前 + 姿势图（姿势图里必须有人）</option>
+                <option value="poseFirst" ${S.arkCounts.swapOrder === 'poseFirst' ? 'selected' : ''}>③ 姿势图在前 + 产品图（姿势图里必须有人）</option>
+                <option value="poseOnly" ${S.arkCounts.swapOrder === 'poseOnly' ? 'selected' : ''}>④ 只发姿势图（衣服靠文字还原）</option>
               </select>
             </div>
+            ${(() => {
+              const so = S.arkCounts.swapOrder || 'garmentOnly';
+              return (so === 'garmentFirst' || so === 'poseFirst')
+                ? '<div style="font-size:12px;color:#b42318;background:#fef3f2;border:1px solid #fecdca;border-radius:8px;padding:7px 9px;margin:0 0 8px;line-height:1.6">当前模式会带上姿势图。如果这张图里<strong>没有人</strong>（只是衣服挂着/平铺），模型会把那件衣服当成要穿的衣服，换装必失败 → 请改选①</div>'
+                : '';
+            })()}
             ${S.swapImages.length ? (() => {
               const cn = Math.max(1, (i.colors || []).length);
               const total = S.swapImages.length * cn;
@@ -1800,14 +1806,16 @@ function swapGarmentDesc() {
 }
 
 async function swapGenerate() {
+  const mode0 = S.arkCounts.swapOrder || 'garmentOnly';
   if (!S.studioImage) { toast('先在上面上传你的衣服实拍图'); return; }
-  if (!S.swapImages.length) { toast('先上传至少一张模特姿势图'); return; }
+  if (!S.swapImages.length && mode0 !== 'garmentOnly') { toast('先上传至少一张模特姿势图'); return; }
   const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
   if (!ai.apiKey) { toast('先去「设置」里填火山方舟 Key'); return; }
   const colors = (S.studioInput.colors || []).filter(Boolean);
   const colorList = colors.length ? colors : [''];
   const combs = [];
-  S.swapImages.forEach((_, pi) => colorList.forEach((c) => combs.push({ pi, color: c })));
+  if (mode0 === 'garmentOnly') colorList.forEach((c) => combs.push({ pi: 0, color: c }));
+  else S.swapImages.forEach((_, pi) => colorList.forEach((c) => combs.push({ pi, color: c })));
   const total = combs.length;
   const isPreview = !S.swapPreviewReady;
   const todo = isPreview ? combs.slice(0, 1) : combs.slice(1);
@@ -1830,7 +1838,7 @@ async function swapGenerate() {
 
   // 换装保留模特图的姿势和背景，所以这里不带生活方式收尾语
   const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
-  const mode = S.arkCounts.swapOrder || 'garmentFirst';
+  const mode = S.arkCounts.swapOrder || 'garmentOnly';
   const poseOnly = mode === 'poseOnly';
   const garmentOnly = mode === 'garmentOnly';
   const G = poseOnly ? '文字描述的衣服' : (mode === 'poseFirst' ? '参考图2' : '参考图1');
