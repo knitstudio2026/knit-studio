@@ -105,6 +105,11 @@ input.wide{width:100%}
   font-size:11px;padding:4px 8px;color:#374151;flex:none}
 .tile .skel{width:100%;aspect-ratio:2/3;background:linear-gradient(100deg,#eef0f3 30%,#f7f8fa 50%,#eef0f3 70%);
   background-size:200% 100%;animation:sh 1.2s infinite}
+.tile.fail .failbox{aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:6px;padding:12px;background:#fdf1ec;color:#b4472c;text-align:center}
+.tile.fail .failbox span{font-size:14px;font-weight:600}
+.tile.fail .failbox small{font-size:10.5px;color:#a87263;line-height:1.45;word-break:break-all;
+  max-height:64px;overflow:hidden}
 @keyframes sh{to{background-position:-200% 0}}
 
 /* 大图查看 */
@@ -205,12 +210,7 @@ input.wide{width:100%}
           </div>
         </div>
         <div class="row">
-          <label>衣服颜色<small>填了就按这个颜色还原，不填按图</small></label>
-          <input type="text" id="color" placeholder="燕麦色">
-        </div>
-        <div class="hint hidden" id="colorHint" style="margin-top:-2px;color:#c4683f"></div>
-        <div class="row">
-          <label>生成张数<small>先出 1 张预览，满意再出剩下的</small></label>
+          <label>生成张数<small>按识别出的颜色自动定，不用改</small></label>
           <input type="number" id="count" value="3" min="1" max="12">
         </div>
         <div class="chk">
@@ -418,10 +418,8 @@ function buildPrompt(opts) {
 /* ================= 生成 ================= */
 let productImage = '';       // dataUrl
 let style = 'lifestyle';
-let jobs = [];               // 待生成任务
 let results = [];            // 已生成
 let running = false;
-let previewDone = false;
 
 function setStatus(text) {
   const el = $('#status');
@@ -481,9 +479,15 @@ function makeJobs(n, colors, from) {
 }
 
 function tileHTML(item, idx) {
+  if (item.error) {
+    return `<div class="tile fail">
+      <div class="failbox"><span>生成失败</span><small>${esc(item.error)}</small></div>
+      <div class="cap"><span>${esc(item.label || '')}</span><button data-retry="${idx}">重试</button></div>
+    </div>`;
+  }
   return `<div class="tile" data-idx="${idx}">
     <img src="${item.url}" alt="生成图">
-    <div class="cap"><span>${item.label}</span><button data-open="${idx}">看大图</button></div>
+    <div class="cap"><span>${esc(item.label || '')}</span><button data-open="${idx}">看大图</button></div>
   </div>`;
 }
 function renderResults() {
@@ -492,9 +496,33 @@ function renderResults() {
     e.stopPropagation();
     openViewer(results[Number(b.dataset.open)].url);
   }));
-  $$('#results .tile').forEach(el => el.addEventListener('click', () => {
+  $$('#results [data-retry]').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    retryOne(Number(b.dataset.retry));
+  }));
+  $$('#results .tile[data-idx]').forEach(el => el.addEventListener('click', () => {
     openViewer(results[Number(el.dataset.idx)].url);
   }));
+}
+
+async function retryOne(idx) {
+  if (running) { toast('正在生成中，稍等一下再重试'); return; }
+  const item = results[idx];
+  if (!item || !item.prompt) return;
+  running = true;
+  setStatus('正在重试 1 张…');
+  try {
+    const url = await callArk(item.prompt);
+    results[idx] = { url, label: item.label };
+    renderResults();
+    toast('重试成功');
+  } catch (e) {
+    item.error = e.message;
+    renderResults();
+    toast('还是失败：' + e.message, 4200);
+  }
+  running = false;
+  setStatus('');
 }
 
 async function runJobs(list, btn) {
@@ -520,6 +548,8 @@ async function runJobs(list, btn) {
         results.unshift({ url, label: list[i].label });
         renderResults();
       } catch (e) {
+        results.unshift({ error: e.message || '未知错误', label: list[i].label, prompt: list[i].prompt });
+        renderResults();
         toast('有 1 张失败：' + e.message, 4200);
       }
       done++;
@@ -560,7 +590,7 @@ $('#genBtn').addEventListener('click', async () => {
   batchProduced = 0;
   const start = results.length;
   await runJobs(makeJobs(1, genColors, 0), $('#genBtn'));
-  batchProduced = results.length - start;
+  batchProduced = results.slice(start).filter(x => x.url).length;
   updateRestBtn();
 });
 
@@ -570,7 +600,7 @@ $('#restBtn').addEventListener('click', async () => {
   if (remain <= 0) { toast('已经出完了'); return; }
   const start = results.length;
   await runJobs(makeJobs(remain, genColors, batchProduced), $('#restBtn'));
-  batchProduced += results.length - start;
+  batchProduced += results.slice(start).filter(x => x.url).length;
   updateRestBtn();
 });
 
@@ -595,7 +625,6 @@ $('#file').addEventListener('change', () => {
       recColors = [];
       $('#recFields').classList.add('hidden');
       $('#copyRow').classList.add('hidden');
-      $('#colorHint').classList.add('hidden');
       $('#results').innerHTML = '';
       results = [];
     });
@@ -781,11 +810,7 @@ async function recognize() {
       if (one) recColors = [one];
     }
     if (recColors.length) {
-      $('#color').value = recColors[0];
       $('#count').value = recColors.length;
-      const h = $('#colorHint');
-      h.textContent = `识别到 ${recColors.length} 个颜色：${recColors.join(' · ')}，将按颜色各出 1 张`;
-      h.classList.remove('hidden');
     }
 
     timer.done('识别完成');
@@ -882,11 +907,6 @@ $('#viewer').addEventListener('click', (e) => {
 
 /* ================= 启动 ================= */
 fillSettings();
-/* 手动改颜色 = 改成单色出图，不再按识别出的多色排队 */
-$('#color').addEventListener('input', () => {
-  recColors = [];
-  $('#colorHint').classList.add('hidden');
-});
 if (!settings.apiKey) {
   $('#tip').innerHTML = '第一次用：先点左上角 ☰ → 设置，填火山方舟 API Key。';
 }
