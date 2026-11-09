@@ -13,7 +13,7 @@ window.addEventListener('error', (e) => {
 
 /* ================= 基础设施 ================= */
 
-const APP_VER = '1158B';
+const APP_VER = '1159A';
 
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -976,13 +976,13 @@ function viewStudio() {
 
   return `
     <div class="page-head">
-      <div><h2>AI 换装</h2><p>上传你的衣服 + 模特姿势图 → 把模特身上的衣服换成你的衣服</p></div>
+      <div><h2>AI 出图</h2><p>上传你的商品图 → AI 生成真实模特实拍图，可开防比价</p></div>
     </div>
 
     <div class="studio">
       <div class="stack">
         <div class="card">
-          <div class="card-head"><h3>1 · 你的衣服（要换上去的）</h3><span class="sub">上传你家的衣服实拍图</span></div>
+          <div class="card-head"><h3>1 · 商品图</h3><span class="sub">上传你家的毛衣实拍图</span></div>
           <div class="card-body">
             ${S.studioImage
               ? `<div class="thumb"><img src="${S.studioImage.dataUrl}" alt="商品图"><button class="reup" id="reup">换图</button></div>`
@@ -998,25 +998,55 @@ function viewStudio() {
         </div>
 
         <div class="card">
-          <div class="card-head"><h3>2 · 生成设置</h3><span class="sub">AI 按你的产品图生成模特图</span></div>
+          <div class="card-head"><h3>2 · 生成设置</h3><span class="sub">AI 按你的商品图生成模特实拍</span></div>
           <div class="card-body">
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:2px 0 10px;font-size:13px">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
+                <select id="arkPhotoStyle" style="margin:0 4px">
+                  <option value="auto" ${(S.arkCounts.photoStyle || 'auto') === 'auto' ? 'selected' : ''}>自动随机（每款统一）</option>
+                  <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>素人模特生活感</option>
+                  <option value="blend" ${S.arkCounts.photoStyle === 'blend' ? 'selected' : ''}>种草+主图质感</option>
+                  <option value="whitebg" ${S.arkCounts.photoStyle === 'whitebg' ? 'selected' : ''}>纯白棚拍</option>
+                  <option value="flatlay" ${S.arkCounts.photoStyle === 'flatlay' ? 'selected' : ''}>平铺挂拍（无模特）</option>
+                </select>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">每个颜色
+                <input id="arkMainCount" type="number" min="1" max="20" step="1" value="${Number(S.arkCounts.mainPer) || 2}" style="width:60px;text-align:center">
+                张
+              </label>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
               <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
-                <input type="checkbox" id="swapNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
+                <input type="checkbox" id="arkNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
                 不带小装饰
               </label>
-              <input id="swapAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结、胸针" style="flex:1;min-width:130px">
+              <input id="arkAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结、胸针" style="flex:1;min-width:130px">
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+                <input type="checkbox" id="arkAntiCompare" ${S.arkCounts.antiCompare ? 'checked' : ''}>防比价
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
+                <input type="checkbox" id="arkSimpleSku" ${S.arkCounts.simpleSku ? 'checked' : ''}>有简配版（多出 1 张）
+              </label>
+              <input id="arkSimpleNote" type="text" value="${esc(S.arkCounts.simpleNote)}" placeholder="简配差异，例如：不带丝带" style="flex:1;min-width:130px">
             </div>
             ${(() => {
               const cn = Math.max(1, (i.colors || []).length);
-              const rest = cn - 1;
-              return `<div style="font-size:12px;color:var(--ink-3);margin:6px 0 4px">${cn} 个颜色 = 共 ${cn} 张（每个颜色 1 张）</div>
-              ${S.swapPreviewReady
-                ? `<div style="display:flex;gap:8px">${rest > 0 ? `<button class="btn primary" id="swapBtn" style="flex:1">继续生成剩余 ${rest} 张</button>` : ''}<button class="btn ${rest > 0 ? '' : 'primary'}" id="swapRedo" style="flex:${rest > 0 ? '0 0 auto' : '1'}">重出预览</button></div>`
-                : `<div><button class="btn primary" id="swapBtn" style="width:100%">生成模特图（先出 1 张预览）</button></div>`}`;
+              const per = Math.max(1, Math.min(20, Math.round(Number(S.arkCounts.mainPer) || 2)));
+              const total = cn * per + (S.arkCounts.simpleSku ? 1 : 0);
+              return `<div style="font-size:12px;color:var(--ink-3);margin:6px 0 8px">${cn} 个颜色 × ${per} 张${S.arkCounts.simpleSku ? ' + 简配 1 张' : ''} = 共 ${total} 张</div>`;
             })()}
-            <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || '先出 1 张预览，满意再生成全部，避免白花钱')}</div>
-            ${S.studioAiImages && S.studioAiImages.some((x) => /换装/.test(x.label)) ? `<div class="canvas-grid" style="margin-top:10px">${S.studioAiImages.filter((x) => /换装/.test(x.label)).map((it) => `
+            <div class="row" style="flex-wrap:wrap;gap:8px">
+              ${S.arkPendingJobs && S.arkPendingJobs.length
+                ? `<button class="btn primary" id="arkContinueBtn">继续生成剩余 ${S.arkPendingJobs.length} 张</button>
+                   <button class="btn sm" id="arkRestartBtn">丢掉预览，重新出</button>`
+                : `<button class="btn primary" id="arkGenBtn">先生成 1 张预览（约 0.1~1 元）</button>
+                   ${(S.studioAiImages || []).length ? `<button class="btn sm" id="arkClearBtn">清空</button>` : ''}`}
+            </div>
+            <div id="arkStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.arkStatus || ((S.studioAiImages || []).length ? '已生成 ' + S.studioAiImages.length + ' 张' : '先出 1 张预览，满意再批量生成，避免白花钱'))}</div>
+            ${(S.studioAiImages || []).length ? `<div class="row" style="margin:10px 0"><button class="btn sm primary" id="arkDlAll">全部下载（${S.studioAiImages.length} 张）</button></div>
+            <div class="canvas-grid">${S.studioAiImages.map((it) => `
               <div class="canvas-card">
                 <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
                 <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span><a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">下载</a></div>
@@ -1144,7 +1174,7 @@ function viewStudio() {
           <div class="card"><div class="empty" style="padding:60px 20px">
             <div class="glyph">✳</div>
             <h4>左边选好标签，点「一键生成」</h4>
-            <p>会生成 6 组标题、8 条卖点、SKU 规格表和整套属性表。出图请用右边的 AI 换装</p>
+            <p>会生成 6 组标题、8 条卖点、SKU 规格表和整套属性表。出图在左边「生成设置」里点</p>
           </div></div>`}
       </div>
     </div>`;
@@ -1209,89 +1239,6 @@ function renderStudioResult() {
         <span class="sub" style="font-size:12px;color:var(--ink-3)">800×800 PNG · 详情 750px 宽</span>
       </div>
       <div class="canvas-grid" id="canvasGrid"></div>`;
-  }
-
-  if (tab === 'ark') {
-    const ai = (S.data.settings && S.data.settings.ai) || {};
-    const hasKey = Boolean(ai.apiKey);
-    const aiImgs = S.studioAiImages || [];
-    body = `
-      <div class="card">
-        <div class="card-head"><h3>火山方舟生成模特图</h3><span class="sub">手动点，确认后扣费</span>
-          <button class="btn sm" id="arkBalanceBtn" style="margin-left:auto">查余额</button>
-        </div>
-        <div class="card-body">
-          <div id="arkBalanceBox" style="display:none;font-size:13px;background:#f6ffed;border:1px solid #b7eb8f;border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.7"></div>
-          ${hasKey ? `
-            <div style="font-size:13px;color:var(--ink-2);margin-bottom:10px">
-              识别到的颜色：<strong>${esc((S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.join('、') : '未识别（按 1 个颜色算）'))}</strong>
-              <span style="color:var(--ink-3)">（${S.studioInput.colors && S.studioInput.colors.length ? S.studioInput.colors.length : 1} 个颜色，每个颜色单独出）</span>
-            </div>
-            <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
-              <label style="font-size:13px;color:var(--ink-2)">每个颜色主图
-                <input id="arkMainCount" type="number" min="1" max="20" step="1" value="${Number(S.arkCounts.mainPer) || 2}" style="width:64px;margin:0 4px;text-align:center">
-                张
-              </label>
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
-              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">出图风格
-                <select id="arkPhotoStyle" style="margin:0 4px">
-                  <option value="auto" ${(S.arkCounts.photoStyle || 'auto') === 'auto' ? 'selected' : ''}>自动随机（每款统一风格）</option>
-                  <option value="flatlay" ${S.arkCounts.photoStyle === 'flatlay' ? 'selected' : ''}>全平铺挂拍（无模特）</option>
-                  <option value="lifestyle" ${S.arkCounts.photoStyle === 'lifestyle' ? 'selected' : ''}>全素人模特随手拍</option>
-                  <option value="whitebg" ${S.arkCounts.photoStyle === 'whitebg' ? 'selected' : ''}>纯白棚拍（高调白底，素人脸）</option>
-                </select>
-              </label>
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
-              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
-                <input type="checkbox" id="arkSimpleSku" ${S.arkCounts.simpleSku ? 'checked' : ''}>
-                有简配版（低价 SKU 引流，多出 1 张）
-              </label>
-              <input id="arkSimpleNote" type="text" value="${esc(S.arkCounts.simpleNote)}" placeholder="简配差异，例如：不带丝带" style="flex:1;min-width:140px">
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
-              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
-                <input type="checkbox" id="arkNoAcc" ${S.arkCounts.noAccessory ? 'checked' : ''}>
-                不带装饰（只生成衣服本体，全部图都生效）
-              </label>
-              <input id="arkAccList" type="text" value="${esc(S.arkCounts.accessoryList)}" placeholder="要去掉的装饰，例如：丝带、蝴蝶结" style="flex:1;min-width:140px">
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
-              <label style="display:flex;align-items:center;gap:6px;color:var(--ink-2)">
-                <input type="checkbox" id="arkAntiCompare" ${S.arkCounts.antiCompare ? 'checked' : ''}>
-                防比价模式（强干扰：每张重构图 + 首图侧身回望 + SKU/标题全随机）
-              </label>
-            </div>
-            <div style="font-size:12px;color:var(--ink-3);line-height:1.6;margin:-4px 0 10px">
-              防比价原理：平台会比对主图、SKU图、SKU文字（权重最高）、标题、属性，相同特征超阈值就判同款、报活动被压价。SKU 图直接用生成好的主图就行，不用另外花钱生成；SKU 文字会自动做变体。<br>
-              新品标（服装类目有效期 30 天）：需店铺近 90 天 DSR 三项高于同行，且属性填全、图片原创，由平台自动判定，无法手动报名。
-            </div>
-            <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
-              ${S.arkPendingJobs && S.arkPendingJobs.length ? `
-                <button class="btn primary" id="arkContinueBtn">继续生成剩余 ${S.arkPendingJobs.length} 张</button>
-                <button class="btn sm" id="arkRestartBtn">丢掉预览，重新出</button>
-              ` : `
-                <button class="btn primary" id="arkGenBtn">先生成 1 张预览（约 0.1~1 元）</button>
-                ${aiImgs.length ? `<button class="btn sm" id="arkClearBtn">清空</button>` : ''}
-              `}
-            </div>
-            <div id="arkStatus" style="font-size:13px;color:var(--ink-2);min-height:20px;margin-bottom:12px">${esc(S.arkStatus || (S.arkPendingJobs && S.arkPendingJobs.length ? '预览图已出，满意就点「继续生成」，不满意就「丢掉预览，重新出」' : (aiImgs.length ? '已生成 ' + aiImgs.length + ' 张' : '建议先出 1 张看看人脸和风格，满意了再批量出，省得浪费钱')))}</div>
-            ${aiImgs.length ? `<div class="row" style="margin-bottom:10px">
-                <button class="btn sm primary" id="arkDlAll">全部下载（${aiImgs.length} 张）</button>
-                <span class="sub" style="font-size:12px;color:var(--ink-3)">打包成 1 个 zip 下载，不会一张张弹窗</span>
-              </div><div class="canvas-grid">${aiImgs.map((it) => `
-              <div class="canvas-card">
-                <a href="${it.url}" target="_blank" rel="noopener"><img src="${it.url}" alt="${esc(it.label)}"></a>
-                <div class="cc-foot"><span>${esc(it.label)}</span><span style="margin-left:auto"></span>
-                  <a class="btn sm dlOne" href="${it.url}" data-url="${it.url}" data-name="${esc(it.label)}">下载</a></div>
-              </div>`).join('')}</div>` : ''}
-          ` : `
-            <div class="tbl-empty" style="margin-bottom:12px">还没填火山方舟 Key，不能直接出图。</div>
-            <button class="btn" id="arkGoSettings">去设置填 Key</button>
-          `}
-        </div>
-      </div>`;
   }
 
   if (tab === 'jimeng') {
@@ -1415,9 +1362,6 @@ function bindStudio() {
   }
 
   const swapFile = $('#swapFile');
-  const chooseSwap = () => swapFile && swapFile.click();
-  const swapDz = $('#swapDz');
-  if (swapDz) swapDz.onclick = chooseSwap;
   if (swapFile) {
     swapFile.onchange = async () => {
       const files = swapFile.files;
@@ -1432,34 +1376,10 @@ function bindStudio() {
           added++;
         } catch (_) { toast(file.name + ' 读取失败，跳过'); }
       }
-      if (added) {
-        S.swapStatus = '';
-        S.swapPreviewReady = false;
-        S.swapPreviewUrl = '';
-        renderRoute();
-        bindRoute();
-      }
+      if (added) { renderRoute(); bindRoute(); }
       swapFile.value = '';
     };
   }
-  $$('[data-swap-del]').forEach((b) => {
-    b.onclick = () => {
-      const idx = Number(b.dataset.swapDel);
-      S.swapImages.splice(idx, 1);
-      S.swapPreviewReady = false;
-      S.swapPreviewUrl = '';
-      renderRoute();
-      bindRoute();
-    };
-  });
-  const swapBtn = $('#swapBtn');
-  if (swapBtn) swapBtn.onclick = swapGenerate;
-  const swapRedoBtn = $('#swapRedo');
-  if (swapRedoBtn) swapRedoBtn.onclick = swapRedo;
-  const swapNoAcc = $('#swapNoAcc');
-  if (swapNoAcc) swapNoAcc.onchange = () => { S.arkCounts.noAccessory = swapNoAcc.checked; };
-  const swapAccList = $('#swapAccList');
-  if (swapAccList) swapAccList.oninput = () => { S.arkCounts.accessoryList = swapAccList.value; };
   if (fileInput) {
     fileInput.onchange = async () => {
       const file = fileInput.files && fileInput.files[0];
@@ -1749,132 +1669,6 @@ function arkStyleInfo() {
   const aud = (i.audience || []).filter(Boolean).join('、') || '女士';
   const scene = (i.scene || []).filter(Boolean).join('、') || '日常';
   return `整体风格：${styles}；目标人群：${aud}；穿搭场景：${scene}`;
-}
-
-// 把识别到的衣服特征写成文字喂给模型：只靠「参考图2」指代，模型会忽略或跟原衣服混在一起
-function swapGarmentDesc() {
-  const i = S.studioInput || {};
-  const p = [];
-  const cols = (i.colors || []).filter(Boolean);
-  if (cols.length) p.push(`颜色 ${cols.join('、')}`);
-  if (i.category) p.push(`品类 ${i.category}`);
-  if (i.neck) p.push(`领型 ${i.neck}`);
-  if (i.length) p.push(`长度 ${i.length}`);
-  if (i.sleeveLen) p.push(`袖长 ${i.sleeveLen}`);
-  if (i.sleeveType) p.push(`袖型 ${i.sleeveType}`);
-  if (i.fit) p.push(`版型 ${i.fit}`);
-  if (i.pattern && i.pattern !== '纯色') p.push(`花纹 ${i.pattern}`);
-  if ((i.crafts || []).length) p.push(`织法 ${i.crafts.join('、')}`);
-  if ((i.materials || []).length) p.push(`材质 ${i.materials.join('、')}`);
-  if ((i.elements || []).length) p.push(`细节 ${i.elements.join('、')}`);
-  if (i.extra) p.push(i.extra);
-  return p.join('；');
-}
-
-async function swapGenerate() {
-  if (!S.studioImage) { toast('先在上面上传你的衣服实拍图'); return; }
-  const ai = (S.data && S.data.settings && S.data.settings.ai) || {};
-  if (!ai.apiKey) { toast('先去「设置」里填火山方舟 Key'); return; }
-  const colors = (S.studioInput.colors || []).filter(Boolean);
-  const colorList = colors.length ? colors : [''];
-  const combs = colorList.map((c) => ({ pi: 0, color: c }));
-  const total = combs.length;
-  const isPreview = !S.swapPreviewReady;
-  const todo = isPreview ? combs.slice(0, 1) : combs.slice(1);
-  if (!todo.length) { toast('已经全部生成完了'); return; }
-  const low = (todo.length * 0.1).toFixed(1);
-  const msg = isPreview
-    ? `先出 1 张预览（共 ${total} 张，每个颜色 1 张），约 0.1~1 元。满意再生成剩余 ${total - 1} 张。继续吗？`
-    : `继续生成剩余 ${todo.length} 张，约 ${low}~${todo.length} 元，从你的方舟余额扣。继续吗？`;
-  if (!confirm(msg)) return;
-  const btn = $('#swapBtn');
-  const startedAt = Date.now();
-  const timer = setInterval(() => {
-    const el = $('#swapStatus');
-    if (el) el.textContent = `换装中…已等 ${Math.round((Date.now() - startedAt) / 1000)} 秒，别关页面`;
-  }, 1000);
-  S.swapStatus = `正在换装（1/${todo.length}）…`;
-  if (btn) { btn.disabled = true; btn.textContent = `换装中…（0/${todo.length}）`; }
-  renderRoute();
-  bindRoute();
-
-  // 只发产品图：模特、姿势、背景全部由 AI 生成，衣服只认产品图
-  const garment = S.studioImage.aiUrl || S.studioImage.dataUrl;
-  const head = `参考图1是我要卖的毛衣实拍，是画面里唯一的服装依据。请生成一位25岁左右的年轻亚洲女性，穿着参考图1这件毛衣，站在普通家庭的室内一角，自然站姿、露出脸、半身中景`;
-  const gRule = S.arkCounts.noAccessory
-    ? `。这件衣服必须和参考图1一模一样：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部还原，不能改款不能改色，也不能换成任何其他衣服；但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
-    : `。这件衣服必须和参考图1一模一样：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部还原，不能改款不能改色，不能换成任何其他衣服，也不能直接输出衣服平铺图或挂拍图`;
-  const faceScale = '，构图用半身中景，人物面部不要占太大：脸的高度约占画面高度的五分之一到四分之一，头顶上方留出空间，不要大头贴、不要脸部特写、不要脸顶到画面顶部';
-  const gDesc = swapGarmentDesc();
-  const garmentDesc = gDesc ? `；这件衣服的准确特征（必须逐条对上）：${gDesc}` : '';
-  let done = 0;
-  let lastUrl = '';
-  for (let k = 0; k < todo.length; k++) {
-    const { pi, color } = todo[k];
-    try {
-      const colorHint = color && colors.length
-        ? `；这件衣服原色是「${colors[0]}」，这一张要出的是「${color}」色版本：款式、版型、织法纹理、纽扣数量和每颗颜色、口袋位置完全一致，只把衣服主体颜色改成${color}，不要改变任何结构`
-        : '';
-      S.swapStatus = `正在换装第 ${k + 1}/${todo.length} 张…`;
-      const el = $('#swapStatus');
-      if (el) el.textContent = S.swapStatus;
-      const images = [garment];
-      const r = await api('/api/ai/generate', {
-        method: 'POST',
-        body: JSON.stringify({
-          prompt: head + gRule + garmentDesc + colorHint + faceScale + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景是简洁真实的家庭室内一角；无水印、无文字、无 logo',
-          images,
-          size: '1024x1536',
-          negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands, flat lay, hanging garment, mannequin, product-only photo, big close-up face, cropped head' + (S.arkCounts.noAccessory ? ', ribbon, bow, brooch, lace trim, bowknot, decorative pin' : '')
-        })
-      });
-      const raw = r.dataUrl || r.url;
-      if (!raw) throw new Error('方舟没返回图片');
-      const url = await gradePhoto(raw);
-      lastUrl = url;
-      S.studioAiImages.unshift({ url, label: `换装图（${color || '默认色'}）` });
-      cacheImageNow(url);
-      done++;
-      if (btn) btn.textContent = `换装中…（${done}/${todo.length}）`;
-      renderRoute();
-      bindRoute();
-    } catch (e) {
-      S.swapStatus = `第 ${k + 1} 张失败：${(e.body && e.body.message) || e.message}。已成功 ${done} 张，失败的不扣钱。`;
-      renderRoute();
-      bindRoute();
-      break;
-    }
-  }
-  clearInterval(timer);
-  if (btn) btn.disabled = false;
-  if (done === todo.length) {
-    if (isPreview) {
-      S.swapPreviewReady = true;
-      S.swapPreviewUrl = lastUrl;
-      S.swapStatus = `✅ 预览已出。满意就点「继续生成剩余 ${total - 1} 张」，不满意点「重出预览」`;
-      toast('预览已出，看看衣服像不像');
-    } else {
-      S.swapPreviewReady = true;
-      S.swapStatus = `✅ 全部完成，共 ${total} 张，图在下面`;
-      toast('换装完成');
-    }
-  }
-  renderRoute();
-  bindRoute();
-}
-
-async function swapRedo() {
-  const old = S.swapPreviewUrl;
-  if (old) {
-    const idx = S.studioAiImages.findIndex((x) => x.url === old);
-    if (idx >= 0) S.studioAiImages.splice(idx, 1);
-  }
-  S.swapPreviewReady = false;
-  S.swapPreviewUrl = '';
-  S.swapStatus = '';
-  renderRoute();
-  bindRoute();
-  await swapGenerate();
 }
 
 const ARK_PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机后置主摄 __LENS__ 拍摄，有细微胶片颗粒；中景偏半身构图、镜头略微后退，人物和毛衣占画面 60%~75%，头部上方留出空间、不要把脸顶到画面顶部，裤子只露一点，不拍全身不拍鞋；背景是真实生活场景的自然浅景深，近处墙面桌椅窗框绿植能看出形状和材质，远处逐渐柔化，不是糊成一片奶油；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；针织纹理清楚：针脚细密平整、罗纹或平针走向清晰可见，表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度，纽扣质感真实；模特表情自然放松、像朋友随手抓拍的一瞬间，构图略微不完美；头发哑光自然、有碎发和层次；只出现两只手、五指数量正确、手指结构自然；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要过度磨皮、不要塑料感、不要海报感、不要插画或 3D 渲染感、不要暖橙滤镜';

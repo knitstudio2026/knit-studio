@@ -1,4 +1,4 @@
-const CACHE = 'knit-studio-v7';
+const CACHE = 'knit-studio-v8';
 const ASSETS = ['/', '/index.html', '/css/app.css', '/js/app.js', '/js/gen.js', '/js/img.js', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
