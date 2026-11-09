@@ -116,6 +116,24 @@ input.wide{width:100%}
 #viewer .close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;
   border:0;background:rgba(255,255,255,.14);color:#fff;font-size:17px}
 
+/* 识别 / 计时 */
+.timer{margin-top:12px}
+.timer .bar{height:6px;background:#e9ecf1;border-radius:6px;overflow:hidden}
+.timer .bar i{display:block;height:100%;width:8%;background:var(--accent);border-radius:6px;
+  transition:width .15s linear}
+.timer .tt{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:7px}
+.timer .tt b{color:var(--ink);font-variant-numeric:tabular-nums}
+.fields{margin-top:12px;border-top:1px solid var(--line);padding-top:6px}
+.field{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.field:last-child{border-bottom:0}
+.field .k{width:76px;flex:none;font-size:12.5px;color:var(--sub)}
+.field input,.field textarea{flex:1;width:auto;border:1px solid var(--line);border-radius:8px;
+  background:#fafbfc;font-size:13.5px;padding:8px 9px;font-family:inherit;color:var(--ink);outline:none}
+.field textarea{min-height:74px;resize:vertical;line-height:1.6}
+.field input:focus,.field textarea:focus{border-color:#b9c4d6;background:#fff}
+.copyrow{display:flex;gap:8px;margin-top:12px}
+.copyrow button{flex:1;padding:10px;border-radius:9px;border:1px solid var(--line);background:#fff;
+  font-size:13px;color:#374151}
 .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:rgba(20,23,26,.92);
   color:#fff;font-size:13px;padding:10px 16px;border-radius:22px;z-index:120;max-width:86vw;
   text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -166,7 +184,18 @@ input.wide{width:100%}
       </div>
 
       <div class="card">
-        <h2>② 出图设置</h2>
+        <h2>② 识别 <em>按拼多多发布页字段自动填</em></h2>
+        <button class="btn ghost" id="recBtn">开始识别</button>
+        <div class="timer hidden" id="recTimer"></div>
+        <div class="fields hidden" id="recFields"></div>
+        <div class="copyrow hidden" id="copyRow">
+          <button id="copyTitle">复制标题</button>
+          <button id="copyAll">复制全部字段</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>③ 出图设置</h2>
         <div class="row" style="display:block">
           <label style="margin-bottom:8px;display:block">出图风格</label>
           <div class="seg" id="styleSeg">
@@ -217,6 +246,10 @@ input.wide{width:100%}
           <input type="text" id="imageModel" value="doubao-seedream-4-0-250828">
         </div>
         <div class="row">
+          <label>识别模型</label>
+          <input type="text" id="visionModel" value="doubao-seed-2-1-pro-260915">
+        </div>
+        <div class="row">
           <label>接口地址</label>
           <input type="text" id="baseUrl" value="https://ark.cn-beijing.volces.com/api/v3">
         </div>
@@ -265,15 +298,17 @@ const KEY = 'ks2.settings';
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; }
 }
-let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-4-0-250828' }, loadSettings());
+let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-4-0-250828', visionModel: 'doubao-seed-2-1-pro-260915' }, loadSettings());
 function fillSettings() {
   $('#apiKey').value = settings.apiKey || '';
   $('#imageModel').value = settings.imageModel || 'doubao-seedream-4-0-250828';
+  $('#visionModel').value = settings.visionModel || 'doubao-seed-2-1-pro-260915';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
 }
 $('#saveBtn').addEventListener('click', () => {
   settings.apiKey = $('#apiKey').value.trim();
   settings.imageModel = $('#imageModel').value.trim();
+  settings.visionModel = $('#visionModel').value.trim();
   settings.baseUrl = $('#baseUrl').value.trim().replace(/\/$/, '');
   localStorage.setItem(KEY, JSON.stringify(settings));
   toast('已保存');
@@ -465,21 +500,35 @@ async function runJobs(list, btn) {
   running = true;
   btn.disabled = true;
   const old = btn.textContent;
-  let done = 0;
   const total = list.length;
-  for (let i = 0; i < total; i++) {
-    setStatus(`正在生成第 ${i + 1}/${total} 张…别关页面`);
-    btn.textContent = `生成中 ${i + 1}/${total}`;
-    try {
-      const url = await callArk(list[i].prompt);
-      results.unshift({ url, label: list[i].label });
-      renderResults();
-    } catch (e) {
-      toast('第 ' + (i + 1) + ' 张失败：' + e.message, 4200);
+  let done = 0, next = 0;
+  const t0 = performance.now();
+  const timer = setInterval(() => {
+    const s = ((performance.now() - t0) / 1000).toFixed(0);
+    setStatus(`已完成 ${done}/${total} 张 · 已用 ${s}s`);
+  }, 300);
+  setStatus(`已完成 0/${total} 张 · 已用 0s`);
+
+  // 并发 3 张一起出，比一张一张快很多
+  const worker = async () => {
+    while (next < total) {
+      const i = next++;
+      try {
+        const url = await callArk(list[i].prompt);
+        results.unshift({ url, label: list[i].label });
+        renderResults();
+      } catch (e) {
+        toast('有 1 张失败：' + e.message, 4200);
+      }
+      done++;
     }
-    done++;
-  }
-  setStatus('');
+  };
+  await Promise.all(Array.from({ length: Math.min(3, total) }, worker));
+
+  clearInterval(timer);
+  const sec = ((performance.now() - t0) / 1000).toFixed(1);
+  setStatus(`完成 ${done}/${total} 张 · 用时 ${sec}s`);
+  setTimeout(() => setStatus(''), 2600);
   btn.disabled = false;
   btn.textContent = old;
   running = false;
@@ -521,14 +570,44 @@ $('#file').addEventListener('change', () => {
   if (!f) return;
   const reader = new FileReader();
   reader.onload = () => {
-    productImage = reader.result;
-    $('#preview').src = productImage;
-    $('#preview').classList.remove('hidden');
-    $('#dropPh').classList.add('hidden');
-    $('#delBtn').classList.remove('hidden');
+    compressImage(reader.result).then((url) => {
+      productImage = url;
+      $('#preview').src = productImage;
+      $('#preview').classList.remove('hidden');
+      $('#dropPh').classList.add('hidden');
+      $('#delBtn').classList.remove('hidden');
+      // 换图后清空上一张的识别结果
+      recData = null;
+      $('#recFields').classList.add('hidden');
+      $('#copyRow').classList.add('hidden');
+    });
   };
   reader.readAsDataURL(f);
 });
+
+/* 压到最长边 1280，识别和出图都更快 */
+function compressImage(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1280;
+      let w = img.width, h = img.height;
+      if (Math.max(w, h) > max) {
+        const k = max / Math.max(w, h);
+        w = Math.round(w * k); h = Math.round(h * k);
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      try { resolve(c.toDataURL('image/jpeg', 0.86)); }
+      catch (_) { resolve(dataUrl); }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
 $('#delBtn').addEventListener('click', (e) => {
   e.stopPropagation();
   productImage = '';
@@ -545,6 +624,210 @@ $$('#styleSeg button').forEach(b => b.addEventListener('click', () => {
   b.classList.add('on');
   style = b.dataset.style;
 }));
+
+/* ================= 识别（拼多多发布页字段） ================= */
+const PDD_FIELDS = [
+  ['title', '商品标题', 'input'],
+  ['category', '商品类目', 'input'],
+  ['wearStyle', '穿着方式', 'input'],
+  ['materials', '主面料成分', 'input'],
+  ['fiber', '面料俗称', 'input'],
+  ['pattern', '图案', 'input'],
+  ['neck', '领型', 'input'],
+  ['fit', '服装版型', 'input'],
+  ['length', '衣长', 'input'],
+  ['sleeveLen', '袖长', 'input'],
+  ['sleeveType', '袖型', 'input'],
+  ['weight', '厚薄', 'input'],
+  ['fleece', '是否加绒', 'input'],
+  ['elements', '流行元素', 'input'],
+  ['age', '适用年龄', 'input'],
+  ['mainStyle', '主风格', 'input'],
+  ['subStyle', '风格', 'input'],
+  ['season', '上市季节', 'input'],
+  ['colors', '颜色', 'input'],
+  ['sizes', '尺码', 'input'],
+  ['price', '售价(元)', 'input'],
+  ['extra', '卖点关键词', 'input'],
+  ['description', '详情页描述', 'textarea']
+];
+
+const VISION_PROMPT = [
+  '你是拼多多女装类目运营。仔细看这张服装实拍图，输出拼多多发布商品页需要填的信息。',
+  '严格只返回一个 JSON 对象，不要解释、不要 markdown。所有枚举字段只能从给定选项里选，不许造词。',
+  'title: 商品标题，≤60个字，结构参考「风格+领型+元素+版型+品类+适用人群/季节+卖点」，自然通顺，不堆砌关键词，不用"最"等违禁词',
+  'category: 从 ["套头毛衣","针织开衫","毛衣马甲","针织连衣裙","毛衣外套","打底针织衫"] 选一个',
+  'wearStyle: 从 ["套头","开衫","马甲","连衣裙"] 选一个',
+  'materials: 主面料成分数组，从 ["羊毛","羊绒","棉","聚酯纤维","腈纶","锦纶","粘纤","马海毛","兔毛","混纺"] 选1-2个',
+  'fiber: 从 ["针织","毛线","羊毛","羊绒","雪尼尔","棉线","马海毛","冰丝"] 选一个',
+  'pattern: 从 ["纯色","条纹","格子","印花","提花","拼色","刺绣","字母","动物纹"] 选一个',
+  'neck: 从 ["圆领","V领","高领","半高领","翻领","连帽","方领","一字领","娃娃领","立领","POLO领"] 选一个',
+  'fit: 从 ["宽松","修身","直筒","收腰","常规"] 选一个',
+  'length: 从 ["短款","常规款","中长款","长款"] 选一个',
+  'sleeveLen: 从 ["无袖","短袖","五分袖","七分袖","九分袖","长袖"] 选一个',
+  'sleeveType: 从 ["常规","落肩袖","插肩袖","泡泡袖","灯笼袖","公主袖","蝙蝠袖"] 选一个',
+  'weight: 从 ["薄款","常规","加厚","加绒"] 选一个',
+  'fleece: 从 ["不加绒","加绒"] 选一个',
+  'elements: 数组，从 ["纯色","纽扣","口袋","拉链","蝴蝶结","蕾丝","荷叶边","流苏","刺绣","拼接","钉珠","镂空"] 选1-3个图里真实有的',
+  'age: 从 ["青年（18-25周岁）","中青年（26-40周岁）","中年（41-50周岁）","中老年（51-60周岁）"] 选一个',
+  'mainStyle: 从 ["甜美清新","个性街头","气质名媛","简约通勤","文艺复古","小众特色"] 选一个',
+  'subStyle: 从 ["韩版","日系","法式","复古","小清新","通勤","学院风","ins风","慵懒风","温柔风","小香风","运动风"] 选一个',
+  'season: 从 ["春季","夏季","秋季","冬季","春秋","秋冬"] 选一个',
+  'colors: 数组。数清楚有几件不同颜色的同款（拼图逐格看），最多12个，不合并相近色，用常见中文色名（奶白色、燕麦色、浅粉色、雾霾蓝、酒红色等）',
+  'sizes: 数组，从 ["S","M","L","XL","2XL","3XL","均码"] 选',
+  'price: 数字，预估拼多多定价，单位元',
+  'extra: 卖点关键词，逗号分隔，如"不起球,可机洗"',
+  'description: 详情页文案，60-90字，写清楚面料手感、版型、适合身材和穿着场景，口吻像卖家自述，不用违禁词',
+  '只返回 JSON。'
+].join('\n');
+
+let recData = null;
+let recBusy = false;
+
+function makeTimer(el, label) {
+  el.classList.remove('hidden');
+  el.innerHTML = '<div class="bar"><i style="width:8%"></i></div>' +
+    '<div class="tt"><span>' + label + '</span><b>0.0s</b></div>';
+  const bar = el.querySelector('.bar i');
+  const num = el.querySelector('.tt b');
+  const t0 = performance.now();
+  const iv = setInterval(() => {
+    const s = (performance.now() - t0) / 1000;
+    bar.style.width = Math.min(93, 8 + s * 11) + '%';
+    num.textContent = s.toFixed(1) + 's';
+  }, 100);
+  return {
+    done(text) {
+      clearInterval(iv);
+      bar.style.width = '100%';
+      num.textContent = ((performance.now() - t0) / 1000).toFixed(1) + 's · ' + (text || '完成');
+      setTimeout(() => el.classList.add('hidden'), 900);
+    },
+    fail(text) {
+      clearInterval(iv);
+      num.textContent = ((performance.now() - t0) / 1000).toFixed(1) + 's · ' + text;
+    }
+  };
+}
+
+async function recognize() {
+  if (recBusy) return;
+  if (!productImage) { toast('先上传一张商品图'); return; }
+  const key = (settings.apiKey || '').trim();
+  if (!key) { toast('先去「设置」里填火山方舟 API Key'); return; }
+  recBusy = true;
+  const btn = $('#recBtn');
+  btn.disabled = true;
+  const timer = makeTimer($('#recTimer'), '识别中');
+  const url = (settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/chat/completions';
+  const body = {
+    model: settings.visionModel || 'doubao-seed-2-1-pro-260915',
+    temperature: 0.1,
+    max_tokens: 1100,
+    thinking: { type: 'disabled' },
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'text', text: VISION_PROMPT },
+        { type: 'image_url', image_url: { url: productImage } }
+      ]
+    }]
+  };
+  const send = (b) => fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+    body: JSON.stringify(b)
+  });
+  try {
+    let r = await send(body);
+    // 有的模型不认 thinking 参数，去掉重试一次
+    if (r.status === 400) r = await send(Object.assign({}, body, { thinking: undefined }));
+    const j = await r.json().catch(() => null);
+    if (!r.ok) {
+      const msg = (j && j.error && (j.error.message || j.error.code)) || ('HTTP ' + r.status);
+      throw new Error(msg);
+    }
+    const text = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+    const data = parseJsonLoose(text);
+    if (!data) throw new Error('识别结果没看懂，再试一次');
+    recData = data;
+    renderFields(data);
+    timer.done('识别完成');
+    toast('识别完成，字段可以改');
+  } catch (e) {
+    timer.fail('失败');
+    toast('识别失败：' + e.message, 4200);
+  } finally {
+    recBusy = false;
+    btn.disabled = false;
+  }
+}
+
+function parseJsonLoose(text) {
+  if (!text) return null;
+  const s = String(text).replace(/```json/gi, '```').replace(/```/g, '');
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  try { return JSON.parse(s.slice(a, b + 1)); } catch (_) { return null; }
+}
+
+function valText(v) {
+  if (Array.isArray(v)) return v.join('、');
+  return v == null ? '' : String(v);
+}
+
+function renderFields(data) {
+  const wrap = $('#recFields');
+  wrap.innerHTML = PDD_FIELDS.map(([k, label, type]) => {
+    const v = valText(data[k]);
+    if (type === 'textarea') {
+      return `<div class="field"><div class="k">${label}</div><textarea data-k="${k}">${esc(v)}</textarea></div>`;
+    }
+    return `<div class="field"><div class="k">${label}</div><input data-k="${k}" value="${esc(v)}"></div>`;
+  }).join('');
+  wrap.classList.remove('hidden');
+  $('#copyRow').classList.remove('hidden');
+  $$('#recFields [data-k]').forEach(el => {
+    el.addEventListener('input', () => {
+      if (!recData) recData = {};
+      recData[el.dataset.k] = el.value;
+    });
+  });
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function copyText(t) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(() => toast('已复制')).catch(() => fallbackCopy(t));
+  } else fallbackCopy(t);
+}
+function fallbackCopy(t) {
+  const ta = document.createElement('textarea');
+  ta.value = t;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); toast('已复制'); }
+  catch (_) { toast('复制失败，手动长按选择'); }
+  ta.remove();
+}
+
+$('#recBtn').addEventListener('click', recognize);
+$('#copyTitle').addEventListener('click', () => {
+  const t = $('#recFields [data-k="title"]');
+  copyText(t ? t.value : '');
+});
+$('#copyAll').addEventListener('click', () => {
+  if (!recData) return;
+  const lines = PDD_FIELDS.map(([k, label]) => {
+    const el = $('#recFields [data-k="' + k + '"]');
+    return label + '：' + (el ? el.value : valText(recData[k]));
+  });
+  copyText(lines.join('\n'));
+});
 
 /* ================= 大图 ================= */
 function openViewer(url) {
