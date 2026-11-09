@@ -13,7 +13,7 @@ window.addEventListener('error', (e) => {
 
 /* ================= 基础设施 ================= */
 
-const APP_VER = '1157B';
+const APP_VER = '1157C';
 
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -1028,10 +1028,9 @@ function viewStudio() {
               const total = S.swapImages.length * cn;
               const rest = total - 1;
               return `<div style="font-size:12px;color:var(--ink-3);margin:6px 0 4px">${S.swapImages.length} 张姿势图 × ${cn} 个颜色 = 共 ${total} 张</div>
-              <div style="display:flex;gap:8px">
-                <button class="btn primary" id="swapBtn" style="flex:1">${S.swapPreviewReady ? `继续生成剩余 ${rest} 张` : '换装生成（先出 1 张预览）'}</button>
-                ${S.swapPreviewReady ? '<button class="btn" id="swapRedo">重出预览</button>' : ''}
-              </div>`;
+              ${S.swapPreviewReady
+                ? `<div style="display:flex;gap:8px">${rest > 0 ? `<button class="btn primary" id="swapBtn" style="flex:1">继续生成剩余 ${rest} 张</button>` : ''}<button class="btn ${rest > 0 ? '' : 'primary'}" id="swapRedo" style="flex:${rest > 0 ? '0 0 auto' : '1'}">重出预览</button></div>`
+                : `<div><button class="btn primary" id="swapBtn" style="width:100%">换装生成（先出 1 张预览）</button></div>`}`;
             })() : `<div style="margin-top:8px"><button class="btn primary" id="swapBtn" style="width:100%">换装生成（收费）</button></div>`}
             <div id="swapStatus" style="font-size:12px;color:var(--ink-3);margin-top:6px;min-height:18px">${esc(S.swapStatus || (S.swapImages.length ? '先出 1 张预览，满意再生成全部，避免白花钱' : '会先提示费用，确认后才扣钱'))}</div>
             ${S.studioAiImages && S.studioAiImages.some((x) => /换装/.test(x.label)) ? `<div class="canvas-grid" style="margin-top:10px">${S.studioAiImages.filter((x) => /换装/.test(x.label)).map((it) => `
@@ -1769,6 +1768,26 @@ function arkStyleInfo() {
   return `整体风格：${styles}；目标人群：${aud}；穿搭场景：${scene}`;
 }
 
+// 把识别到的衣服特征写成文字喂给模型：只靠「参考图2」指代，模型会忽略或跟原衣服混在一起
+function swapGarmentDesc() {
+  const i = S.studioInput || {};
+  const p = [];
+  const cols = (i.colors || []).filter(Boolean);
+  if (cols.length) p.push(`颜色 ${cols.join('、')}`);
+  if (i.category) p.push(`品类 ${i.category}`);
+  if (i.neck) p.push(`领型 ${i.neck}`);
+  if (i.length) p.push(`长度 ${i.length}`);
+  if (i.sleeveLen) p.push(`袖长 ${i.sleeveLen}`);
+  if (i.sleeveType) p.push(`袖型 ${i.sleeveType}`);
+  if (i.fit) p.push(`版型 ${i.fit}`);
+  if (i.pattern && i.pattern !== '纯色') p.push(`花纹 ${i.pattern}`);
+  if ((i.crafts || []).length) p.push(`织法 ${i.crafts.join('、')}`);
+  if ((i.materials || []).length) p.push(`材质 ${i.materials.join('、')}`);
+  if ((i.elements || []).length) p.push(`细节 ${i.elements.join('、')}`);
+  if (i.extra) p.push(i.extra);
+  return p.join('；');
+}
+
 async function swapGenerate() {
   if (!S.studioImage) { toast('先在上面上传你的衣服实拍图'); return; }
   if (!S.swapImages.length) { toast('先上传至少一张模特姿势图'); return; }
@@ -1804,6 +1823,8 @@ async function swapGenerate() {
     ? `，参考图2是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图2一模一样还原，不能改款不能改色，但不要生成${S.arkCounts.accessoryList || '丝带、蝴蝶结等装饰'}，只保留衣服本体`
     : '，参考图2是你唯一要穿上的衣服：款式、版型、长度、袖型、门襟、领口、材质纹理、花纹、纽扣数量和每颗颜色、口袋位置全部照参考图2一模一样还原，不能改款不能改色，不能换成参考图1原来的衣服，也不能直接输出参考图1里那件衣服本身';
   const faceScale = '，构图用半身中景，人物面部不要占太大：脸的高度约占画面高度的五分之一到四分之一，头顶上方留出空间，不要大头贴、不要脸部特写、不要脸顶到画面顶部';
+  const gDesc = swapGarmentDesc();
+  const garmentDesc = gDesc ? `；这件衣服的准确特征（必须逐条对上）：${gDesc}` : '';
   let done = 0;
   let lastUrl = '';
   for (let k = 0; k < todo.length; k++) {
@@ -1819,7 +1840,7 @@ async function swapGenerate() {
       const r = await api('/api/ai/generate', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: SWAP_PROMPT + baseTail + colorHint + faceScale + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景照搬参考图1不做更换；无水印、无文字、无 logo',
+          prompt: SWAP_PROMPT + baseTail + garmentDesc + colorHint + faceScale + '。真实生活人像摄影：皮肤有真实纹理和细碎发丝，不磨皮不塑料感，非 3D 渲染非插画，柔和自然光有自然阴影，背景照搬参考图1不做更换；无水印、无文字、无 logo',
           images: [ref.aiUrl, garment],
           size: '1024x1536',
           negative_prompt: 'plastic skin, over-saturated, cartoon, AI look, glossy face, deformed hands, flat lay, hanging garment, mannequin, product-only photo, big close-up face, cropped head' + (S.arkCounts.noAccessory ? ', ribbon, bow, brooch, lace trim, bowknot, decorative pin' : '')
@@ -1939,7 +1960,7 @@ const ARK_PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片�
 
 const ARK_PHOTO = ARK_PHOTO_LIFE;
 
-const SWAP_PROMPT = '参考图1只提供四样东西：姿势动作、构图取景、拍摄角度、背景环境，除此之外参考图1里的一切都不得带进新照片；参考图2是我要卖的衣服实拍，新照片里人物穿的只能是参考图2这件。生成一张全新照片：姿势、动作、手臂和手的位置、身体朝向、构图、镜头角度、背景环境全部照搬参考图1，不重新设计姿势、不更换背景、不换场景；参考图1里出现的任何衣服（包括穿在人身上的、也包括平铺或挂着没有人穿的那件）必须完全丢弃，绝对不要出现在新照片里；如果参考图1里有人脸，保留这个人的五官轮廓、脸型和发型发色，只做轻微调整（眼型、鼻型、嘴型、眉形细微变化，妆容更清淡、皮肤更自然），让新脸和原图不是同一个人但气质相近；如果参考图1里没有人，只是一件衣服的平铺图或挂拍图，必须忽略参考图1里那件衣服本身，改为生成一位25岁左右的年轻亚洲女性模特，在参考图1类似的场景氛围里穿着参考图2这件衣服，站姿自然生活化，露出脸';
+const SWAP_PROMPT = '参考图1是一张人物照片，只提供四样东西：这个人的姿势动作、手的位置、身体朝向、构图取景和背景环境；参考图2是我要卖的毛衣实拍，是画面里唯一允许出现的上衣。任务：把参考图1里人物身上原来那件衣服整件抹掉，只保留人（脸、头发、姿势、手、腿和裤子）和背景，然后让人穿上参考图2这件衣服。参考图1原衣服的颜色、织法、纽扣、图案、刺绣、logo、口袋一律不得残留，绝对不能把参考图2和你看到的原衣服混合设计；两边冲突时一律以参考图2为准。参考图2里出现的任何场景、衣架、人台、平铺桌面都不得带进新照片；如果参考图1里有人脸，保留这个人的五官轮廓、脸型和发型发色，只做轻微调整（眼型、鼻型、嘴型、眉形细微变化，妆容更清淡、皮肤更自然），让新脸和原图不是同一个人但气质相近；如果参考图1里没有脸或没人穿，就生成一位25岁左右的年轻亚洲女性模特，站姿自然生活化，露出脸';
 
 /* ===== 生活种草：姿势池 + 场景池（按风格自动匹配，随机不重复） ===== */
 const LIFE_POSES = [
