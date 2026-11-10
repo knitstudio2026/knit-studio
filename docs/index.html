@@ -105,6 +105,7 @@ input.wide{width:100%}
 .tile{background:#f7f8fa;border-radius:12px;overflow:hidden;position:relative}
 .tile img{width:100%;display:block;aspect-ratio:2/3;object-fit:cover;background:#eceff3}
 .tile .cap{font-size:11px;color:var(--sub);padding:7px 9px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.tile .cap span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tile .cap button{border:0;background:#fff;border:1px solid var(--line);border-radius:7px;
   font-size:11px;padding:4px 8px;color:#374151;flex:none}
 .tile .skel{width:100%;aspect-ratio:2/3;background:linear-gradient(100deg,#eef0f3 30%,#f7f8fa 50%,#eef0f3 70%);
@@ -122,6 +123,9 @@ input.wide{width:100%}
 #viewer.on{display:flex}
 #viewer img{max-width:100%;max-height:78vh;border-radius:10px}
 #viewer .tip{color:#cfd5dd;font-size:13px;margin-top:14px}
+#viewer .savbar{margin-top:12px;display:flex;gap:10px}
+#viewer .savbar button{padding:10px 18px;border-radius:10px;border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.12);color:#fff;font-size:14px}
 #viewer .close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;
   border:0;background:rgba(255,255,255,.14);color:#fff;font-size:17px}
 
@@ -190,7 +194,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v4.4</span>
+      <span class="ver">v4.5</span>
     </div>
   </div>
 
@@ -260,10 +264,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
       <div class="grid" id="results" style="margin-top:14px"></div>
       <div class="btn-row" id="saveRow" style="display:none;margin-top:12px">
-        <button class="btn" id="saveAllBtn">一键打包下载全部</button>
+        <button class="btn" id="saveAllBtn">保存到手机相册</button>
+        <button class="btn ghost" id="zipBtn">打包下载 zip</button>
         <button class="btn ghost" id="libSaveBtn">存到素材库</button>
       </div>
-      <div class="hint" style="text-align:center;margin-top:6px">下载的是一个 zip 包（一次就好），解压后就是原图。素材库按钮则是存进网页里随时能看。</div>
+      <div class="hint" style="text-align:center;margin-top:6px">「保存到手机相册」会弹出系统分享面板，选「保存图像/保存到相册」才会进图库；没这个选项就点每张图上的「保存」，或长按图片保存。</div>
     </section>
 
     <!-- ============ 素材库 ============ -->
@@ -320,6 +325,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   <button class="close" id="viewerClose">×</button>
   <img id="viewerImg" alt="生成图">
   <div class="tip">长按图片 → 存储到相册</div>
+  <div class="savbar"><button id="viewerSave">保存这张到相册</button></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -643,31 +649,210 @@ const SCENES = [
   '校园林荫道，绿树、长椅和浅色路面，白天阳光透过树叶，背景清楚',
 ];
 
-/* 场景分组：同一批只在一类地点里换位置（比如都是同一家咖啡店的不同座位），
-   不会出现一个颜色在咖啡店、另一个颜色在马路上 */
-const SCENE_FAMILIES = [
-  { name: '咖啡馆', re: /咖啡|吧台|甜品|面包|蛋糕|烘焙/ },
-  { name: '卧室', re: /卧室|床边|床沿|飘窗|奶油色系|床头/ },
-  { name: '客厅', re: /客厅|沙发|电视柜|茶几|落地窗/ },
-  { name: '街边', re: /街|马路|斑马线|天桥|地铁|机场|商场|便利店|车站|橱窗/ },
-  { name: '校园', re: /校园|图书馆|教室|走廊|教学楼|操场/ },
-  { name: '花店书店', re: /花店|书店|花艺|书架/ },
-  { name: '阳台', re: /阳台|藤椅|露营|露台/ },
-  { name: '影棚', re: /影棚|背景纸|纯色|渐变|无缝/ },
-  { name: '自然', re: /海边|公园|草地|雪|树林|栈道|湖畔/ },
-  { name: '艺术空间', re: /美术馆|展览|画廊|老洋房|艺术/ }
+/* 场景库：每个组 = 同一个地点（同一家店/同一类场所），组内是该地点的不同位置。
+   生成时整批锁定一个组，只换位置，绝不出现一个颜色室内、一个颜色室外；
+   不同款式之间整组完全随机。 */
+const SCENE_SETS = [
+  { name: '韩系咖啡馆', spots: [
+    '同一家明亮通透的韩系咖啡馆，靠窗双人位：浅木桌面、白瓷拿铁杯和木托盘，白纱帘透着日光，背景是白色瓷砖墙和一盆绿植',
+    '同一家韩系咖啡馆的吧台前高脚凳区：长条木质台面、黄铜吊灯，身后咖啡机和一排倒扣的玻璃杯清楚可见，墙面白色方砖，光线明亮均匀',
+    '同一家韩系咖啡馆的二楼角落卡座：米色布艺沙发、小圆木桌，旁边立着一束干花，白色墙面和一扇大窗，午后阳光斜进来',
+    '同一家韩系咖啡馆的进门玄关：白色墙面、木质长凳、落地大绿植和店招灯箱，玻璃门外街道明亮，光从门口照进来',
+    '同一家韩系咖啡馆的甜品柜旁：玻璃冷柜里摆着切块蛋糕，浅色瓷砖墙和木质柜体，暖白灯光柔和均匀',
+    '同一家韩系咖啡馆的长条共享木桌：桌面放着笔记本和咖啡杯，头顶一排吊灯，背景是整面白墙和两幅装饰画',
+    '同一家韩系咖啡馆的窗边高脚吧台：一整面落地窗，窗外行道树明亮，木台面有反光，背景是黑色窗框和远处街景',
+    '同一家韩系咖啡馆的杂志架旁：木质矮柜上摆着杂志、香薰和绿植，浅米色墙面，光线柔和明亮'
+  ]},
+  { name: '复古咖啡馆', spots: [
+    '同一家复古咖啡馆的深色木质卡座：墨绿皮沙发、黄铜壁灯，桌面是深色木纹和一杯手冲咖啡，背景有旧海报和留声机',
+    '同一家复古咖啡馆的临街窗边：深色木窗框、半透明白纱帘，窗外是老街和梧桐树，暖黄日光斜照进来',
+    '同一家复古咖啡馆的吧台：做旧黄铜台面、一排威士忌杯和咖啡器具，身后深色木格柜，暖光吊灯低垂',
+    '同一家复古咖啡馆的旋转楼梯口：木质扶手、铁艺栏杆，墙面是暗红色和旧相框，暖光从二楼落下来',
+    '同一家复古咖啡馆的书架角落：整面深色木书架、旧书和绿罩台灯，皮扶手椅旁有一张边几',
+    '同一家复古咖啡馆的门口玄关：深绿门框、黄铜门把手、马赛克地砖，玻璃门外是老街，暖光从室内透出',
+    '同一家复古咖啡馆的长桌：深木大桌、藤编靠背椅，桌上有花瓶和报纸，背景是暗色木墙和挂钟'
+  ]},
+  { name: '社区面包甜品店', spots: [
+    '同一家社区面包店的玻璃柜台前：原木台面、藤编面包篮，柜里是可颂和吐司，暖白灯光，背景是浅色瓷砖墙',
+    '同一家面包店的靠窗小桌：浅木圆桌和两张木椅，桌上有牛角包和拿铁，窗外是安静的居民街道',
+    '同一家面包店的操作台旁：木质长台、面粉罐和藤篮，背景是烤炉和层架，光线温暖明亮',
+    '同一家面包店的门口台阶：米色墙面、木质招牌和盆栽，玻璃门半开，白天的自然光照进来',
+    '同一家面包店的甜品展示柜侧面：白色瓷砖墙、木质层架和手写价签，暖光均匀',
+    '同一家面包店的角落座位：卡座布艺沙发、小方桌，旁边立着麦穗装饰和纸袋',
+    '同一家面包店的收银台前：木质柜台、铜质收银机和一摞牛皮纸袋，背景是菜单黑板'
+  ]},
+  { name: '独立书店', spots: [
+    '同一家独立书店的靠窗阅读区：木质书架成排、窗边有矮凳和小圆桌，白天自然光透进来，背景是书脊和绿植',
+    '同一家书店的过道：两侧是通顶木质书架，地面是旧木地板，头顶有暖光轨道灯',
+    '同一家书店的收银台旁：木质柜台、一摞新书和绿罩台灯，墙上贴着海报',
+    '同一家书店的二楼楼梯口：铁艺栏杆、木质台阶，墙上挂着装裱画，暖光从窗边照进来',
+    '同一家书店的杂志区：矮架上摊开杂志，旁边是藤编椅，背景有大幅摄影海报',
+    '同一家书店的咖啡角：小圆桌、两把木椅，桌上有书和马克杯，背景是书架和吊灯',
+    '同一家书店的窗边高脚座：整面落地窗，窗外是老街，窗台摆着小盆栽',
+    '同一家书店的儿童绘本区：低矮木书架、彩色绘本和一块地毯，光线柔和明亮'
+  ]},
+  { name: '大学图书馆', spots: [
+    '同一所大学图书馆的靠窗长桌：浅色木质长桌、绿色台灯和成排座椅，窗外是校园绿树，日光很亮',
+    '同一所图书馆的书架之间：高密度白色书架、顶部感应灯，地面浅灰，背景整齐延伸',
+    '同一所图书馆的借阅台旁：木质服务台、还书车和索引牌，头顶是柔和白光',
+    '同一所图书馆的自习隔间：木质隔板、台灯和笔记本，走廊安静明亮',
+    '同一所图书馆的中庭楼梯：浅色石材台阶和玻璃栏板，天光从顶部洒下来',
+    '同一所图书馆的期刊区：斜面阅览台、摊开的期刊，背景是落地窗和校园草坪',
+    '同一所图书馆的休息区：布艺单人沙发、小边几和绿植，暖白灯光'
+  ]},
+  { name: '居家客厅', spots: [
+    '同一间北欧风客厅的浅色布艺沙发旁：木质茶几、干花和一本书，落地窗透进白天的柔光',
+    '同一间客厅的电视柜前：浅木地板、矮柜和绿植，墙面挂着一幅素色画，自然光明亮',
+    '同一间客厅的落地窗前：白纱帘半垂、窗边放着一把藤椅和小圆桌，窗外是城市绿化',
+    '同一间客厅的地毯中央：米色地毯、针织抱枕和矮茶几，阳光在地面拉出柔和光斑',
+    '同一间客厅的餐边柜旁：木质餐边柜、陶瓷杯碟和一盏台灯，浅色墙面干净',
+    '同一间客厅的阅读角：单人布艺沙发、落地灯和一摞书，旁边一盆龟背竹',
+    '同一间客厅的入户玄关：浅色墙面、木质长凳、穿衣镜和一盆绿植',
+    '同一间客厅的阳台推拉门旁：半开的玻璃门、白纱帘和木地板，室内外光线通透'
+  ]},
+  { name: '卧室', spots: [
+    '同一间奶油色系卧室的床边：浅色床品、针织毛毯和木质床头柜，晨光透过白纱帘',
+    '同一间卧室的飘窗：浅色坐垫、抱枕和小托盘，窗外是白天明亮的城市',
+    '同一间卧室的梳妆台前：木质梳妆台、圆形镜子和几瓶香水，暖白灯光',
+    '同一间卧室的衣柜前：浅木衣柜半开、挂着的衣服整齐，地面铺着浅色地毯',
+    '同一间卧室的床尾凳：布艺床尾凳、叠好的毛毯和一本书，光线柔和',
+    '同一间卧室的书桌前：白色书桌、木质椅和一盏小台灯，窗外是安静街道',
+    '同一间卧室的地毯角落：圆形地毯、落地镜和一盆绿植，阳光从侧面照进来'
+  ]},
+  { name: '衣帽间梳妆区', spots: [
+    '同一间衣帽间的全身镜前：浅木地板、白色柜体和一面大镜子，柜内衣服叠放整齐，灯光均匀明亮',
+    '同一间衣帽间的挂衣区：一排木质挂衣杆和米色衣架，旁边有收纳筐和一张小凳',
+    '同一间衣帽间的梳妆台前：白色台面、圆形补光灯镜和香水瓶，背景是浅色墙',
+    '同一间衣帽间的岛台旁：木质岛台、抽屉分格和首饰托盘，暖白灯光',
+    '同一间衣帽间的换鞋凳：米色软凳、鞋架和一盆绿植，浅色墙面',
+    '同一间衣帽间的窗前：白纱帘、木质地板和一面立镜，自然光柔和'
+  ]},
+  { name: '女装买手店', spots: [
+    '同一家极简女装买手店的陈列架旁：浅色墙面、木质陈列架上挂着少量浅色衣服，间距宽松，地面干净，灯光柔和',
+    '同一家买手店的全身镜前：落地大镜、浅木地板和一小盆绿植，镜面干净',
+    '同一家买手店的收银台：木质柜台、纸袋和干花，背景是浅米色墙',
+    '同一家买手店的试衣区外：米色布帘、木质长凳和挂钩，灯光均匀',
+    '同一家买手店的橱窗内侧：落地玻璃、浅色石材台面和两件陈列单品，室外光线透进来',
+    '同一家买手店的中岛台：白色石材台面、叠放的针织衫和香薰，背景是整面白墙',
+    '同一家买手店的沙发休息区：浅色布艺沙发、小圆桌和杂志，暖白灯光',
+    '同一家买手店的后区走廊：浅色墙面、拱形门洞和一盆高绿植，光线明亮'
+  ]},
+  { name: '花店', spots: [
+    '同一家花店的木质长桌前：成排花桶和散放的花枝，浅色墙面，自然光从玻璃窗照进来',
+    '同一家花店的门口：木质门框、悬挂干花和绿植，玻璃门外是白天街道',
+    '同一家花店的花架旁：铁艺花架、白色花盆和满天星，背景是浅灰墙面',
+    '同一家花店的收银台：木质柜台、牛皮纸包装和剪刀，暖白灯光',
+    '同一家花店的工作台：操作台上有花泥、丝带和半成品花束，背景是工具墙',
+    '同一家花店的窗边座位：藤椅、小圆桌和一瓶鲜花，窗外光线明亮',
+    '同一家花店的冷藏花柜旁：玻璃门花柜、成束玫瑰，白色瓷砖墙'
+  ]},
+  { name: '早午餐餐厅', spots: [
+    '同一家早午餐店的靠窗卡座：藤编椅、浅木桌、班尼迪克蛋和橙汁，窗外街景明亮',
+    '同一家餐厅的长桌：白色桌布、陶瓷餐盘和一瓶小花，背景是浅色墙面和吊灯',
+    '同一家餐厅的吧台：木质台面、高脚杯和一排酒瓶，暖光从头顶落下',
+    '同一家餐厅的门口等候区：长条木凳、绿植和菜单立牌，玻璃门外是白天街道',
+    '同一家餐厅的沙发卡座：墨绿布艺沙发、小方桌和餐具，背景是拱形窗',
+    '同一家餐厅的半开放厨房旁：白色瓷砖、铜锅和木质搁板，暖白灯光',
+    '同一家餐厅的露台内侧：折叠玻璃门全开、藤椅和小桌，室内外光连通'
+  ]},
+  { name: '美术馆画廊', spots: [
+    '同一家美术馆的白色展厅：浅木地板、大幅画作和白墙，顶部射灯柔和',
+    '同一家美术馆的走廊：拱形门洞、白墙和地面反光，尽头有一幅画',
+    '同一家画廊的前台：白色石材台面、展册和一盆绿植，灯光干净',
+    '同一家美术馆的休息区：浅色长凳、小边几和雕塑摆件，空间开阔',
+    '同一家画廊的窗边：落地窗、白纱帘和一幅小画，自然光柔和',
+    '同一家美术馆的旋转楼梯：白色台阶、玻璃扶手和天光，线条干净'
+  ]},
+  { name: '酒店空间', spots: [
+    '同一家精品酒店的客房窗边：纱帘、浅色大床和木质床头柜，白天自然光',
+    '同一家酒店的大堂休息区：布艺沙发、大理石边几和落地灯，挑高空间',
+    '同一家酒店的走廊：米色墙面、壁灯和地毯，安静整洁',
+    '同一家酒店的自助餐区：木质餐台、餐具和绿植，暖光均匀',
+    '同一家酒店的电梯厅：金属门、镜面墙和一盆花，灯光柔和',
+    '同一家酒店的露台：藤编沙发、小桌和绿植，白天日光充足',
+    '同一家酒店的浴室镜前：大理石台面、圆镜和毛巾，干净明亮'
+  ]},
+  { name: '老洋房民宿', spots: [
+    '同一栋老洋房的客厅：深色木地板、壁炉和布艺沙发，窗外梧桐树，复古吊灯',
+    '同一栋洋房的楼梯：木质扶手、铁艺栏杆和旧地砖，自然光从侧窗进来',
+    '同一栋洋房的阳台：铁艺栏杆、藤椅和小圆桌，窗外是老街区',
+    '同一栋洋房的卧室：高背木床、碎花床品和木质衣柜，暖光台灯',
+    '同一栋洋房的书房：整面木质书架、书桌和黄铜台灯，暗调温暖',
+    '同一栋洋房的餐厅：长木桌、藤编椅和餐边柜，窗外树影',
+    '同一栋洋房的门廊：拱形门洞、马赛克地砖和绿植，白天光线柔和'
+  ]},
+  { name: '文创园艺术空间', spots: [
+    '同一处文创园的水泥灰展厅：裸露水泥墙、轨道射灯和一件装置作品，地面干净',
+    '同一处文创园的红砖走廊：红砖墙、黑色钢架和落地窗，工业风',
+    '同一处文创园的咖啡角：铁艺桌椅、黑板菜单和绿植，自然光充足',
+    '同一处文创园的中庭：钢架玻璃顶、长条木凳和几盆大绿植，天光洒下',
+    '同一处文创园的店铺门口：灰色墙面、木质招牌和盆栽，门外是园区小路',
+    '同一处文创园的二层平台：金属栏杆、木地板和城市远景，白天通透'
+  ]},
+  { name: '校园空间', spots: [
+    '同一所学校的教室窗边：木质课桌、黑板和窗外绿树，白天日光明亮',
+    '同一所学校的走廊：白墙、木扶手和一排窗，光线通透',
+    '同一所学校的操场看台：浅色台阶、绿色球网和远处教学楼，阳光充足',
+    '同一所学校的楼梯间：浅色墙面、水磨石台阶和大窗，自然光',
+    '同一所学校的图书馆门口：玻璃门、公告栏和绿植，白天明亮',
+    '同一所学校的林荫道：梧桐树、长椅和浅色路面，阳光透过树叶'
+  ]},
+  { name: '街边店铺门口', spots: [
+    '同一段街边店铺的门口：浅色墙面、木质门框和橱窗，人行道干净，白天日光',
+    '同一条街的转角咖啡店外：外摆藤椅和小圆桌，砖墙和遮阳篷，街道明亮',
+    '同一条街的服装店橱窗前：大面积玻璃、模特陈列和石材台阶，日光柔和',
+    '同一条街的面包店门口：木质招牌、面包图案灯箱和盆栽，行人稀少',
+    '同一条街的书店廊下：深色门框、旧木长凳和落地窗，光线从侧面来',
+    '同一条街的花店外：成桶鲜花、黑板价签和砖墙，白天自然光',
+    '同一条街的便利店门口：明亮灯箱、玻璃门和自行车，街道干净',
+    '同一条街的咖啡馆檐下：遮阳伞、木质围栏和绿植，午后光线'
+  ]},
+  { name: '城市街道', spots: [
+    '同一段城市街道的人行道：灰色铺装、行道树和沿街店铺，白天光线明亮',
+    '同一条街的斑马线旁：白色标线、路缘石和远处街景，车辆虚化',
+    '同一条街的红砖墙前：干净的砖墙、消防栓和一株行道树，日光柔和',
+    '同一条街的天桥：金属栏杆、城市车流和远处高楼，白天通透',
+    '同一条街的公交站台：玻璃候车亭、长椅和站牌，光线均匀',
+    '同一条街的骑楼廊下：柱廊、地砖和店铺橱窗，光从街面反射进来',
+    '同一条街的广场台阶：浅色石材台阶、花坛和行人，阳光充足',
+    '同一条街的停车场入口：灰色墙面、指示牌和一辆静态的车，白天干净'
+  ]},
+  { name: '公园林荫道', spots: [
+    '同一个城市公园的林荫道：高大行道树、落叶和浅色步道，阳光透过树叶洒下斑驳光',
+    '同一个公园的长椅旁：木质长椅、草坪和远处树丛，白天日光',
+    '同一个公园的湖边栈道：木质栏杆、水面和芦苇，天空明亮',
+    '同一个公园的花坛前：成片花丛、低矮石沿和绿树，色彩自然',
+    '同一个公园的草坪：干净草地、野餐垫和树荫，光线通透',
+    '同一个公园的石桥：浅色石栏、河道和垂柳，白天明亮',
+    '同一个公园的入口广场：石材铺装、大乔木和指示牌，日照柔和'
+  ]},
+  { name: '海边湖畔', spots: [
+    '同一段海边栈道：木质栏杆、沙滩和海面，天空明亮，海风轻',
+    '同一处海边礁石旁：浅色岩石、海浪和远处海平线，日光充足',
+    '同一处海边咖啡店露台：白色栏杆、藤椅和小桌，远处海面',
+    '同一片湖边的木平台：木板地面、湖水和对岸树林，光线柔和',
+    '同一处湖边长椅：木质长椅、芦苇和湖面反光，白天安静',
+    '同一段海边沙滩：细沙、浅浪和远处天空，光线通透'
+  ]},
+  { name: '天台露台', spots: [
+    '同一处城市天台的一角：木质地板、黑色金属栏杆和盆栽，远处是高楼，白天通透',
+    '同一处天台的休闲区：藤编沙发、小茶几和遮阳伞，日光充足',
+    '同一处天台的绿植墙前：整面绿植、木平台和一把折叠椅，光线明亮',
+    '同一处露台的白色栏杆旁：白栏杆、小圆桌和高脚凳，城市背景虚化',
+    '同一处露台的台阶：浅色台阶、花盆和串灯，午后柔光',
+    '同一处露台的吧台：木质台面、高脚杯和遮阳篷，天空明亮',
+    '同一处天台的晾晒区旁：白色晾衣绳、绿植和木地板，生活感自然'
+  ]},
+  { name: '地铁车站', spots: [
+    '同一座地铁站的站台：浅灰墙面、黄色安全线和长椅，顶部灯带明亮',
+    '同一座地铁站的站厅：白色立柱、闸机和指示牌，地面反光',
+    '同一座地铁站的扶梯口：金属扶手、玻璃栏板和广告灯箱，光线均匀',
+    '同一座地铁站的车厢内：浅色座椅、扶手杆和车窗，车厢灯光',
+    '同一座地铁站的出口通道：瓷砖墙、灯箱和楼梯，白天光从出口照进来',
+    '同一座地铁站的候车区：长椅、线路图和自动售货机，干净明亮'
+  ]}
 ];
-const SCENE_GROUPS = (() => {
-  const used = new Set();
-  const out = [];
-  SCENE_FAMILIES.forEach((f) => {
-    const spots = SCENES.filter((x) => !used.has(x) && f.re.test(x));
-    if (spots.length) { out.push({ name: f.name, spots }); spots.forEach((x) => used.add(x)); }
-  });
-  const rest = SCENES.filter((x) => !used.has(x));
-  rest.forEach((x) => out.push({ name: '其他', spots: [x] }));
-  return out;
-})();
+const SCENE_GROUPS = SCENE_SETS;
 function pickSceneGroup() {
   const rich = SCENE_GROUPS.filter((g) => g.spots.length >= 2);
   return rand(rich.length ? rich : SCENE_GROUPS);
@@ -676,7 +861,7 @@ function pickSceneGroup() {
 const PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机后置主摄 50mm f/2.0 拍摄，有细微胶片颗粒；中景偏半身构图、镜头略微后退，人物和毛衣占画面 60%~75%，头部上方留出空间、不要把脸顶到画面顶部，裤子只露一点，不拍全身不拍鞋；背景是真实生活场景的自然浅景深，近处墙面桌椅窗框绿植能看出形状和材质，远处逐渐柔化；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；针织纹理清楚：针脚细密平整，领口和袖口是细窄的滚边/窄收口、不是宽坑条，宽度严格照参考图，表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度，纽扣质感真实；模特表情自然放松、像朋友随手抓拍的一瞬间，构图略微不完美；头发哑光自然、有碎发和层次；只出现两只手、五指数量正确、手指结构自然；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要过度磨皮、不要塑料感、不要海报感、不要插画或 3D 渲染感、不要暖橙滤镜、不要古装造型、不要复古影楼风、不要暗沉发灰的曝光、不要短发、不要丸子头、不要马尾、不要盘发、不要扎发、不要发髻、不要过度对称的假人脸、不要娃娃脸修图感、不要手机美颜磨皮';
 const PHOTO_WHITE = '纯白无缝背景棚拍、像正规品牌白底主图：大面积柔光箱均匀打的明亮高调光，光线柔和均匀，没有强烈方向光、没有窗影、没有环境色反射；50mm 人像镜头、全身构图，头顶到脚完整入镜，头顶上方留白约画面高度的八分之一，脚下只有一层极淡柔和投影；背景干净到接近纯白，画面里没有任何道具、家具、植物、装饰和文字；模特漂亮耐看、化自然清透的日常淡妆，皮肤白皙干净但有真实质感；针织纹理清楚：针脚细密平整，领口和袖口是细窄的滚边/窄收口、不是宽坑条，表面紧实不蓬松，不起球不脏旧；姿态放松不摆拍、表情自然；中性白平衡、低饱和、低对比、加一点胶片颗粒，不要暖黄调不要 HDR；服装颜色必须和参考图一致、不被灯光染偏；无水印、无文字、无 logo；不要过度磨皮、不要海报精修感、不要插画或 3D 渲染感';
 const PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片，不是商品渲染图、不是3D建模、不是插画、不是广告精修图：白天自然光从一侧窗户照进来，光线有方向和明暗过渡，衣服与台面/地面/衣架之间有真实的接触阴影和柔和投影，背景自然渐暗不发光；针织实物质感可控：一根根纱线的走向、细密绒毛、轻微起球、织纹的厚薄起伏、袖口下摆的自然褶皱都看得见；颜色是日常光线下的真实颜色，允许轻微噪点、轻微曝光不均；背景的木头/棉布/墙面/地板有真实纹理和细小磨损，近处清楚、远处轻微虚化；构图是随手拍的，略微不正、留白不刻意；无水印、无文字、无logo；不要棚拍打光、不要强烈高光反射、不要完美干净的纯色背景和CG级干净阴影、不要3D渲染感、不要插画感、不要塑料感、不要人台模特、不要假人躯干';
-const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, fused limbs, merged arm and torso, missing hand, extra arm, distorted shoulder, twisted torso, melted sleeves, arm blending into body, cropped forearm, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, plain cuff, missing rib knit, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter';
+const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, fused limbs, merged arm and torso, missing hand, extra arm, distorted shoulder, twisted torso, melted sleeves, arm blending into body, cropped forearm, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, plain cuff, missing rib knit, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter, misaligned buttons, crooked button placket, wavy placket, button offset from buttonhole, floating button, uneven button spacing, uneven button size, button off center, button outside placket, buttonhole and button not aligned';
 /* 姿势由「站/坐 + 身体朝向 + 手臂动作 + 头部角度」交叉组合生成，数百种且全部安全不易畸形 */
 const POSE_STAND = [
   '正面自然站立，重心平均落在双脚上',
@@ -719,7 +904,7 @@ const SAFE_POSES = [];
 });
 const POSES_CLEAR = SAFE_POSES;
 
-const GARMENT_BASE = '衣服必须和参考图一模一样，版型和边口细节都严格照抄参考图：这是常规偏短的短款开衫，衣长约 50~55 厘米，下摆落在髋骨上方、刚好到裤腰下面一点，绝对不能拉长盖住臀部或到大腿；衣身宽松度适中、不紧不垮，肩线自然，袖长到手腕，比例完全按参考图，不许自己改长短；边口细节也不许自己加宽：领口是一圈细窄的滚边包边（宽约 0.5~0.8 厘米，平整贴边，只有很细的纹理，不是宽坑条罗纹）；袖口是窄边收口，只有极细的一圈罗纹或平针卷边，绝对不能做成 3~4 厘米宽的粗坑条；下摆平直收口，同样是窄边，不是宽罗纹；只有门襟是细窄的坑条边。领口、袖口、下摆的宽度和纹理必须和参考图一致，宽了就错；人体结构必须正常：肩膀左右对称、两条手臂都完整可见且粗细合理、肘和腕的转折自然、手肘不要和腰或衣服融在一起、躯干朝向镜头不要扭麻花、不要出现断手多手或手臂与身体粘连；两种手部状态二选一：要么双手自然垂在身侧，要么一只手插在裤袋里，绝不出现手扶栏杆或手撑墙；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸，双手放在身侧、腿上或口袋里；头发全部拨到肩后或耳后，不能遮住领口、门襟和纽扣；领型、门襟、全部纽扣、胸口图案、下摆、袖口都要完整可见，衣服占画面主体';
+const GARMENT_BASE = '衣服必须和参考图一模一样，版型和边口细节都严格照抄参考图：这是常规偏短的短款开衫，衣长约 50~55 厘米，下摆落在髋骨上方、刚好到裤腰下面一点，绝对不能拉长盖住臀部或到大腿；衣身宽松度适中、不紧不垮，肩线自然，袖长到手腕，比例完全按参考图，不许自己改长短；边口细节也不许自己加宽：领口是一圈细窄的滚边包边（宽约 0.5~0.8 厘米，平整贴边，只有很细的纹理，不是宽坑条罗纹）；袖口是窄边收口，只有极细的一圈罗纹或平针卷边，绝对不能做成 3~4 厘米宽的粗坑条；下摆平直收口，同样是窄边，不是宽罗纹；只有门襟是细窄的坑条边。领口、袖口、下摆的宽度和纹理必须和参考图一致，宽了就错；人体结构必须正常：肩膀左右对称、两条手臂都完整可见且粗细合理、肘和腕的转折自然、手肘不要和腰或衣服融在一起、躯干朝向镜头不要扭麻花、不要出现断手多手或手臂与身体粘连；两种手部状态二选一：要么双手自然垂在身侧，要么一只手插在裤袋里，绝不出现手扶栏杆或手撑墙；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸，双手放在身侧、腿上或口袋里；头发全部拨到肩后或耳后，不能遮住领口、门襟和纽扣；门襟和纽扣必须规整：门襟是一条笔直垂直的线，从领口一直贯到下摆，不能歪、不能弯、不能断开；门襟上所有纽扣大小一致、颜色一致、间距相等、全部落在同一条垂直中线上；每颗纽扣必须正对扣眼，扣眼和纽扣在同一水平线上、在同一个竖直轴上，绝不能出现扣子偏离扣眼、扣子悬空、扣子压到门襟外、扣子歪斜、扣子大小不一；第一颗纽扣必须在领口正下方左右居中；领型、门襟、全部纽扣、胸口图案、下摆、袖口都要完整可见，衣服占画面主体';
 const FACE_QUALITY = '当代都市年轻女生、小红书女装模特气质，时髦不做作：五官清秀耐看、有辨识度，不是流水线网红脸；脸部左右略微不对称、五官不是完美对称；表情是自然抓拍的一瞬间，不是摆拍假笑；发型是 2026 年流行的日常发型，蓬松发根蓬松、有层次有空气感，绝不是古装盘发、民国学生头或影楼造型；清透自然的日常淡妆——干净底妆、淡淡棕色眼妆、自然眉形、提气色唇色，没有厚重假睫毛不浓艳；皮肤白皙干净但保留真实皮肤纹理和细小毛孔，不要水光肌不要磨皮假面；头发柔顺有光泽带几根碎发';
 
 
@@ -783,7 +968,7 @@ function garmentClause() {
   const core = detail
     ? `衣服必须和参考图一模一样，版型和边口都严格照抄：${detail}。上面写到的衣长位置、边口宽度和织法就是唯一标准，不许加长、不许加宽、不许改短、不许改松紧`
     : GARMENT_BASE;
-  return core + '；人体结构必须正常：肩膀左右对称、两条手臂都完整可见且粗细合理、肘和腕的转折自然、手肘不要和腰或衣服融在一起、躯干朝向镜头不要扭麻花、不要出现断手多手或手臂与身体粘连；两种手部状态二选一：要么双手自然垂在身侧，要么一只手插在裤袋里，绝不出现手扶栏杆或手撑墙；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸，双手放在身侧、腿上或口袋里；头发全部拨到肩后或耳后，不能遮住领口、门襟和纽扣；领型、门襟、全部纽扣、胸口图案、下摆、袖口都要完整可见，衣服占画面主体';
+  return core + '；人体结构必须正常：肩膀左右对称、两条手臂都完整可见且粗细合理、肘和腕的转折自然、手肘不要和腰或衣服融在一起、躯干朝向镜头不要扭麻花、不要出现断手多手或手臂与身体粘连；两种手部状态二选一：要么双手自然垂在身侧，要么一只手插在裤袋里，绝不出现手扶栏杆或手撑墙；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸，双手放在身侧、腿上或口袋里；头发全部拨到肩后或耳后，不能遮住领口、门襟和纽扣；门襟和纽扣必须规整：门襟是一条笔直垂直的线，从领口一直贯到下摆，不能歪、不能弯、不能断开；门襟上所有纽扣大小一致、颜色一致、间距相等、全部落在同一条垂直中线上；每颗纽扣必须正对扣眼，扣眼和纽扣在同一水平线上、在同一个竖直轴上，绝不能出现扣子偏离扣眼、扣子悬空、扣子压到门襟外、扣子歪斜、扣子大小不一；第一颗纽扣必须在领口正下方左右居中；领型、门襟、全部纽扣、胸口图案、下摆、袖口都要完整可见，衣服占画面主体';
 }
 
 function buildPrompt(opts) {
@@ -792,7 +977,7 @@ function buildPrompt(opts) {
     ? `这件衣服是「${color}」：色相、明度、饱和度都要照着参考图还原，整件衣服（含领口、袖口、门襟、口袋）颜色完全一致、干净均匀，不要提亮、不要加暖调、不要偏冷、不要加深、不要出现渐变`
     : '衣服颜色严格保持参考图的原色和原明度，色相、明度、饱和度一点都不能改，不要提亮、不要加深、不要加暖调或冷调';
   const noAccNote = noAcc ? `。衣服上不要出现${accList || '丝带、蕾丝蝴蝶结、胸针等装饰'}，只保留衣服本体` : '';
-  const keep = '。款式、版型、领型、袖长、门襟、纽扣数量与颜色、口袋位置、针织纹理必须与参考图完全一致，不能换成别的衣服';
+  const keep = '。款式、版型、领型、袖长、门襟、纽扣数量/颜色/大小/间距、口袋位置、针织纹理必须与参考图完全一致，不能换成别的衣服；门襟必须笔直垂直，全部纽扣排在同一条垂直中线上、正对各自扣眼，第一颗纽扣在领口正下方居中，不能有扣子偏移、悬空或错位';
 
   if (style === 'flatlay') {
     return `参考图1是一件针织毛衣的实拍图。请生成这张衣服的平铺实物图：把这件毛衣平铺在浅色棉麻布面上，自然摊开、袖口略微弯折，俯拍 45 度角。${colorNote}${keep}${noAccNote}。${PHOTO_FLAT}`;
@@ -890,7 +1075,7 @@ function tileHTML(item, idx) {
   }
   return `<div class="tile" data-idx="${idx}">
     <img src="${item.url}" alt="生成图">
-    <div class="cap"><span>${esc(item.label || '')}</span><button data-open="${idx}">看大图</button></div>
+    <div class="cap"><span>${esc(item.label || '')}</span><button data-save="${idx}">保存</button><button data-open="${idx}">看大图</button></div>
   </div>`;
 }
 function renderResults() {
@@ -904,28 +1089,89 @@ function renderResults() {
     e.stopPropagation();
     retryOne(Number(b.dataset.retry));
   }));
+  $$('#results [data-save]').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveOne(Number(b.dataset.save));
+  }));
   $$('#results .tile[data-idx]').forEach(el => el.addEventListener('click', () => {
     openViewer(results[Number(el.dataset.idx)].url);
   }));
 }
 
-/* ================= 一键打包下载 ================= */
+/* ================= 保存到手机相册 / 打包下载 ================= */
+function dataUrlToBlob(d) {
+  const m = /^data:([^;]+);base64,([\s\S]*)$/.exec(d || '');
+  if (!m) return null;
+  const bin = atob(m[2]);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return new Blob([u8], { type: m[1] });
+}
 async function urlToBlob(url) {
+  const b = dataUrlToBlob(url);
+  if (b) return b;                    // dataURL 同步转换，不丢用户手势
   const res = await fetch(url);
   return res.blob();
 }
+function fileNameOf(item, i) {
+  return `毛衣_${String(item.label || '图').replace(/[\\/:*?"<>|\s]+/g, '')}_${i + 1}.png`;
+}
+async function shareImages(items) {
+  if (!navigator.share || !navigator.canShare) throw new Error('NOSHARE');
+  const blobs = await Promise.all(items.map((it) => urlToBlob(it.url)));
+  const files = blobs.map((b, i) => new File([b], fileNameOf(items[i], i), { type: b.type || 'image/png' }));
+  if (!navigator.canShare({ files })) throw new Error('NOSHARE');
+  await navigator.share({ files });   // 系统面板里选「保存图像/保存到相册」即进图库
+}
+async function downloadOne(url, name) {
+  const blob = await urlToBlob(url);
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+}
+async function saveItem(item, idx) {
+  if (!item || !item.url) return;
+  try {
+    await shareImages([item]);
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    try {
+      await downloadOne(item.url, fileNameOf(item, idx));
+      toast('已下载到「下载」目录，相册里也能看到', 3600);
+    } catch (e2) {
+      toast('保存失败，请长按图片选择「保存图片」', 4400);
+    }
+  }
+}
+async function saveOne(idx) { await saveItem(results[idx], idx); }
 
 $('#saveAllBtn').addEventListener('click', async () => {
   const ok = results.filter(r => r.url);
   if (!ok.length) { toast('还没有生成好的图'); return; }
-  $('#saveAllBtn').disabled = true;
-  $('#saveAllBtn').textContent = '打包中…';
-  const nameOf = (r, i) => `毛衣_${(r.label || '图').replace(/[\\/:*?"<>|\s]+/g, '')}_${i + 1}.png`;
+  const btn = $('#saveAllBtn');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '准备中…';
+  try {
+    await shareImages(ok);
+  } catch (e) {
+    if (e && e.name === 'AbortError') { /* 用户取消分享 */ }
+    else if (e && e.message === 'NOSHARE') toast('这个浏览器不支持批量存相册，请点每张图的「保存」，或长按图片保存', 5000);
+    else toast('保存失败：' + (e.message || e), 4400);
+  } finally { btn.disabled = false; btn.textContent = old; }
+});
+
+$('#zipBtn').addEventListener('click', async () => {
+  const ok = results.filter(r => r.url);
+  if (!ok.length) { toast('还没有生成好的图'); return; }
+  const btn = $('#zipBtn');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '打包中…';
   try {
     const zip = new JSZip();
     for (let i = 0; i < ok.length; i++) {
-      const blob = await urlToBlob(ok[i].url);
-      zip.file(nameOf(ok[i], i), blob);
+      zip.file(fileNameOf(ok[i], i), await urlToBlob(ok[i].url));
     }
     const content = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
     const u = URL.createObjectURL(content);
@@ -936,12 +1182,11 @@ $('#saveAllBtn').addEventListener('click', async () => {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(u), 60000);
-    toast('打包完成，去下载目录找 zip，解压后即可进相册', 3000);
+    toast('已打包下载，解压后就是原图', 3000);
   } catch (e) {
     toast('打包失败：' + e.message, 4200);
   } finally {
-    $('#saveAllBtn').disabled = false;
-    $('#saveAllBtn').textContent = '一键打包下载全部';
+    btn.disabled = false; btn.textContent = old;
   }
 });
 
@@ -1455,10 +1700,15 @@ $('#copyAll').addEventListener('click', () => {
 });
 
 /* ================= 大图 ================= */
+let viewerUrl = '';
 function openViewer(url) {
+  viewerUrl = url;
   $('#viewerImg').src = url;
   $('#viewer').classList.add('on');
 }
+$('#viewerSave').addEventListener('click', () => {
+  saveItem({ url: viewerUrl, label: '大图' }, 0);
+});
 $('#viewerClose').addEventListener('click', () => $('#viewer').classList.remove('on'));
 $('#viewer').addEventListener('click', (e) => {
   if (e.target.id === 'viewer') $('#viewer').classList.remove('on');
