@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v6.2</span>
+      <span class="ver">v6.3</span>
     </div>
   </div>
 
@@ -898,6 +898,21 @@ const FACE_QUALITY = '当代都市年轻女生、小红书女装模特气质，�
 /* 防比价：整批固定同一个模特、同一个场景，只换姿势和机位，避免同一张图被搜到 */
 const ANTI_ANGLE = ['与视线齐平的平视机位，画面平稳自然', '略低角度仰拍，人物显得更高挑', '略高角度俯拍，像朋友随手拍', '从侧前方 30 度拍，身体略有透视'];
 const ANTI_FRAME = ['人物偏画面左侧三分之一，右侧留出场景', '人物略偏画面右侧，左侧留出背景', '镜头贴近一点，上半身和毛衣占画面 75%', '镜头稍稍后退，拍到腰胯，留白多一点'];
+/* 防比价「服装添元素」：每张图随机搭一件独立配饰，改变画面特征但绝不改衣服本体 */
+const ACCESSORIES = [
+  '没有额外配饰，只有衣服本体',
+  '没有额外配饰，只有衣服本体',
+  '一条极细的金色锁骨链',
+  '一对小巧的珍珠耳钉',
+  '手腕上戴一只细银镯',
+  '一条浅色薄纱丝巾松松搭在一侧肩头，只搭肩线外侧一小段',
+  '手里拎一只小巧的腋下包，包在腰侧',
+  '一条细格纹围巾松松搭在手臂弯处，不围脖子',
+  '一条同色系细皮带，只在腰侧露出一点，不横跨门襟',
+  '一顶柔软针织贝雷帽，长发自然披在帽下',
+  '一对细长垂坠耳线',
+  '手指上一枚极细的素圈戒指'
+];
 function antiClause() {
   return `这一批是同一位模特在同一类地点里换位置连拍的：脸部长相、发型、妆容、衣服必须完全一致，场景风格和陈设风格也要一致（都在同一家咖啡店/同一个家里/同一条街），只改变具体座位或站位、身体姿势和机位；机位${rand(ANTI_ANGLE)}，构图${rand(ANTI_FRAME)}；不要跨场景，不要一会儿室内一会儿马路`;
 }
@@ -908,19 +923,21 @@ function postProcess(url) {
     const img = new Image();
     img.onload = () => {
       try {
-        const cropX = 0.02 + Math.random() * 0.035;
-        const cropY = 0.015 + Math.random() * 0.03;
+        const cropX = 0.025 + Math.random() * 0.06;
+        const cropY = 0.02 + Math.random() * 0.055;
         const sw = img.width * (1 - cropX * 2);
         const sh = img.height * (1 - cropY * 2);
-        const outW = 1000, outH = 1500;
+        const outW = 980 + Math.floor(Math.random() * 60);
+        const outH = Math.round(outW * 1.5) + Math.floor(Math.random() * 40);
         const c = document.createElement('canvas');
         c.width = outW; c.height = outH;
         const g = c.getContext('2d');
         g.save();
-        const rot = (Math.random() - 0.5) * 2.2 * Math.PI / 180;
+        const rot = (Math.random() - 0.5) * 4 * Math.PI / 180;
         g.translate(outW / 2, outH / 2);
         g.rotate(rot);
-        const scale = 1.06;
+        if (Math.random() < 0.5) g.scale(-1, 1);
+        const scale = 1.02 + Math.random() * 0.05;
         g.drawImage(img, img.width * cropX, img.height * cropY, sw, sh, -outW * scale / 2, -outH * scale / 2, outW * scale, outH * scale);
         g.restore();
         // 色温 / 明度 / 对比扰动
@@ -993,11 +1010,14 @@ function garmentClause(studio) {
 }
 
 function buildPrompt(opts) {
-  const { style, color, noAcc, accList, anti, identity, pose, scene, light, studio, lens } = opts;
+  const { style, color, noAcc, accList, anti, identity, pose, scene, light, studio, lens, acc } = opts;
   const colorNote = color
     ? `这件衣服是「${color}」：色相、明度、饱和度都要照着参考图还原，整件衣服（含领口、袖口、门襟、口袋）颜色完全一致、干净均匀，不要提亮、不要加暖调、不要偏冷、不要加深、不要出现渐变；如果这件是白色或浅色，必须是参考图那种干净的本白／冷白，绝对不能发黄、发米、发粉、发灰、发暖`
     : '衣服颜色严格保持参考图的原色和原明度，色相、明度、饱和度一点都不能改，不要提亮、不要加深、不要加暖调或冷调；如果是白色或浅色，必须保持参考图那种干净本白，不许发黄发米发粉';
   const noAccNote = noAcc ? `。衣服上不要出现${accList || '丝带、蕾丝蝴蝶结、胸针等装饰'}，只保留衣服本体` : '';
+  const addNote = (!noAcc && acc && acc.indexOf('没有额外配饰') < 0)
+    ? `。额外搭配一件独立配饰：${acc}；这件配饰是单独戴在身上或拎在手上的，绝对不能缝在、别在、系在衣服上，不能改变衣服本身的版型、颜色、图案、纽扣和口袋，不能遮挡领口、门襟、纽扣、口袋和下摆，不能挡住胸口图案或门襟线`
+    : '';
   const keep = '。款式、版型、领型、袖长、门襟、纽扣数量/颜色/大小/间距、口袋位置、针织纹理必须与参考图完全一致，不能换成别的衣服；门襟必须笔直垂直，全部纽扣排在同一条垂直中线上、正对各自扣眼，第一颗纽扣在领口正下方居中，不能有扣子偏移、悬空或错位；纱线质感必须和参考图完全一致：是细密均匀的短绒针织（针脚细、绒毛短而均匀、表面平顺），绝对不许变成粗花呢、粗颗粒、大毛圈、结块绒毛或明显起球';
 
   if (style === 'flatlay') {
@@ -1010,7 +1030,7 @@ function buildPrompt(opts) {
     return `参考图1是一件针织毛衣的实拍图。${garmentClause(false)}。请生成一张照片：一位模特穿着参考图1这件毛衣，全身站姿，自然站立、双手自然垂放，正面看向镜头。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}。${photo}。无水印、无文字、无logo。`;
   }
   const antiNote = anti ? `。${antiClause()}` : '';
-  return `参考图1是一件针织毛衣的实拍图。${garmentClause(studio)}。请生成一张照片：一位模特穿着参考图1这件毛衣，${pose}。场景：${scene}。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}。${antiNote}。${photo}。无水印、无文字、无logo。`;
+  return `参考图1是一件针织毛衣的实拍图。${garmentClause(studio)}。请生成一张照片：一位模特穿着参考图1这件毛衣，${pose}。场景：${scene}。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${noAccNote}${addNote}。${antiNote}。${photo}。无水印、无文字、无logo。`;
 }
 
 /* ================= 生成 ================= */
@@ -1060,7 +1080,6 @@ async function callArk(prompt, opts) {
   throw new Error('返回格式看不懂');
 }
 
-function antiOn() { const el = $('#anti'); return !!(el && el.checked); }
 
 // 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图
 async function genImage(prompt, size) {
@@ -1068,7 +1087,7 @@ async function genImage(prompt, size) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       let url = await callArk(prompt, { size });
-      if (antiOn()) url = await postProcess(url);
+      url = await postProcess(url);
       return url;
     } catch (e) {
       lastErr = e;
@@ -1113,10 +1132,11 @@ function makeJobs(n, colors, from) {
     const color = list[k % list.length];
     // 约三成出「手机挡脸自拍」，其余走安全姿势；每张独立随机。影棚风格固定站立半身
     const useSelfie = !useStudio && Math.random() < 0.3;
-    const pose = useStudio ? '自然站立，身体放松、站姿自然不僵硬；竖构图 3:4，从头顶拍到大腿中部，整件衣服完整入镜，下摆必须完整露出、不能被裁切、不能被压缩变形' : (useSelfie ? selfies[selfieN++ % selfies.length] : poses[k % poses.length]);
+    const pose = useStudio ? '自然站立，身体放松、站姿自然不僵硬；竖构图 3:4，从头顶拍到大腿中部，人体上下比例协调、头身比正常，宁可下摆略出画面一点，也不要压缩上身和脸' : (useSelfie ? selfies[selfieN++ % selfies.length] : poses[k % poses.length]);
     const scene = batchCtx.spots[k % batchCtx.spots.length];
+    const acc = noAcc ? '' : rand(ACCESSORIES);
     const prompt = buildPrompt({
-      style: useWhite ? 'whitebg' : style, color, noAcc, accList, anti,
+      style: useWhite ? 'whitebg' : style, color, noAcc, accList, anti, acc,
       identity: batchCtx.identity, pose, scene, light: batchCtx.light, lens: batchCtx.lens, studio: useStudio
     });
     out.push({ prompt, label: color || '商品图', style, size: useWhite ? '1024x1536' : (useStudio ? '1024x1365' : '') });
