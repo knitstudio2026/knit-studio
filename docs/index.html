@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v6.7</span>
+      <span class="ver">v6.8</span>
     </div>
   </div>
 
@@ -305,6 +305,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <label>接口地址</label>
           <input type="text" id="baseUrl" value="https://ark.cn-beijing.volces.com/api/v3">
         </div>
+        <div class="row">
+          <label>出图清晰度<small>高清不加价，极清单张变 0.60 元</small></label>
+          <select id="quality">
+            <option value="std">标准 1024×1536</option>
+            <option value="hd">高清 1280×1920（同价）</option>
+            <option value="ultra">极清 1365×2048（0.60/张）</option>
+          </select>
+        </div>
         <button class="btn" id="saveBtn" style="margin-top:14px">保存设置</button>
         <div class="hint">
           到火山方舟控制台创建 Key：console.volcengine.com/ark<br>
@@ -352,20 +360,31 @@ const KEY = 'ks2.settings';
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; }
 }
-let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-0-pro-260628', visionModel: 'doubao-seed-2-1-pro-260915' }, loadSettings());
+let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-0-pro-260628', visionModel: 'doubao-seed-2-1-pro-260915', quality: 'std' }, loadSettings());
 if (!settings.imageModel || /seedream-4-0|seedream-3-0/.test(settings.imageModel)) settings.imageModel = 'doubao-seedream-5-0-pro-260628';
 if (!settings.visionModel) settings.visionModel = 'doubao-seed-2-1-pro-260915';
+if (!settings.quality) settings.quality = 'std';
+const QUALITY_SIZE = { std: '1024x1536', hd: '1280x1920', ultra: '1365x2048' };
+function outSize(ratio) {
+  // ratio: '3:4' 或 '4:3'；按清晰度档位换算，保持主体比例不变
+  const q = QUALITY_SIZE[settings.quality] || QUALITY_SIZE.std;
+  const [w, h] = q.split('x').map(Number);
+  if (ratio === '4:3') return Math.round(h * 1.0) + 'x' + w;
+  return q;
+}
 function fillSettings() {
   $('#apiKey').value = settings.apiKey || '';
   $('#imageModel').value = settings.imageModel || 'doubao-seedream-5-0-pro-260628';
   $('#visionModel').value = settings.visionModel || 'doubao-seed-2-1-pro-260915';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
+  $('#quality').value = settings.quality || 'std';
 }
 $('#saveBtn').addEventListener('click', () => {
   settings.apiKey = $('#apiKey').value.trim();
   settings.imageModel = $('#imageModel').value.trim();
   settings.visionModel = $('#visionModel').value.trim();
   settings.baseUrl = $('#baseUrl').value.trim().replace(/\/$/, '');
+  settings.quality = $('#quality').value || 'std';
   localStorage.setItem(KEY, JSON.stringify(settings));
   toast('已保存');
 });
@@ -1018,8 +1037,9 @@ function postProcess(url) {
         const cropY = 0.02 + Math.random() * 0.055;
         const sw = img.width * (1 - cropX * 2);
         const sh = img.height * (1 - cropY * 2);
-        const outW = 980 + Math.floor(Math.random() * 60);
-        const outH = Math.round(outW * 1.5) + Math.floor(Math.random() * 40);
+        // 输出尺寸跟随原图，只做轻微随机缩放（防指纹），不再压成固定 1000 宽
+        const outW = Math.max(600, Math.round(sw * (0.94 + Math.random() * 0.04)));
+        const outH = Math.round(outW * (sh / sw)) + Math.floor(Math.random() * 24);
         const c = document.createElement('canvas');
         c.width = outW; c.height = outH;
         const g = c.getContext('2d');
@@ -1146,7 +1166,7 @@ async function callArk(prompt, opts) {
   const payload = {
     model: settings.imageModel,
     prompt,
-    size: (opts && opts.size) || '1024x1536',
+    size: (opts && opts.size) || outSize('3:4'),
     response_format: 'b64_json',
     watermark: false,
     n: 1,
@@ -1241,7 +1261,7 @@ function makeJobs(n, colors, from) {
       style: useWhite ? 'whitebg' : style, color, noAcc, accList, anti, acc,
       identity: batchCtx.identity, pose, scene, light: batchCtx.light, lens: batchCtx.lens, studio: useStudio
     });
-    out.push({ prompt, label: color || '商品图', style, size: useWhite ? '1024x1536' : (useStudio ? '1024x1365' : '') });
+    out.push({ prompt, label: color || '商品图', style, size: useWhite ? outSize('3:4') : (useStudio ? outSize('3:4') : '') });
   }
   return out;
 }
