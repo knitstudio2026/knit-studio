@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v5.4</span>
+      <span class="ver">v5.5</span>
     </div>
   </div>
 
@@ -470,7 +470,6 @@ const POSES = [
   '坐在咖啡店木质吧台前，一只手搭在吧台边缘，另一只手托着拿铁杯，回头看向镜头',
   '蹲在花店门口，一只手轻碰花束，侧脸看向镜头',
   '坐在书店地板上背靠书架，一只手拿着书，抬头看向镜头',
-  '站在地铁口手扶栏杆，侧身看向镜头，头发被风吹起',
   '坐在公园长椅上，一只手搭在椅背上，另一只手放在腿上，看向远处再转回镜头',
   '站在复古衣架前，一只手轻摸衣架上的衣服，侧脸看向镜头',
   '坐在地毯上，双腿盘起，一只手撑在身后，身体微倾看向镜头',
@@ -546,7 +545,6 @@ const POSES = [
   '站在雪景街边，双手插兜，缩着肩膀，看向镜头',
   '站在海边栏杆旁，一只手压住被风吹起的头发，侧脸看向镜头',
   '坐在户外露营椅上，双手捧着马克杯，腿交叠，看向镜头',
-  '站在地铁车厢里，一只手扶吊环，另一只手插兜，看向镜头',
   '坐在书店窗台，一条腿垂下，一只手扶窗框，看向镜头',
   '站立半身，一只手背在身后，另一只手轻碰耳环，看向镜头',
   '站立半身，微微仰头看向镜头，嘴唇自然微张',
@@ -555,103 +553,7 @@ const POSES = [
   '站在楼梯上，一只手扶扶手，身体前倾看向镜头',
   '站立半身，一只手拿着帽子垂在身侧，另一只手插兜',
 ];
-const SCENES = [
-  '家里客厅沙发旁的落地窗前，有浅色窗帘和绿植',
-  '明亮奶油色系的卧室，床边有木质小柜和窗光',
-  '原木餐桌旁，桌上有玻璃杯和一块小蛋糕',
-  '街角咖啡馆靠窗座位，窗外街道略微虚化',
-  '原木书架前，书架上有几本书和小摆件',
-  '阳台上铺着毛毯的椅子旁，有绿植和自然光',
-  '明亮干净的浅色墙面旁，放着一把布艺椅子，有窗光',
-  '韩系咖啡馆内，木质吧台和白色瓷砖墙，大落地窗白天自然光，桌上有纸杯咖啡和一块蛋糕，背景的咖啡机、菜单板、绿植都清晰可辨，整体明亮通透',
-  '咖啡馆靠窗座位，木质桌面、拿铁杯和木托盘，窗外街景明亮清楚，明亮的自然光打在桌面和毛衣上',
-  '咖啡馆镜子前，镜面里能看到店内的木质柜台、吊灯和瓷砖墙，光线充足明亮，镜边框是深色木质，背景细节清楚',
-  '米色墙面和白色置物架的居家角落，大窗明亮自然光，背景有绿植、杯子和杂物，明亮有生活气息，细节清楚',
-  '卧室床边，浅色床品和针织毛毯，晨光明亮柔和，窗有白色纱帘，背景清楚',
-  '窗边卧室，浅色纱帘透光，浅木地板，明亮自然光，窗台有小盆栽，背景清晰',
-  '极简服装店内，一整面浅色墙前立着干净的木质陈列架，挂着少量熨烫整齐的浅色衣服，间距宽松、像精品店陈列，明亮柔和的灯光，地面干净',
-  '复古咖啡馆，深色木质墙板、黄铜吊灯和皮沙发，大窗日光充足明亮，整体通透，背景清楚',
-  '校园图书馆靠窗位置，成排书本和木质书架，大窗日光很亮，桌面明亮，背景清楚',
-  '教学楼走廊，绿树背景，明亮自然光，白墙和木扶手，背景清晰',
-  '写字楼玻璃幕墙走廊，简洁现代，明亮自然光，远处绿植清楚',
-  '街边绿植墙前，城市街拍，日光柔和，背景有咖啡店招牌清楚可辨',
-  '秋日街景，落叶和街道，白天明亮日光，背景有店铺橱窗清楚',
-  '花店门口，花束和绿植，明亮日光，木质门框，玻璃窗透进日光，背景清楚',
-  '书店靠窗过道，木质书架和明亮阅读区，窗边日光，背景清楚',
-  '地铁口或斑马线，城市日常背景，明亮自然光，远处行人清楚',
-  '白天露台，明亮日光、白色栏杆和绿植，远处城市清楚，画面通透',
-  '极简居家角落，白墙、浅木地板、一盆绿植，明亮窗户光，背景清楚',
-  '沙发旁，米色抱枕和针织毛毯，白天明亮自然光，木质边几上有杯子，窗外日光，背景清楚',
-  '明亮的衣帽间里，全身镜前，镜面干净，镜前是浅色木地板和一小盆绿植，柜子里衣服叠放整齐，明亮温暖',
-  '全身镜前，镜面反光，房间一角有绿植和木质衣架，明亮温暖，背景清楚',
-  '木质餐桌旁，浅色餐具、绿植和纸杯咖啡，日间明亮柔光，背景清楚',
-  '落地窗前的地毯上，窗外城市明亮，室内光线明亮，有抱枕，背景清楚',
-  '白天街边咖啡店门口，浅色墙面、木质门窗和绿植，日光充足，背景清楚',
-  '公园长椅，绿树和柔和日光，木质长椅，背景有散步的人清楚',
-  '甜品店店内，木质桌椅、玻璃柜里的蛋糕，白天明亮的自然光，整体通透，背景清楚',
-  '便利店冷藏柜前，明亮冷白光，货架上饮料清楚，背景清晰',
-  '电梯里对镜自拍，银灰色金属电梯门和干净的大镜子，头顶暖白光均匀明亮，镜面干净没有污渍，背景简洁现代',
-  '民宿客厅，布艺沙发、原木茶几，大窗户白天日光，明亮通透，背景干净整齐',
-  '复古旋转楼梯，木质扶手和铁艺栏杆，白天明亮的自然光，背景清楚',
-  '露营风阳台，折叠椅、小桌、绿植，明亮日光，背景清楚',
-  '婚纱店试衣镜前，明亮干净的灯光，镜面反光清楚',
-  '艺术展览馆走廊，白墙、木地板、远处画作，明亮柔光，背景清楚',
-  '面包店柜台前，玻璃柜里的面包、白天明亮的灯光、木质装修，背景清楚',
-  '旧物市集摊位前，木桌、陶瓷杯、绿植，白天明亮的日光，背景有生活杂物清楚',
-  '瑜伽垫旁的居家角落，浅色地毯、绿植、白天明亮的自然光，背景清楚',
-  '酒店房间窗边，纱帘、大床，白天明亮的自然光，背景清楚',
-  '复古理发店等候区，皮椅、绿植、白天明亮的灯光，背景清楚',
-  '海边咖啡店露台，白色栏杆、绿植、远处海面明亮，背景清楚',
-  '旧书店二楼，满墙书架、木地板、明亮的阅读灯，背景清楚',
-  '社区便利店门口，自动门、白天明亮的灯光、货架，背景清楚',
-  '日式榻榻米房间，草席、障子门，明亮的自然光，背景清楚',
-  '画室一角，画架、颜料，明亮的自然光，背景清楚',
-  '花店内部，花架上满是鲜花、明亮的自然光、木地板，背景清楚',
-  '咖啡店吧台旁的高脚凳，黄铜灯、木质台面、背景咖啡器具清楚',
-  '北欧风客厅，浅色沙发、木质茶几、绿植、大窗日光，背景清楚',
-  '复古照相馆，浅色背景布、木质道具，明亮的灯光，背景清楚',
-  '韩式甜品咖啡店二楼，白色墙面、木质桌椅、甜品柜，明亮的自然光，背景清楚明亮',
-  '家居店样板间客厅，浅色布艺沙发、木茶几、干花和绿植，明亮日光，背景清楚',
-  '花艺工作室，成排花桶和木质长桌，自然光从窗进来，背景清楚',
-  '老洋房楼梯间，木质楼梯、白墙、绿植，白天明亮的自然光，背景清楚',
-  '商场女装区试衣间外，浅色墙面和挂衣杆，明亮灯光，背景清楚',
-  '早午餐店靠窗卡座，藤编椅、木质桌、窗外街景，明亮日光，背景清楚',
-  '学校教室窗边，木质课桌、黑板和窗外绿树，日光明亮，背景清楚',
-  '咖啡店露台，木质围栏、绿植、藤椅和遮阳伞，明亮日光，背景清楚',
-  '文创市集摊位，木质货架、手作摆件，白天明亮的日光，背景清楚',
-  '日料店门口，木质推拉门、灯笼，白天明亮，背景清楚',
-  '美术馆白墙展厅，画作和柔光射灯，明亮干净，背景清楚',
-  '冬日街角面包店，木质门面、白天明亮的橱窗、路边街景，背景清楚',
-  '阳台花架旁，藤椅、小圆桌、白色花盆和绿植，午后日光，背景清楚',
-  '私家车内，米色真皮座椅，车窗外是白天明亮的街景，光线充足柔和，背景清楚',
-  '机场候机大厅，落地窗、行李车和远处航班信息屏，白天明亮，背景清楚',
-  '地铁车厢内，浅色座椅和扶手，车厢灯光明亮，背景清楚',
-  '商场女装区扶梯旁，浅色墙面、挂衣杆和模特道具，灯光通明，背景清楚',
-  '商场中庭栏杆旁，浅色地砖和玻璃护栏，白天灯光明亮通透，背景清楚',
-  '城市街头斑马线，车流和店铺招牌虚化但仍可辨认，白天阳光明亮',
-  '天桥栏杆旁，远处高楼和街道，白天明亮日光，背景清楚',
-  '超市货架间，明亮顶灯，货架商品清楚，背景干净',
-  '咖啡馆室外座位，藤椅、小圆桌、遮阳伞和街景，午后阳光，背景清楚',
-  '酒店大堂，大理石地面、壁灯和绿植，灯光明亮干净，背景清楚',
-  '衣帽间挂衣杆前，木质柜体、整齐挂着的秋冬衣服，明亮的灯光，背景清楚',
-  '奶油色纯色影棚背景，柔和均匀布光，地面同色，画面干净',
-  '浅灰渐变影棚背景，柔光箱布光，干净但有轻微光影层次',
-  '卧室地毯上，浅色床品和毛毯，窗外白天明亮的柔光，画面亮堂，背景清楚',
-  '雪后的街边，积雪和亮着的店铺橱窗，冷调明亮，背景清楚',
-  '海边木栈道，栏杆、沙滩和远处海面，日光充足，背景清楚',
-  '早午餐餐厅窗边，浅色木桌、绿植和餐具，大窗白天日光，明亮通透，背景清楚',
-  '电梯镜面里能看到楼道灯和人物倒影，灯光明亮干净，背景清楚',
-  '服装店试衣间外，浅色墙面、挂衣钩和全身镜，灯光明亮，背景清楚',
-  '冬日咖啡馆窗边，窗外飘雪，室内明亮通透的灯光和木质桌面，背景清楚',
-  '奶油风客厅沙发旁，浅色布艺沙发和羊毛毯，大窗日光，背景清楚',
-  '日式街道便利店门口，自动贩卖机和灯箱，白天明亮，背景清楚',
-  '花店门口，白色门面、门口摆着鲜花桶和绿植，白天明亮，背景清楚',
-  '阳光露台，白色栏杆、藤编椅和小圆桌，绿植点缀，白天日光充足，背景清楚',
-  '书店靠窗阅读区，木质书架和落地窗，白天明亮自然光，背景清楚',
-  '面包房白色操作台前，浅色瓷砖墙和玻璃柜，明亮干净，背景清楚',
-  '白色楼梯间，浅色台阶和落地窗，白天日光透进来，明亮干净，背景清楚',
-  '校园林荫道，绿树、长椅和浅色路面，白天阳光透过树叶，背景清楚',
-];
+
 
 /* 场景库：每个组 = 同一个地点（同一家店/同一类场所），组内是该地点的不同位置。
    生成时整批锁定一个组，只换位置，绝不出现一个颜色室内、一个颜色室外；
@@ -879,7 +781,7 @@ const PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机
 const PHOTO_WHITE = '纯白无缝背景棚拍、像正规品牌白底主图：大面积柔光箱均匀打的明亮高调光，光线柔和均匀，没有强烈方向光、没有窗影、没有环境色反射；50mm 人像镜头、全身构图，头顶到脚完整入镜，头顶上方留白约画面高度的八分之一，脚下只有一层极淡柔和投影；背景干净到接近纯白，画面里没有任何道具、家具、植物、装饰和文字；模特漂亮耐看、化自然清透的日常淡妆，皮肤白皙干净但有真实质感；针织纹理清楚：针脚细密平整；领口、袖口、下摆的收口做法严格照参考图，原图没有罗纹坑条就保持平滑收口、不许自己加，原图有罗纹也不许加宽；表面紧实不蓬松，不起球不脏旧；姿态放松不摆拍、表情自然；中性白平衡、低饱和、低对比、加一点胶片颗粒，不要暖黄调不要 HDR；服装颜色必须和参考图一致、不被灯光染偏；无水印、无文字、无 logo；不要过度磨皮、不要海报精修感、不要插画或 3D 渲染感';
 const PHOTO_ECOM = '高端女装电商主图风格、干净高级的奶油色影棚：__LIGHT__；85mm 人像镜头 f/2.8 拍摄，半身构图，模特和毛衣占画面 70%~80%，头顶留出约一拳空白，腰部以下自然出画；背景是一整片奶油米色／象牙色无缝背景墙，地面和墙同色无缝过渡，画面里没有家具、没有杂物、没有文字；大面积柔光箱加反光板打光，光线柔和均匀，没有硬阴影、没有强烈方向光，皮肤有通透自然的高光但不惨白不过曝；模特漂亮精致、大波浪长卷发自然披散在肩前肩后，发丝一根根清晰可见、有自然光泽、有几根细碎发丝轻轻飘起，五官立体、鼻梁高挺、下颌线清楚，清透淡妆、唇色自然，皮肤白皙细腻但保留真实质感和细小毛孔；表情安静放松，眼神看向镜头或轻微侧视；针织纹理清楚：针脚细密平整；领口、袖口、下摆的收口做法严格照参考图，原图没有罗纹坑条就保持平滑收口、一根都不许自己加，原图有罗纹也不许加宽；衣服表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度、身体有正常立体体积，衣身侧面是连续弧面而不是被压扁的纸片，不能出现像被对折过的笔直折痕，纽扣质感真实；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；画面干净高级、色调统一偏暖奶油色，像卖爆的女装主图；只出现两只手、五指数量正确、手指结构自然，拿道具的那只手位置合理、不遮挡门襟纽扣和胸口图案；无水印、无文字、无 logo；不要塑料感、不要3D渲染感、不要插画感、不要过度磨皮、不要娃娃脸修图感、不要假人脸、不要短发、不要丸子头、不要马尾、不要盘发、不要扎发';
 const PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片，不是商品渲染图、不是3D建模、不是插画、不是广告精修图：白天自然光从一侧窗户照进来，光线有方向和明暗过渡，衣服与台面/地面/衣架之间有真实的接触阴影和柔和投影，背景自然渐暗不发光；针织实物质感可控：一根根纱线的走向、细密绒毛、轻微起球、织纹的厚薄起伏、袖口下摆的自然褶皱都看得见；颜色是日常光线下的真实颜色，允许轻微噪点、轻微曝光不均；背景的木头/棉布/墙面/地板有真实纹理和细小磨损，近处清楚、远处轻微虚化；构图是随手拍的，略微不正、留白不刻意；无水印、无文字、无logo；不要棚拍打光、不要强烈高光反射、不要完美干净的纯色背景和CG级干净阴影、不要3D渲染感、不要插画感、不要塑料感、不要人台模特、不要假人躯干';
-  const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, overexposed, washed out, changed garment color, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, fused limbs, merged arm and torso, missing hand, extra arm, distorted shoulder, twisted torso, melted sleeves, arm blending into body, cropped forearm, paper-thin body, flattened torso, folded body, straight crease down the side of the body, origami body, body pressed flat, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter, misaligned buttons, crooked button placket, wavy placket, button offset from buttonhole, floating button, uneven button spacing, uneven button size, button off center, button outside placket, buttonhole and button not aligned, one button different from others, added ribbing not in the reference, invented ribbed cuff, invented ribbed neckline, invented ribbed hem, extra ribbing on cuff, ribbed edge that reference does not have';
+  const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, overexposed, washed out, changed garment color, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, fused limbs, merged arm and torso, missing hand, extra arm, distorted shoulder, twisted torso, melted sleeves, arm blending into body, cropped forearm, paper-thin body, flattened torso, folded body, straight crease down the side of the body, origami body, body pressed flat, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter, misaligned buttons, crooked button placket, wavy placket, button offset from buttonhole, floating button, uneven button spacing, uneven button size, button off center, button outside placket, buttonhole and button not aligned, one button different from others, added ribbing not in the reference, invented ribbed cuff, invented ribbed neckline, invented ribbed hem, extra ribbing on cuff, ribbed edge that reference does not have, single pocket only, missing left pocket, missing right pocket, asymmetric pockets, one pocket only, pocket on one side only, invented extra pocket, pocket shape changed';
 /* 姿势由「站/坐 + 身体朝向 + 手臂动作 + 头部角度」交叉组合生成，数百种且全部安全不易畸形 */
 const POSE_STAND = [
   '正面自然站立，重心平均落在双脚上',
@@ -1049,7 +951,7 @@ function garmentClause(studio) {
       rib(d.hemWidth, d.hemRib, '下摆'),
       `门襟：${d.placket || '单层直门襟'}，笔直贯通`,
       btnNote,
-      `口袋：${d.pocket || '无口袋'}`,
+      `口袋：${d.pocket || '无口袋'}；口袋的数量、位置和左右对称必须和参考图完全一致：参考图左右各有一个就左右各做一个，参考图有几个就画几个，一只都不能少；参考图没有口袋就一个都不许加；不许只画单边一个口袋，不许改大小、形状和高度`,
       `图案：${d.pattern || '无图案纯色'}`,
       '以上每一条都是硬性要求，必须在图里 100% 体现出来，少一条或错一条都不行'
     ].join('；');
@@ -1129,6 +1031,25 @@ async function callArk(prompt, opts) {
 }
 
 function antiOn() { const el = $('#anti'); return !!(el && el.checked); }
+
+// 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图
+async function genImage(prompt, size) {
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      let url = await callArk(prompt, { size });
+      if (antiOn()) url = await postProcess(url);
+      return url;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 2) {
+        setStatus(`这张没出，自动重试 ${attempt + 1}/2…`);
+        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr || new Error('生成失败');
+}
 
 function makeJobs(n, colors, from) {
   const out = [];
@@ -1370,8 +1291,7 @@ async function retryOne(idx) {
   running = true;
   setStatus('正在重试 1 张…');
   try {
-    let url = await callArk(item.prompt, { size: item.size });
-    if (antiOn()) url = await postProcess(url);
+    const url = await genImage(item.prompt, item.size);
     results[idx] = { url, label: item.label };
     renderResults();
     toast('重试成功');
@@ -1403,8 +1323,7 @@ async function runJobs(list, btn) {
     while (next < total) {
       const i = next++;
       try {
-        let url = await callArk(list[i].prompt, { size: list[i].size });
-        if (antiOn()) url = await postProcess(url);
+        const url = await genImage(list[i].prompt, list[i].size);
         results.unshift({ url, label: list[i].label });
         renderResults();
       } catch (e) {
@@ -1722,7 +1641,7 @@ function buildVisionPrompt() {
       '  bodyLength: 衣长类型，"短款" / "常规款" / "中长款" / "长款"\n' +
       '  bodyEnd: 下摆大概落在身体什么位置，比如 "髋骨上方" / "盖住一半臀部" / "大腿中段"\n' +
       '  fit: 衣身松紧，"宽松" / "常规" / "修身" / "微宽松"\n' +
-      '  pocket: 口袋数量 + 形状 + 袋口做法，比如 "2 个方形贴袋，袋口平罗纹收边" / "无口袋"\n' +
+      '  pocket: 口袋数量 + 形状 + 袋口做法。必须左右两边都看一遍并数清楚：左右各一个就写 "2 个方形贴袋，左右对称，袋口平收边"；只有单边有才写 "1 个"；真的没有才写 "无口袋"。看不清时按左右各一个写，绝不默认写单个\n' +
       '  pattern: 衣身有没有图案，写清楚位置和种类，比如 "胸口有小花朵刺绣" / "无图案纯色"\n' +
       '  sleeveFit: 袖子版型，"常规直筒" / "微收袖" / "落肩宽松"',
     '只返回 JSON。'
@@ -1777,7 +1696,7 @@ async function refineGarmentDetail(img) {
     'btnStyle 从 ["普通圆形平扣","珍珠扣","金属扣","带绳结套的盘扣（frog buttonhole）","带小结套的绳结扣","镂空扣","方形扣"] 选一个；',
     'bodyLength 从 ["短款","常规款","中长款","长款"] 选；bodyEnd 下摆落在身体的位置，如 "髋骨上方"；',
     'fit 从 ["宽松","常规","修身","微宽松"] 选；sleeveFit 从 ["常规直筒","微收袖","落肩宽松"] 选；',
-    'pocket 口袋数量+形状+袋口做法；pattern 图案位置和种类。',
+    'pocket 口袋数量+形状+袋口做法（左右都要数清楚，通常左右各一个）；pattern 图案位置和种类。',
     '只返回 JSON。'
   ].join('\n');
   const body = {
