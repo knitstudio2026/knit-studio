@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.6</span>
+      <span class="ver">v7.7</span>
     </div>
   </div>
 
@@ -2234,6 +2234,85 @@ async function confirmRibDetail(strip, prev) {
     return Object.keys(out).length ? out : null;
   } catch (_) { return null; }
 }
+/* 门襟竖条放大：只裁门襟那一条，专门用来数清扣件种类和数量 */
+function cropPlacketStrip(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const W = img.width, H = img.height;
+      const sx = Math.round(W * 0.28), sw = Math.round(W * 0.46);
+      const sy = Math.round(H * 0.12), sh = Math.round(H * 0.80);
+      const cw = 620, ch = 1500;
+      const c = document.createElement('canvas');
+      c.width = cw; c.height = ch;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+      try { resolve(c.toDataURL('image/jpeg', 0.95)); }
+      catch (_) { resolve(''); }
+    };
+    img.onerror = () => resolve('');
+    img.src = dataUrl;
+  });
+}
+
+/* 门襟扣件复核：只数门襟上的扣，盘扣和圆扣分开数，避免漏掉整列盘扣 */
+async function confirmClosure(strip) {
+  const key = (settings.apiKey || '').trim();
+  if (!key || !strip) return null;
+  const url = (settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/chat/completions';
+  const prompt = [
+    '这是针织开衫门襟的放大图，从上到下把门襟上的扣件逐颗数清。',
+    '要分清两种：一种是布包/绳结的圆球盘扣（frog closure，扣子是一个小球加一个绳圈），一种是金属或普通圆形纽扣。',
+    '字段：',
+    'btnCount 门襟上所有扣件的总颗数（整数）；',
+    'hasFrog 门襟上有没有盘扣/绳结扣（true/false）；',
+    'frogCount 盘扣颗数（没有写 0）；buttonCount 金属或普通纽扣颗数（没有写 0）；',
+    'frogSide 盘扣在门襟的哪一侧，写 "左侧"/"右侧"；buttonSide 圆扣在哪一侧；',
+    'closureNote 一句话完整描述，如 "门襟左侧一列 5 颗布包盘扣，右侧一列 4 颗银色金属圆扣，两列等距排列"。',
+    '必须诚实：图里只有一种扣就写一种，绝不许把盘扣说成金属扣，也绝不许漏掉盘扣。只返回 JSON。'
+  ].join('\n');
+  const body = {
+    model: settings.visionModel || 'doubao-seed-2-1-pro-260915',
+    temperature: 0,
+    max_tokens: 400,
+    thinking: { type: 'disabled' },
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: prompt },
+      { type: 'image_url', image_url: { url: strip, zoom_in: true } }
+    ] }]
+  };
+  try {
+    let r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify(body)
+    });
+    if (r.status === 400) {
+      r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify(Object.assign({}, body, { thinking: undefined }))
+      });
+    }
+    if (!r.ok) return null;
+    const j = await r.json().catch(() => null);
+    const text = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+    const o = parseJsonLoose(text);
+    if (!o || typeof o !== 'object') return null;
+    const out = {};
+    const n = parseInt(o.btnCount, 10);
+    if (isFinite(n) && n > 0) out.btnCount = n;
+    if (o.closureNote) out.closureNote = o.closureNote;
+    if (o.hasFrog === true || o.hasFrog === 'true') {
+      if (o.frogCount !== undefined && o.frogCount !== null && o.frogCount !== '') out.btnFrog = String(o.frogCount);
+      if (!out.closureNote) out.closureNote = '门襟上有盘扣（布包圆球扣）和圆形纽扣两种扣件，位置和数量照参考图';
+    }
+    return Object.keys(out).length ? out : null;
+  } catch (_) { return null; }
+}
+
 /* 拼图裁出单格后，再用视觉模型专门放大看一遍边口细节，校准罗纹宽度和位置。
    整张 3x3 拼图里每个袖口只有几百像素，一次识别很难看清，这一步是关键。 */
 async function refineGarmentDetail(img) {
@@ -2345,6 +2424,13 @@ async function recognize() {
 
     // 用裁出的单格图再核对一遍边口细节，覆盖第一次的粗略判断
     if (productImageCrop) {
+      // 门襟扣件单独放大数一遍，和边口复核同时发，不额外等时间
+      const cloPromise = (async () => {
+        try {
+          const pstrip = await cropPlacketStrip(productImageCrop);
+          return await confirmClosure(pstrip);
+        } catch (_) { return null; }
+      })();
       const refined = await refineGarmentDetail(productImageCrop);
       if (refined) {
         data.garmentDetail = Object.assign(
@@ -2363,6 +2449,12 @@ async function recognize() {
           data.garmentDetail = Object.assign({}, g0, conf);
           recData = data;
         }
+      }
+      // 合并门襟扣件复核结果（比第一次粗看更准）
+      const clo = await cloPromise;
+      if (clo) {
+        data.garmentDetail = Object.assign({}, data.garmentDetail || {}, clo);
+        recData = data;
       }
     }
 
