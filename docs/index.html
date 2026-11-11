@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v5.9</span>
+      <span class="ver">v6.0</span>
     </div>
   </div>
 
@@ -807,9 +807,9 @@ function pickSceneGroup() {
 
 const PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机后置主摄 __LENS__ 拍摄，有细微胶片颗粒；中景偏半身构图、镜头略微后退，人物和毛衣占画面 60%~75%，头部上方留出空间、不要把脸顶到画面顶部，裤子只露一点，不拍全身不拍鞋；背景是真实生活场景的自然浅景深，近处墙面桌椅窗框绿植能看出形状和材质，远处逐渐柔化；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；针织纹理清楚：针脚细密平整；领口、袖口、下摆的收口做法严格照参考图，原图没有罗纹坑条就保持平滑收口、一根罗纹都不许自己加，原图有罗纹也不许加宽；表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度、身体有正常立体体积，衣身侧面是连续弧面而不是被压扁的纸片，不能出现像被对折过的笔直折痕，纽扣质感真实；模特表情自然放松、像朋友随手抓拍的一瞬间，构图略微不完美；头发哑光自然、有碎发和层次；只出现两只手、五指数量正确、手指结构自然；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要过度磨皮、不要塑料感、不要海报感、不要插画或 3D 渲染感、不要暖橙滤镜、不要古装造型、不要复古影楼风、不要暗沉发灰的曝光、不要短发、不要丸子头、不要马尾、不要盘发、不要扎发、不要发髻、不要过度对称的假人脸、不要娃娃脸修图感、不要手机美颜磨皮';
 const PHOTO_WHITE = '纯白无缝背景棚拍、像正规品牌白底主图：大面积柔光箱均匀打的明亮高调光，光线柔和均匀，没有强烈方向光、没有窗影、没有环境色反射；__LENS__ 人像镜头、全身构图，头顶到脚完整入镜，头顶上方留白约画面高度的八分之一，脚下只有一层极淡柔和投影；背景干净到接近纯白，画面里没有任何道具、家具、植物、装饰和文字；模特漂亮耐看、化自然清透的日常淡妆，皮肤白皙干净但有真实质感；针织纹理清楚：针脚细密平整；领口、袖口、下摆的收口做法严格照参考图，原图没有罗纹坑条就保持平滑收口、不许自己加，原图有罗纹也不许加宽；表面紧实不蓬松，不起球不脏旧；姿态放松不摆拍、表情自然；中性白平衡、低饱和、低对比、加一点胶片颗粒，不要暖黄调不要 HDR；服装颜色必须和参考图一致、不被灯光染偏；无水印、无文字、无 logo；不要过度磨皮、不要海报精修感、不要插画或 3D 渲染感';
-const PHOTO_ECOM = '高端女装电商主图风格、干净高级的奶油色影棚：__LIGHT__；__LENS__ 人像镜头拍摄，七分身竖构图，模特从头顶到大腿中部，毛衣占画面 70%~80%，头顶留出约一拳空白，整件衣服完整入镜、下摆不被裁切、不压缩变形；背景是一整片奶油米色／象牙色无缝背景墙，地面和墙同色无缝过渡，画面里没有家具、没有杂物、没有文字；大面积柔光箱加反光板打光，光线柔和均匀，没有硬阴影、没有强烈方向光，皮肤有通透自然的高光但不惨白不过曝；模特漂亮精致、大波浪长卷发自然披散在肩前肩后，发丝一根根清晰可见、有自然光泽、有几根细碎发丝轻轻飘起，五官立体、鼻梁高挺、下颌线清楚，清透淡妆、唇色自然，皮肤白皙细腻但保留真实质感和细小毛孔；表情安静放松，眼神看向镜头或轻微侧视；针织纹理清楚：针脚细密平整；领口、袖口、下摆的收口做法严格照参考图，原图没有罗纹坑条就保持平滑收口、一根都不许自己加，原图有罗纹也不许加宽；衣服表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度、身体有正常立体体积，衣身侧面是连续弧面而不是被压扁的纸片，不能出现像被对折过的笔直折痕，纽扣质感真实；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；画面干净高级、色调统一偏暖奶油色，像卖爆的女装主图；只出现两只手、五指数量正确、手指结构自然，拿道具的那只手位置合理、不遮挡门襟纽扣和胸口图案；无水印、无文字、无 logo；不要塑料感、不要3D渲染感、不要插画感、不要过度磨皮、不要娃娃脸修图感、不要假人脸、不要短发、不要丸子头、不要马尾、不要盘发、不要扎发';
+const PHOTO_ECOM = '高端女装电商主图风格、干净高级的奶油色影棚：__LIGHT__；__LENS__ 人像镜头拍摄，七分身竖构图，模特从头顶到大腿中部，毛衣占画面 70%~80%，头顶留出约一拳空白，整件衣服完整入镜、下摆不被裁切、不压缩变形；背景是一整片奶油米色／象牙色无缝背景墙，地面和墙同色无缝过渡，画面里没有家具、没有杂物、没有文字；大面积柔光箱加反光板打光，光线柔和均匀，没有硬阴影、没有强烈方向光，皮肤有通透自然的高光但不惨白不过曝；模特漂亮精致、大波浪长卷发自然披散在肩前肩后，发丝一根根清晰可见、有自然光泽、有几根细碎发丝轻轻飘起，五官立体、鼻梁高挺、下颌线清楚，清透淡妆、唇色自然，皮肤白皙细腻但保留真实质感和细小毛孔；表情安静放松，眼神看向镜头或轻微侧视；针织纹理清楚：针脚细密平整；领口、袖口、下摆的收口做法严格照参考图，原图没有罗纹坑条就保持平滑收口、一根都不许自己加，原图有罗纹也不许加宽；衣服表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度、身体有正常立体体积，衣身侧面是连续弧面而不是被压扁的纸片，不能出现像被对折过的笔直折痕，纽扣质感真实；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；画面干净高级、背景和氛围偏暖奶油色，但衣服本身的颜色绝对不许被环境光染黄、必须和参考图完全一致、干净本白，像卖爆的女装主图；只出现两只手、五指数量正确、手指结构自然，拿道具的那只手位置合理、不遮挡门襟纽扣和胸口图案；无水印、无文字、无 logo；不要塑料感、不要3D渲染感、不要插画感、不要过度磨皮、不要娃娃脸修图感、不要假人脸、不要短发、不要丸子头、不要马尾、不要盘发、不要扎发';
 const PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片，不是商品渲染图、不是3D建模、不是插画、不是广告精修图：白天自然光从一侧窗户照进来，光线有方向和明暗过渡，衣服与台面/地面/衣架之间有真实的接触阴影和柔和投影，背景自然渐暗不发光；针织实物质感可控：一根根纱线的走向、细密绒毛、轻微起球、织纹的厚薄起伏、袖口下摆的自然褶皱都看得见；颜色是日常光线下的真实颜色，允许轻微噪点、轻微曝光不均；背景的木头/棉布/墙面/地板有真实纹理和细小磨损，近处清楚、远处轻微虚化；构图是随手拍的，略微不正、留白不刻意；无水印、无文字、无logo；不要棚拍打光、不要强烈高光反射、不要完美干净的纯色背景和CG级干净阴影、不要3D渲染感、不要插画感、不要塑料感、不要人台模特、不要假人躯干';
-  const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, overexposed, washed out, changed garment color, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, fused limbs, merged arm and torso, missing hand, extra arm, distorted shoulder, twisted torso, melted sleeves, arm blending into body, cropped forearm, paper-thin body, flattened torso, folded body, straight crease down the side of the body, origami body, body pressed flat, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter, misaligned buttons, crooked button placket, wavy placket, button offset from buttonhole, floating button, uneven button spacing, uneven button size, button off center, button outside placket, buttonhole and button not aligned, one button different from others, added ribbing not in the reference, invented ribbed cuff, invented ribbed neckline, invented ribbed hem, extra ribbing on cuff, ribbed edge that reference does not have, single pocket only, missing left pocket, missing right pocket, asymmetric pockets, one pocket only, pocket on one side only, invented extra pocket, pocket shape changed, missing button, fewer buttons than reference, cropped hem, hem cut off by frame, hem out of frame, vertically squashed body, compressed proportions, short torso, distorted aspect ratio';
+  const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, overexposed, washed out, changed garment color, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, fused limbs, merged arm and torso, missing hand, extra arm, distorted shoulder, twisted torso, melted sleeves, arm blending into body, cropped forearm, paper-thin body, flattened torso, folded body, straight crease down the side of the body, origami body, body pressed flat, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter, misaligned buttons, crooked button placket, wavy placket, button offset from buttonhole, floating button, uneven button spacing, uneven button size, button off center, button outside placket, buttonhole and button not aligned, one button different from others, added ribbing not in the reference, invented ribbed cuff, invented ribbed neckline, invented ribbed hem, extra ribbing on cuff, ribbed edge that reference does not have, single pocket only, missing left pocket, missing right pocket, asymmetric pockets, one pocket only, pocket on one side only, invented extra pocket, pocket shape changed, missing button, fewer buttons than reference, cropped hem, hem cut off by frame, hem out of frame, vertically squashed body, compressed proportions, short torso, distorted aspect ratio, coarse tweed texture, nubby boucle, chunky loop yarn, slub texture, thick fuzzy clumps on yarn, heavy pilling, yellowish white garment, cream tinted white, pink tinted white, warm cast on garment, heavy ribbed neckline band, ribbed collar ring';
 /* 姿势由「站/坐 + 身体朝向 + 手臂动作 + 头部角度」交叉组合生成，数百种且全部安全不易畸形 */
 const POSE_STAND = [
   '正面自然站立，重心平均落在双脚上',
@@ -960,7 +960,7 @@ function garmentClause(studio) {
       if (w === undefined || w === null || w === '' || isNaN(ww)) {
         return `${which}的收口完全照参考图，原图没有罗纹坑条就必须做平滑收口，不许自己加`;
       }
-      if (ww === 0) return `${which}是平滑收口，没有任何罗纹坑条，绝对不许画罗纹`;
+      if (ww === 0) return `${which}是平滑收口，没有任何罗纹坑条，绝对不许画罗纹，${which}边缘不能出现一圈竖条罗纹、不能出现罗纹领圈或罗纹边`;
       if (r && r !== '平针' && r !== '平针无缝') {
         const where = which === '袖口' ? '手腕处的袖口末端' : (which === '领口' ? '领口最外缘' : '下摆最末端');
         return `${which}是 ${ww}cm 宽的极窄罗纹收边，${r} 条/厘米，罗纹只出现在${where}的一小圈，高度只有一个指节宽（约 ${ww}cm），像最末端的一道窄窄收口，绝不是宽腰头，绝不向上延伸、绝不加宽`;
@@ -971,9 +971,9 @@ function garmentClause(studio) {
     const btnQty = `数量${d.btnCount || 5}颗，从领口第一颗到下摆最后一颗等距排满，最后一颗靠近下摆，一颗都不能少`;
     const btnNote = btnStyle.includes('绳结') || btnStyle.includes('盘扣') || btnStyle.includes('frog')
       ? `纽扣必须是${btnStyle}，${btnQty}：每颗纽扣上方必须有一个同色或配色的绳结套（frog buttonhole），绳结套先绕成圈再收紧套在纽扣上，这个结必须完整可见、每颗纽扣上都有、大小形状一致`
-      : `纽扣必须是${btnStyle}，${btnQty}，颜色${d.btnColor || '与衣身同色'}，每颗纽扣大小完全一致`;
+      : `纽扣必须是${btnStyle}，${btnQty}，颜色严格是${d.btnColor || '与衣身同色'}，不许偏粉、偏黄、偏灰、偏亮，每颗纽扣颜色和大小完全一致`;
     core = [
-      '衣服必须和参考图1 完全一模一样，每个细节都严格照抄，不许改动任何一处，任何改动都算失败；参考图只用来照抄版型和细节做法，颜色一律以文字指定的颜色为准，不要照抄参考图里的颜色',
+      '衣服必须和参考图1 完全一模一样，每个细节都严格照抄，不许改动任何一处，任何改动都算失败；参考图只用来照抄版型和细节做法，颜色一律以文字指定的颜色为准，不要照抄参考图里的颜色，但白色和浅色必须做出参考图那种干净本白，不许发黄发米发粉；纱线质感必须和参考图一致：细密均匀的短绒针织，针脚细腻，绒毛短而均匀、表面平顺，绝对不许变成粗花呢、粗颗粒、大毛圈、结块绒毛或明显起球',
       `衣长：${d.bodyLength || '短款'}，下摆落在${d.bodyEnd || '髋骨上方'}，版型${d.fit || '微宽松'}，${d.sleeveFit || '常规直筒'}`,
       rib(d.neckWidth, d.neckRib, '领口'),
       rib(d.cuffWidth, d.cuffRib, '袖口') + '，两只袖子的袖口必须完全一样',
@@ -996,10 +996,10 @@ function garmentClause(studio) {
 function buildPrompt(opts) {
   const { style, color, noAcc, accList, anti, identity, pose, scene, light, studio, lens } = opts;
   const colorNote = color
-    ? `这件衣服是「${color}」：色相、明度、饱和度都要照着参考图还原，整件衣服（含领口、袖口、门襟、口袋）颜色完全一致、干净均匀，不要提亮、不要加暖调、不要偏冷、不要加深、不要出现渐变`
-    : '衣服颜色严格保持参考图的原色和原明度，色相、明度、饱和度一点都不能改，不要提亮、不要加深、不要加暖调或冷调';
+    ? `这件衣服是「${color}」：色相、明度、饱和度都要照着参考图还原，整件衣服（含领口、袖口、门襟、口袋）颜色完全一致、干净均匀，不要提亮、不要加暖调、不要偏冷、不要加深、不要出现渐变；如果这件是白色或浅色，必须是参考图那种干净的本白／冷白，绝对不能发黄、发米、发粉、发灰、发暖`
+    : '衣服颜色严格保持参考图的原色和原明度，色相、明度、饱和度一点都不能改，不要提亮、不要加深、不要加暖调或冷调；如果是白色或浅色，必须保持参考图那种干净本白，不许发黄发米发粉';
   const noAccNote = noAcc ? `。衣服上不要出现${accList || '丝带、蕾丝蝴蝶结、胸针等装饰'}，只保留衣服本体` : '';
-  const keep = '。款式、版型、领型、袖长、门襟、纽扣数量/颜色/大小/间距、口袋位置、针织纹理必须与参考图完全一致，不能换成别的衣服；门襟必须笔直垂直，全部纽扣排在同一条垂直中线上、正对各自扣眼，第一颗纽扣在领口正下方居中，不能有扣子偏移、悬空或错位';
+  const keep = '。款式、版型、领型、袖长、门襟、纽扣数量/颜色/大小/间距、口袋位置、针织纹理必须与参考图完全一致，不能换成别的衣服；门襟必须笔直垂直，全部纽扣排在同一条垂直中线上、正对各自扣眼，第一颗纽扣在领口正下方居中，不能有扣子偏移、悬空或错位；纱线质感必须和参考图完全一致：是细密均匀的短绒针织（针脚细、绒毛短而均匀、表面平顺），绝对不许变成粗花呢、粗颗粒、大毛圈、结块绒毛或明显起球';
 
   if (style === 'flatlay') {
     return `参考图1是一件针织毛衣的实拍图。请生成这张衣服的平铺实物图：把这件毛衣平铺在浅色棉麻布面上，自然摊开、袖口略微弯折，俯拍 45 度角。${colorNote}${keep}${noAccNote}。${PHOTO_FLAT}`;
