@@ -194,7 +194,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v4.7</span>
+      <span class="ver">v4.8</span>
     </div>
   </div>
 
@@ -861,7 +861,7 @@ function pickSceneGroup() {
 const PHOTO_LIFE = '真实手机实拍、不是棚拍海报：__LIGHT__；手机后置主摄 50mm f/2.0 拍摄，有细微胶片颗粒；中景偏半身构图、镜头略微后退，人物和毛衣占画面 60%~75%，头部上方留出空间、不要把脸顶到画面顶部，裤子只露一点，不拍全身不拍鞋；背景是真实生活场景的自然浅景深，近处墙面桌椅窗框绿植能看出形状和材质，远处逐渐柔化；皮肤有真实质感：可见细小毛孔和绒毛、轻微肤色不均、眼下和鼻翼有自然阴影，不是磨皮不是塑料；针织纹理清楚：针脚细密平整，领口和袖口是细窄的滚边/窄收口、不是宽坑条，宽度严格照参考图，表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度，纽扣质感真实；模特表情自然放松、像朋友随手抓拍的一瞬间，构图略微不完美；头发哑光自然、有碎发和层次；只出现两只手、五指数量正确、手指结构自然；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；无水印、无文字、无 logo；不要过度磨皮、不要塑料感、不要海报感、不要插画或 3D 渲染感、不要暖橙滤镜、不要古装造型、不要复古影楼风、不要暗沉发灰的曝光、不要短发、不要丸子头、不要马尾、不要盘发、不要扎发、不要发髻、不要过度对称的假人脸、不要娃娃脸修图感、不要手机美颜磨皮';
 const PHOTO_WHITE = '纯白无缝背景棚拍、像正规品牌白底主图：大面积柔光箱均匀打的明亮高调光，光线柔和均匀，没有强烈方向光、没有窗影、没有环境色反射；50mm 人像镜头、全身构图，头顶到脚完整入镜，头顶上方留白约画面高度的八分之一，脚下只有一层极淡柔和投影；背景干净到接近纯白，画面里没有任何道具、家具、植物、装饰和文字；模特漂亮耐看、化自然清透的日常淡妆，皮肤白皙干净但有真实质感；针织纹理清楚：针脚细密平整，领口和袖口是细窄的滚边/窄收口、不是宽坑条，表面紧实不蓬松，不起球不脏旧；姿态放松不摆拍、表情自然；中性白平衡、低饱和、低对比、加一点胶片颗粒，不要暖黄调不要 HDR；服装颜色必须和参考图一致、不被灯光染偏；无水印、无文字、无 logo；不要过度磨皮、不要海报精修感、不要插画或 3D 渲染感';
 const PHOTO_FLAT = '这是卖家自己在室内用手机拍的实物照片，不是商品渲染图、不是3D建模、不是插画、不是广告精修图：白天自然光从一侧窗户照进来，光线有方向和明暗过渡，衣服与台面/地面/衣架之间有真实的接触阴影和柔和投影，背景自然渐暗不发光；针织实物质感可控：一根根纱线的走向、细密绒毛、轻微起球、织纹的厚薄起伏、袖口下摆的自然褶皱都看得见；颜色是日常光线下的真实颜色，允许轻微噪点、轻微曝光不均；背景的木头/棉布/墙面/地板有真实纹理和细小磨损，近处清楚、远处轻微虚化；构图是随手拍的，略微不正、留白不刻意；无水印、无文字、无logo；不要棚拍打光、不要强烈高光反射、不要完美干净的纯色背景和CG级干净阴影、不要3D渲染感、不要插画感、不要塑料感、不要人台模特、不要假人躯干';
-const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, fused limbs, merged arm and torso, missing hand, extra arm, distorted shoulder, twisted torso, melted sleeves, arm blending into body, cropped forearm, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, plain cuff, missing rib knit, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter, misaligned buttons, crooked button placket, wavy placket, button offset from buttonhole, floating button, uneven button spacing, uneven button size, button off center, button outside placket, buttonhole and button not aligned';
+const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, color cast, overexposed, washed out, changed garment color, beige color cast, warm yellow filter, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, unbuttoned cardigan, open placket, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, fused limbs, merged arm and torso, missing hand, extra arm, distorted shoulder, twisted torso, melted sleeves, arm blending into body, cropped forearm, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, plain cuff, missing rib knit, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter, misaligned buttons, crooked button placket, wavy placket, button offset from buttonhole, floating button, uneven button spacing, uneven button size, button off center, button outside placket, buttonhole and button not aligned, smooth flat cuff without rib knit, cuff missing ribbing, neckline missing ribbing, hem missing ribbing, flat seamless edge instead of ribbed cuff, smooth seamless edge instead of ribbed neck, no frog closure, button without knot loop, missing button knot loop on every button, one button different from others';
 /* 姿势由「站/坐 + 身体朝向 + 手臂动作 + 头部角度」交叉组合生成，数百种且全部安全不易畸形 */
 const POSE_STAND = [
   '正面自然站立，重心平均落在双脚上',
@@ -1004,10 +1004,34 @@ function postProcess(url) {
 
 /* ================= 提示词 ================= */
 function garmentClause() {
-  const detail = recData && typeof recData.garmentDetail === 'string' ? recData.garmentDetail.trim() : '';
-  const core = detail
-    ? `衣服必须和参考图一模一样，版型和边口都严格照抄：${detail}。上面写到的衣长位置、边口宽度和织法就是唯一标准，不许加长、不许加宽、不许改短、不许改松紧`
-    : GARMENT_BASE;
+  const d = recData && recData.garmentDetail;
+  let core = GARMENT_BASE;
+  if (d && typeof d === 'object') {
+    const rib = (w, r, which) => {
+      const ww = Number(w);
+      if (ww === 0 || ww === '0') return `${which}是平针无缝，不做罗纹收边`;
+      if (r && r !== '平针' && r !== '平针无缝') return `${which}是 ${ww}cm 窄罗纹收边，${r} 条/厘米密度，坑条清晰、均匀平整`;
+      return `${which}是 ${ww}cm 窄罗纹收边`;
+    };
+    const btnStyle = d.btnStyle || '普通圆形平扣';
+    const btnNote = btnStyle.includes('绳结') || btnStyle.includes('盘扣') || btnStyle.includes('frog')
+      ? `纽扣必须是${btnStyle}：每颗纽扣上方必须有一个同色或配色的绳结套（frog buttonhole），绳结套先绕成圈再收紧套在纽扣上，这个结必须完整可见、每颗纽扣上都有、大小形状一致`
+      : `纽扣必须是${btnStyle}，数量${d.btnCount || 5}颗，颜色${d.btnColor || '与衣身同色'}，每颗纽扣大小完全一致`;
+    core = [
+      '衣服必须和参考图1 完全一模一样，每个细节都严格照抄，不许改动任何一处，任何改动都算失败',
+      `衣长：${d.bodyLength || '短款'}，下摆落在${d.bodyEnd || '髋骨上方'}，版型${d.fit || '微宽松'}，${d.sleeveFit || '常规直筒'}`,
+      rib(d.neckWidth, d.neckRib, '领口'),
+      rib(d.cuffWidth, d.cuffRib, '袖口') + '，两只袖子的袖口必须完全一样',
+      rib(d.hemWidth, d.hemRib, '下摆'),
+      `门襟：${d.placket || '单层直门襟'}，笔直贯通`,
+      btnNote,
+      `口袋：${d.pocket || '无口袋'}`,
+      `图案：${d.pattern || '无图案纯色'}`,
+      '以上每一条都是硬性要求，必须在图里 100% 体现出来，少一条或错一条都不行'
+    ].join('；');
+  } else if (d && typeof d === 'string') {
+    core = '衣服必须和参考图一模一样，版型和边口都严格照抄：' + d + '。上面写到的衣长位置、边口宽度和织法就是唯一标准，不许加长、不许加宽、不许改短、不许改松紧';
+  }
   return core + '；人体结构必须正常：肩膀左右对称、两条手臂都完整可见且粗细合理、肘和腕的转折自然、手肘不要和腰或衣服融在一起、躯干朝向镜头不要扭麻花、不要出现断手多手或手臂与身体粘连；手部状态：举手机自拍的姿势按姿势描述拿手机（手机挡脸或挡半张脸都可以），其余姿势两种状态二选一——要么双手自然垂在身侧，要么一只手插在裤袋里，绝不出现手扶栏杆或手撑墙；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸（自拍拿手机的手除外），空着的那只手放在身侧、腿上或口袋里；头发全部拨到肩后或耳后，不能遮住领口、门襟和纽扣；门襟和纽扣必须规整：门襟是一条笔直垂直的线，从领口一直贯到下摆，不能歪、不能弯、不能断开；门襟上所有纽扣大小一致、颜色一致、间距相等、全部落在同一条垂直中线上；每颗纽扣必须正对扣眼，扣眼和纽扣在同一水平线上、在同一个竖直轴上，绝不能出现扣子偏离扣眼、扣子悬空、扣子压到门襟外、扣子歪斜、扣子大小不一；第一颗纽扣必须在领口正下方左右居中；领型、门襟、全部纽扣、胸口图案、下摆、袖口都要完整可见，衣服占画面主体';
 }
 
@@ -1591,6 +1615,7 @@ function buildVisionPrompt() {
   const descStyle = DESC_STYLES[Math.floor(Math.random() * DESC_STYLES.length)];
   return [
     '你是拼多多女装类目运营。仔细看这张服装实拍图，输出拼多多发布商品页需要填的信息。',
+    '重要提示：这张图可能是多张同一款不同颜色的拼图（比如 3x3 共 9 格）。如果是拼图，任选其中一格，对它的袖口、领口、门襟、纽扣、下摆、口袋这些细节区域**放大了仔细看**（用 zoom_in 功能），再输出 garmentDetail；颜色数看总共有几格不同色。',
     '严格只返回一个 JSON 对象，不要解释、不要 markdown。所有枚举字段只能从给定选项里选，不许造词。',
     `title: 商品标题，≤60个字，是拼多多站内自然流量的主要来源，必须像爆款标题一样能承接搜索词。本次使用这个结构：「${shape}」，读起来通顺，不堆砌、不重复、不用"最"等违禁词`,
     `title 必须从下面这批【本次指定】的热搜词里挑 3-4 个最贴合本款的，不许用名单之外的词：季节【${h[0]}】风格【${h[1]}】身材【${h[2]}】人群【${h[3]}】面料卖点【${h[4]}】品类【${h[5]}】元素【${h[6]}】场景【${h[7]}】。只挑和图片里这件真实相符的，不相符的坚决不写`,
@@ -1616,7 +1641,23 @@ function buildVisionPrompt() {
     'price: 数字，预估拼多多定价，单位元',
     `extra: 卖点关键词，逗号分隔，从【${sample(HOT.fabric, 6).join('、')}】里挑 3-5 个真实的，如"不起球,可机洗"`,
     `description: 详情页文案，120-170字，${descStyle}。必须写到：面料手感和厚度、版型与衣长、适合什么身材、2 个具体穿着场景、一句搭配建议（下面配什么裤子或裙子）、洗护注意。多用短句，口语化，不用违禁词，不要把标题里的词反复堆砌`,
-    'garmentDetail: 一句话写清这件衣服的版型和边口细节，供生图模型照抄，60-110字。必须包含：衣长属于短款还是常规款、下摆大概落在身体哪个位置（如髋骨上方/盖住一半臀部/到大腿）、衣身松紧、肩型、袖长到哪；领口做法（是细窄滚边还是宽坑条罗纹，估计宽度多少厘米）；袖口做法和宽度；下摆做法和宽度；门襟做法；纽扣数量和颜色；图案或刺绣在什么位置。只描述图里真实看到的，不许猜测或补充没有的装饰',
+    'garmentDetail: 对象，严格按以下子字段输出，每个子字段都必须填具体数值或做法，不许笼统。如果这张是拼图里多件同色款，任选其中一格放大细看后再填。\n' +
+      '  neckWidth: 领口罗纹宽度（厘米），比如 "2" 或 "3"，平针无缝就写 "0"\n' +
+      '  neckRib: 领口坑条密度（条/厘米），比如 "6"，平针就写 "平针"\n' +
+      '  cuffWidth: 袖口罗纹宽度（厘米），比如 "2" 或 "3"，平针无缝就写 "0"\n' +
+      '  cuffRib: 袖口坑条密度（条/厘米），比如 "6"，平针就写 "平针"\n' +
+      '  hemWidth: 下摆罗纹宽度（厘米），比如 "2" 或 "3"，平针无缝就写 "0"\n' +
+      '  hemRib: 下摆坑条密度（条/厘米），比如 "6"，平针就写 "平针"\n' +
+      '  placket: 门襟做法，比如 "单层直门襟" / "双层门襟压平" / "无门襟套头"\n' +
+      '  btnCount: 纽扣数量（整数）\n' +
+      '  btnColor: 纽扣颜色，比如 "珍珠白" / "古铜色" / "与衣身同色"\n' +
+      '  btnStyle: 纽扣款式，必须从这些里选一个最贴近的："普通圆形平扣" / "珍珠扣" / "金属扣" / "带绳结套的盘扣（frog buttonhole）" / "带小结套的绳结扣" / "镂空扣" / "方形扣"\n' +
+      '  bodyLength: 衣长类型，"短款" / "常规款" / "中长款" / "长款"\n' +
+      '  bodyEnd: 下摆大概落在身体什么位置，比如 "髋骨上方" / "盖住一半臀部" / "大腿中段"\n' +
+      '  fit: 衣身松紧，"宽松" / "常规" / "修身" / "微宽松"\n' +
+      '  pocket: 口袋数量 + 形状 + 袋口做法，比如 "2 个方形贴袋，袋口平罗纹收边" / "无口袋"\n' +
+      '  pattern: 衣身有没有图案，写清楚位置和种类，比如 "胸口有小花朵刺绣" / "无图案纯色"\n' +
+      '  sleeveFit: 袖子版型，"常规直筒" / "微收袖" / "落肩宽松"',
     '只返回 JSON。'
   ].join('\n');
 }
@@ -1672,7 +1713,7 @@ async function recognize() {
       role: 'user',
       content: [
         { type: 'text', text: buildVisionPrompt() },
-        { type: 'image_url', image_url: { url: productImage } }
+        { type: 'image_url', image_url: { url: productImage, zoom_in: true } }
       ]
     }]
   };
