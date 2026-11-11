@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v6.8</span>
+      <span class="ver">v6.9</span>
     </div>
   </div>
 
@@ -279,9 +279,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <section id="page-lib" class="hidden">
       <div class="card">
         <h2>素材库 <em id="libCount"></em></h2>
-        <div class="hint" style="margin-top:0">图生成后点「存到素材库」就会收在这里，以后打开这个网页随时能看。注意：清除浏览器数据会一起删掉，重要的图记得存相册。</div>
+        <div class="hint" style="margin-top:0">出图后自动收进这里，关掉网页再打开还在，只保留最近 60 张。点图看大图，点「复制文案」复制整套标题和详情。注意：清除浏览器数据会一起删掉，重要的图记得存相册。</div>
         <div class="grid" id="libGrid" style="margin-top:12px"></div>
-        <div class="hint hidden" id="libEmpty" style="text-align:center;padding:26px 0">素材库是空的，去「AI 生图」出图后点「存到素材库」</div>
+        <div class="hint hidden" id="libEmpty" style="text-align:center;padding:26px 0">素材库是空的，去「AI 生图」出图后会自动收进来</div>
       </div>
     </section>
 
@@ -300,6 +300,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div class="row">
           <label>识别模型</label>
           <input type="text" id="visionModel" value="doubao-seed-2-1-pro-260915">
+        </div>
+        <div class="row">
+          <label>文案模型<small>写标题和详情，可填免费额度模型</small></label>
+          <input type="text" id="copyModel" value="kimi-k3-1-pro-261024">
         </div>
         <div class="row">
           <label>接口地址</label>
@@ -360,9 +364,10 @@ const KEY = 'ks2.settings';
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; }
 }
-let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-0-pro-260628', visionModel: 'doubao-seed-2-1-pro-260915', quality: 'std' }, loadSettings());
+let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-0-pro-260628', visionModel: 'doubao-seed-2-1-pro-260915', copyModel: 'kimi-k3-1-pro-261024', quality: 'std' }, loadSettings());
 if (!settings.imageModel || /seedream-4-0|seedream-3-0/.test(settings.imageModel)) settings.imageModel = 'doubao-seedream-5-0-pro-260628';
 if (!settings.visionModel) settings.visionModel = 'doubao-seed-2-1-pro-260915';
+if (!settings.copyModel) settings.copyModel = 'kimi-k3-1-pro-261024';
 if (!settings.quality) settings.quality = 'std';
 const QUALITY_SIZE = { std: '1024x1536', hd: '1280x1920', ultra: '1365x2048' };
 function outSize(ratio) {
@@ -376,6 +381,7 @@ function fillSettings() {
   $('#apiKey').value = settings.apiKey || '';
   $('#imageModel').value = settings.imageModel || 'doubao-seedream-5-0-pro-260628';
   $('#visionModel').value = settings.visionModel || 'doubao-seed-2-1-pro-260915';
+  $('#copyModel').value = settings.copyModel || 'kimi-k3-1-pro-261024';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
   $('#quality').value = settings.quality || 'std';
 }
@@ -383,6 +389,7 @@ $('#saveBtn').addEventListener('click', () => {
   settings.apiKey = $('#apiKey').value.trim();
   settings.imageModel = $('#imageModel').value.trim();
   settings.visionModel = $('#visionModel').value.trim();
+  settings.copyModel = $('#copyModel').value.trim();
   settings.baseUrl = $('#baseUrl').value.trim().replace(/\/$/, '');
   settings.quality = $('#quality').value || 'std';
   localStorage.setItem(KEY, JSON.stringify(settings));
@@ -1425,12 +1432,22 @@ function libDel(id) {
     tx.onerror = () => rej(tx.error);
   }));
 }
+// 只保留最近 max 张，先删最旧的
+async function libTrim(max) {
+  const list = await libAll();
+  if (list.length <= max) return;
+  list.sort((a, b) => a.ts - b.ts);
+  for (const it of list.slice(0, list.length - max)) await libDel(it.id);
+}
 
 $('#libSaveBtn').addEventListener('click', async () => {
   const ok = results.filter(r => r.url);
   if (!ok.length) { toast('还没有生成好的图'); return; }
   try {
-    for (const r of ok) await libPut({ ts: Date.now(), label: r.label || '', img: r.url });
+    const title = (recData && recData.title) || '';
+    const brief = recData ? JSON.stringify(recData) : '';
+    for (const r of ok) await libPut({ ts: Date.now(), label: r.label || '', img: r.url, title, brief });
+    await libTrim(60);
     toast(`已存 ${ok.length} 张到素材库，侧边栏「素材库」里随时看`, 3000);
   } catch (e) {
     toast('存不下了：浏览器空间已满，先把重要的存相册，再去素材库删旧的', 4200);
@@ -1445,13 +1462,27 @@ async function renderLib() {
   $('#libEmpty').classList.toggle('hidden', list.length > 0);
   $('#libGrid').innerHTML = list.map(it => `<div class="tile" data-lid="${it.id}">
     <img src="${it.img}" alt="素材">
-    <div class="cap"><span>${esc(it.label || '')}</span><button data-del="${it.id}">删除</button></div>
+    <div class="cap"><span title="${esc(it.title || '')}">${esc(it.title || it.label || '')}</span><button data-del="${it.id}">删除</button></div>
+    ${it.brief ? `<div class="cap"><button data-copy="${it.id}" style="flex:1">复制文案</button></div>` : ''}
   </div>`).join('');
   $$('#libGrid [data-del]').forEach(b => b.addEventListener('click', async (e) => {
     e.stopPropagation();
     await libDel(Number(b.dataset.del));
     renderLib();
     toast('已删除');
+  }));
+  $$('#libGrid [data-copy]').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const it = list.find(x => x.id === Number(b.dataset.copy));
+    if (!it || !it.brief) return;
+    try {
+      const d = JSON.parse(it.brief);
+      const lines = PDD_FIELDS.map(([k, label]) => {
+        const v = valText(d[k]).trim();
+        return v ? label + '：' + v : '';
+      }).filter(Boolean);
+      copyText(lines.join('\n'));
+    } catch (_) { toast('文案读取失败'); }
   }));
   $$('#libGrid .tile').forEach(el => el.addEventListener('click', () => {
     const it = list.find(x => x.id === Number(el.dataset.lid));
@@ -1494,12 +1525,14 @@ async function runJobs(list, btn) {
   setStatus(`已完成 0/${total} 张 · 已用 0s`);
 
   // 并发 5 张一起出，整批约等于一张的耗时
+  const fresh = [];
   const worker = async () => {
     while (next < total) {
       const i = next++;
       try {
         const url = await genImage(list[i].prompt, list[i].size);
         results.unshift({ url, label: list[i].label });
+        fresh.push({ url, label: list[i].label });
         renderResults();
       } catch (e) {
         results.unshift({ error: e.message || '未知错误', label: list[i].label, prompt: list[i].prompt });
@@ -1510,6 +1543,19 @@ async function runJobs(list, btn) {
     }
   };
   await Promise.all(Array.from({ length: Math.min(5, total) }, worker));
+
+  // 出完的图自动收进素材库，关掉网页再打开还在；只保留最近 60 张，避免撑爆浏览器空间
+  if (fresh.length) {
+    try {
+      const brief = recData ? JSON.stringify(recData) : '';
+      const title = (recData && recData.title) || '';
+      for (const r of fresh) {
+        await libPut({ ts: Date.now(), label: r.label || '', img: r.url, title, brief });
+      }
+      await libTrim(60);
+      toast(`已自动存 ${fresh.length} 张到素材库`);
+    } catch (_) { /* 空间满了就只保留在页面上，不影响出图 */ }
+  }
 
   clearInterval(timer);
   const sec = ((performance.now() - t0) / 1000).toFixed(1);
@@ -1850,23 +1896,11 @@ function sample(arr, n) {
 }
 
 function buildVisionPrompt() {
-  const h = [
-    sample(HOT.season, 6).join('、'), sample(HOT.style, 10).join('、'),
-    sample(HOT.body, 8).join('、'), sample(HOT.crowd, 6).join('、'),
-    sample(HOT.fabric, 10).join('、'), sample(HOT.category, 8).join('、'),
-    sample(HOT.detail, 10).join('、'), sample(HOT.scene, 8).join('、')
-  ];
-  const shape = TITLE_SHAPES[Math.floor(Math.random() * TITLE_SHAPES.length)];
-  const descStyle = DESC_STYLES[Math.floor(Math.random() * DESC_STYLES.length)];
-  const descShape = DESC_SHAPES[Math.floor(Math.random() * DESC_SHAPES.length)];
-  const descOpener = DESC_OPENERS[Math.floor(Math.random() * DESC_OPENERS.length)];
   return [
     '你是拼多多女装类目运营。仔细看这张服装实拍图，输出拼多多发布商品页需要填的信息。',
     '重要提示：这张图可能是多张同一款不同颜色的拼图（比如 3x3 共 9 格）。如果是拼图，任选其中一格，对它的袖口、领口、门襟、纽扣、下摆、口袋这些细节区域**放大了仔细看**（用 zoom_in 功能），再输出 garmentDetail；颜色数看总共有几格不同色。',
     '严格只返回一个 JSON 对象，不要解释、不要 markdown。所有枚举字段只能从给定选项里选，不许造词。',
-    `title: 商品标题，≤60个字，是拼多多站内自然流量的主要来源，必须像爆款标题一样能承接搜索词。本次使用这个结构：「${shape}」，读起来通顺，不堆砌、不重复、不用"最"等违禁词`,
-    `title 必须从下面这批【本次指定】的热搜词里挑 5-7 个最贴合本款的，不许用名单之外的词：季节【${h[0]}】风格【${h[1]}】身材【${h[2]}】人群【${h[3]}】面料卖点【${h[4]}】品类【${h[5]}】元素【${h[6]}】场景【${h[7]}】`,
-    'title 硬性要求：挑出的每个热搜词都必须和图片里这件衣服的真实属性对得上——识别是圆领就不许写V领，没有坑条就不许写坑条，不是提花就不许写提花，不是加厚就不许写加厚；宁可少写几个，也绝不许为了堆词而写不符合的词。属性以你下面填的 neck / pattern / elements / length / fabric 字段为准，标题必须和这些字段自洽',
+    `detailBrief: 用 70-110 字客观描述这件衣服的真实可见细节：领口和袖口是平滑收边还是罗纹（罗纹的话窄到什么程度）、门襟压线、纽扣款式和颗数、口袋数量和位置、衣长和下摆落点、面料织法和手感、厚度。只描述图里真实看到的，不许编`,
     'category: 从 ["套头毛衣","针织开衫","毛衣马甲","针织连衣裙","毛衣外套","打底针织衫"] 选一个',
     'wearStyle: 从 ["套头","开衫","马甲","连衣裙"] 选一个',
     'materials: 主面料成分数组，从 ["羊毛","羊绒","棉","聚酯纤维","腈纶","锦纶","粘纤","马海毛","兔毛","混纺"] 选1-2个',
@@ -1889,10 +1923,6 @@ function buildVisionPrompt() {
     'gridCols: 一共有几列（3x3 写 3，2x3 写 3）；单图写 1',
     'sizes: 数组，从 ["S","M","L","XL","2XL","3XL","均码"] 选',
     'price: 数字，预估拼多多定价，单位元',
-    `extra: 卖点关键词，逗号分隔，从【${sample(HOT.fabric, 10).join('、')}】里挑 4-6 个真实的，如"不起球,可机洗"，不许写这件衣服做不到的卖点`,
-    `description: 详情页文案，150-220字，用「${descStyle}」，行文按这个思路展开：「${descShape}」，第一句的写法必须是：「${descOpener}」。必须写到：面料手感和厚度、版型与衣长、适合什么身材、2 个具体穿着场景、一句搭配建议（下面配什么裤子或裙子）、洗护注意。多用短句，口语化，不用违禁词，不要把标题里的词反复堆砌`,
-    `description 可用词库（只挑和这件衣服真实相符的用，不许硬塞，也不许八个词全用上）：手感词【${sample(LEX.touch, 10).join('、')}】版型词【${sample(LEX.fit, 8).join('、')}】搭配词【${sample(LEX.match, 8).join('、')}】场景词【${sample(LEX.scene, 8).join('、')}】洗护词【${sample(LEX.care, 5).join('、')}】`,
-    'description 硬性要求：内容必须来自图片里这件衣服的真实细节（领口做法、袖口做法、门襟、纽扣、口袋、衣长），不同衣服写出来的细节必须不一样；禁止套话模板，禁止用"姐妹们""宝子们""家人们"开头，禁止出现和这件衣服无关的描述；同一个意思不许换词重复三遍',
     'garmentDetail: 对象，严格按以下子字段输出，每个子字段都必须填具体数值或做法，不许笼统。如果这张是拼图里多件同色款，任选其中一格放大细看后再填。\n' +
       '  neckWidth: 领口罗纹宽度（厘米）。放大仔细看：如果领口是平滑包边、看不到一根根竖起的罗纹，必须写 "0"，不许默认填 2 或 3\n' +
       '  neckRib: 领口坑条密度（条/厘米）；领口没有罗纹就写 "平针"\n' +
@@ -1912,6 +1942,81 @@ function buildVisionPrompt() {
       '  sleeveFit: 袖子版型，"常规直筒" / "微收袖" / "落肩宽松"',
     '只返回 JSON。'
   ].join('\n');
+}
+
+/* 第二段：把识别出来的字段交给文字模型写标题和详情。
+   识别模型只负责看图（看图贵、输出长），文案交给免费额度的文字模型，费用更低、文案更好。 */
+function buildCopyPrompt(data) {
+  const d = data || {};
+  const h = [
+    sample(HOT.season, 6).join('、'), sample(HOT.style, 10).join('、'),
+    sample(HOT.body, 8).join('、'), sample(HOT.crowd, 6).join('、'),
+    sample(HOT.fabric, 10).join('、'), sample(HOT.category, 8).join('、'),
+    sample(HOT.detail, 10).join('、'), sample(HOT.scene, 8).join('、')
+  ];
+  const shape = TITLE_SHAPES[Math.floor(Math.random() * TITLE_SHAPES.length)];
+  const descStyle = DESC_STYLES[Math.floor(Math.random() * DESC_STYLES.length)];
+  const descShape = DESC_SHAPES[Math.floor(Math.random() * DESC_SHAPES.length)];
+  const descOpener = DESC_OPENERS[Math.floor(Math.random() * DESC_OPENERS.length)];
+  const info = {
+    品类: d.category, 款式: d.wearStyle, 成分: d.materials, 纱线: d.fiber,
+    图案: d.pattern, 领型: d.neck, 版型: d.fit, 衣长: d.length,
+    袖长: d.sleeveLen, 袖型: d.sleeveType, 厚度: d.weight, 元素: d.elements,
+    风格: [d.mainStyle, d.subStyle], 季节: d.season,
+    颜色: d.colors, 尺码: d.sizes, 定价: d.price,
+    真实细节: d.detailBrief
+  };
+  return [
+    '你是拼多多女装类目资深运营，负责给上架商品写标题和详情文案。',
+    '下面是一件毛衣的实拍识别结果（JSON），你必须严格依据这些字段来写，不许写这个 JSON 里没有的属性：',
+    JSON.stringify(info),
+    `只返回一个 JSON 对象：{"title":"","extra":"","description":""}，不要解释、不要 markdown。`,
+    `title: 商品标题，≤60个字，是拼多多站内自然流量的主要来源，必须像爆款标题一样能承接搜索词。本次使用这个结构：「${shape}」，读起来通顺，不堆砌、不重复、不用"最"等违禁词`,
+    `title 必须从下面这批【本次指定】的热搜词里挑 5-7 个最贴合本款的，不许用名单之外的词：季节【${h[0]}】风格【${h[1]}】身材【${h[2]}】人群【${h[3]}】面料卖点【${h[4]}】品类【${h[5]}】元素【${h[6]}】场景【${h[7]}】`,
+    'title 硬性要求：挑出的每个热搜词都必须和上面的真实属性对得上——领型是圆领就不许写V领，没有坑条就不许写坑条，不是提花就不许写提花，不是加厚就不许写加厚；宁可少写几个，也绝不许为了堆词而写不符合的词。标题必须和字段里的领型、图案、元素、衣长、成分自洽',
+    `extra: 卖点关键词，逗号分隔，从【${sample(HOT.fabric, 10).join('、')}】里挑 4-6 个真实的，如"不起球,可机洗"，不许写这件衣服做不到的卖点`,
+    `description: 详情页文案，150-220字，用「${descStyle}」，行文按这个思路展开：「${descShape}」，第一句的写法必须是：「${descOpener}」。必须写到：面料手感和厚度、版型与衣长、适合什么身材、2 个具体穿着场景、一句搭配建议（下面配什么裤子或裙子）、洗护注意。多用短句，口语化，不用违禁词，不要把标题里的词反复堆砌`,
+    `description 可用词库（只挑和这件衣服真实相符的用，不许硬塞，也不许全用上）：手感词【${sample(LEX.touch, 10).join('、')}】版型词【${sample(LEX.fit, 8).join('、')}】搭配词【${sample(LEX.match, 8).join('、')}】场景词【${sample(LEX.scene, 8).join('、')}】洗护词【${sample(LEX.care, 5).join('、')}】`,
+    'description 硬性要求：内容必须来自上面 JSON 里的真实细节（领口做法、袖口做法、门襟、纽扣、口袋、衣长），不同衣服写出来的细节必须不一样；禁止套话模板，禁止用"姐妹们""宝子们""家人们"开头，禁止出现和这件衣服无关的描述；同一个意思不许换词重复三遍'
+  ].join('\n');
+}
+
+async function writeCopy(data) {
+  const key = (settings.apiKey || '').trim();
+  const model = (settings.copyModel || '').trim();
+  if (!key || !model) return null;
+  const url = (settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/chat/completions';
+  const prompt = buildCopyPrompt(data);
+  const ask = async (m) => {
+    const body = {
+      model: m, temperature: 0.9, max_tokens: 2400,
+      messages: [{ role: 'user', content: prompt }]
+    };
+    let r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify(body)
+    });
+    const j = await r.json().catch(() => null);
+    if (!r.ok) {
+      const msg = (j && j.error && (j.error.message || j.error.code)) || ('HTTP ' + r.status);
+      throw new Error(msg);
+    }
+    const txt = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+    return parseJsonLoose(txt);
+  };
+  try {
+    const o = await ask(model);
+    if (o && (o.title || o.description)) return o;
+  } catch (_) {}
+  // 文案模型没开通或报错时，退回识别模型纯文本再写一次，保证标题不会空
+  try {
+    if ((settings.visionModel || '') && model !== settings.visionModel) {
+      const o = await ask(settings.visionModel);
+      if (o && (o.title || o.description)) return o;
+    }
+  } catch (_) {}
+  return null;
 }
 
 let recData = null;
@@ -2132,6 +2237,8 @@ async function recognize() {
     if (!data) throw new Error('识别结果没看懂，再试一次');
     recData = data;
     renderFields(data);
+    // 看图识别完成后，立刻让文字模型并行写标题和详情，不阻塞后面的裁图校验
+    const copyPromise = writeCopy(data).catch(() => null);
 
     // 如果是拼图，自动裁出中间一格放大，作为生图参考图
     try {
@@ -2166,6 +2273,21 @@ async function recognize() {
         }
       }
     }
+
+    // 等文案模型写完标题和详情再一起渲染；模型没开通会自动退回识别模型写
+    setStatus('正在写标题和详情…');
+    const copy = await copyPromise;
+    setStatus('');
+    if (copy) {
+      if (copy.title) data.title = copy.title;
+      if (copy.extra) data.extra = copy.extra;
+      if (copy.description) data.description = copy.description;
+      recData = data;
+      renderFields(data);
+    }
+
+    // 记住这次的识别结果，关掉网页再打开还看得到
+    try { localStorage.setItem('ks2.rec', JSON.stringify(data)); } catch (_) {}
 
     // 识别出的颜色直接排成出图队列，颜色数就是出图张数
     recColors = (Array.isArray(data.colors) ? data.colors : [])
@@ -2279,6 +2401,14 @@ $('#viewer').addEventListener('click', (e) => {
 
 /* ================= 启动 ================= */
 fillSettings();
+// 上次的识别结果，打开网页直接恢复
+try {
+  const saved = JSON.parse(localStorage.getItem('ks2.rec') || 'null');
+  if (saved && (saved.title || saved.description)) {
+    recData = saved;
+    renderFields(saved);
+  }
+} catch (_) {}
 if (!settings.apiKey) {
   $('#tip').innerHTML = '第一次用：先点左上角 ☰ → 设置，填火山方舟 API Key。';
 }
