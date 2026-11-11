@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v6.9</span>
+      <span class="ver">v7.0</span>
     </div>
   </div>
 
@@ -244,6 +244,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <label>生成张数<small>按识别出的颜色自动定，不用改</small></label>
           <input type="number" id="count" value="3" min="1" max="12">
         </div>
+        <div class="hint" id="genCost" style="margin-top:2px"></div>
         <div class="chk">
           <input type="checkbox" id="noAcc">
           <span>不带小装饰<small>丝带、蕾丝蝴蝶结、胸针等，生成时去掉</small></span>
@@ -310,13 +311,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <input type="text" id="baseUrl" value="https://ark.cn-beijing.volces.com/api/v3">
         </div>
         <div class="row">
-          <label>出图清晰度<small>高清不加价，极清单张变 0.60 元</small></label>
+          <label>出图清晰度<small>261 万像素以内都是 0.30 元/张</small></label>
           <select id="quality">
-            <option value="std">标准 1024×1536</option>
-            <option value="hd">高清 1280×1920（同价）</option>
-            <option value="ultra">极清 1365×2048（0.60/张）</option>
+            <option value="std">1024×1536 · 157万像素 · 0.30 元</option>
+            <option value="hd">1280×1920 · 246万像素 · 0.30 元</option>
+            <option value="big">1312×1968 · 258万像素 · 0.30 元</option>
+            <option value="ultra">1365×2048 · 280万像素 · 0.60 元</option>
           </select>
         </div>
+        <div class="hint" id="priceHint" style="margin-top:0"></div>
         <button class="btn" id="saveBtn" style="margin-top:14px">保存设置</button>
         <div class="hint">
           到火山方舟控制台创建 Key：console.volcengine.com/ark<br>
@@ -364,12 +367,19 @@ const KEY = 'ks2.settings';
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; }
 }
-let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-0-pro-260628', visionModel: 'doubao-seed-2-1-pro-260915', copyModel: 'kimi-k3-1-pro-261024', quality: 'std' }, loadSettings());
+let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-0-pro-260628', visionModel: 'doubao-seed-2-1-pro-260915', copyModel: 'kimi-k3-1-pro-261024', quality: 'big' }, loadSettings());
 if (!settings.imageModel || /seedream-4-0|seedream-3-0/.test(settings.imageModel)) settings.imageModel = 'doubao-seedream-5-0-pro-260628';
 if (!settings.visionModel) settings.visionModel = 'doubao-seed-2-1-pro-260915';
 if (!settings.copyModel) settings.copyModel = 'kimi-k3-1-pro-261024';
-if (!settings.quality) settings.quality = 'std';
-const QUALITY_SIZE = { std: '1024x1536', hd: '1280x1920', ultra: '1365x2048' };
+if (!settings.quality) settings.quality = 'big';
+// 老版本默认是 157 万像素，一次性升到 258 万像素（同样 0.30 元一档）
+if (!settings.pixVer) {
+  settings.pixVer = 1;
+  settings.quality = 'big';
+  try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
+}
+const QUALITY_SIZE = { std: '1024x1536', hd: '1280x1920', big: '1312x1968', ultra: '1365x2048' };
+const QUALITY_PRICE = { std: 0.30, hd: 0.30, big: 0.30, ultra: 0.60 };
 function outSize(ratio) {
   // ratio: '3:4' 或 '4:3'；按清晰度档位换算，保持主体比例不变
   const q = QUALITY_SIZE[settings.quality] || QUALITY_SIZE.std;
@@ -383,16 +393,31 @@ function fillSettings() {
   $('#visionModel').value = settings.visionModel || 'doubao-seed-2-1-pro-260915';
   $('#copyModel').value = settings.copyModel || 'kimi-k3-1-pro-261024';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
-  $('#quality').value = settings.quality || 'std';
+  $('#quality').value = settings.quality || 'big';
+  updPriceHint();
 }
+// 每档清晰度标出像素和单价，随时知道这批要花多少钱
+function updPriceHint() {
+  const q = $('#quality').value || 'big';
+  const [w, h] = (QUALITY_SIZE[q] || QUALITY_SIZE.big).split('x').map(Number);
+  const px = w * h;
+  const per = QUALITY_PRICE[q] || 0.30;
+  const n = Math.max(1, recColors.length ? recColors.length : (Number($('#count').value) || 1));
+  $('#priceHint').innerHTML = `当前 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素），<b>${per.toFixed(2)} 元/张</b>；按 ${n} 张算约 <b>${(per * n).toFixed(2)} 元</b>（不含识图）。`;
+  const gc = $('#genCost');
+  if (gc) gc.innerHTML = `清晰度 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素）· ${per.toFixed(2)} 元/张 · 这批 ${n} 张约 <b>${(per * n).toFixed(2)} 元</b>`;
+}
+$('#quality').addEventListener('change', updPriceHint);
+$('#count').addEventListener('input', updPriceHint);
 $('#saveBtn').addEventListener('click', () => {
   settings.apiKey = $('#apiKey').value.trim();
   settings.imageModel = $('#imageModel').value.trim();
   settings.visionModel = $('#visionModel').value.trim();
   settings.copyModel = $('#copyModel').value.trim();
   settings.baseUrl = $('#baseUrl').value.trim().replace(/\/$/, '');
-  settings.quality = $('#quality').value || 'std';
+  settings.quality = $('#quality').value || 'big';
   localStorage.setItem(KEY, JSON.stringify(settings));
+  updPriceHint();
   toast('已保存');
 });
 
@@ -1588,6 +1613,7 @@ function renderColorChips() {
   if (!recColors.length) {
     wrap.classList.add('hidden');
     box.innerHTML = '';
+    updPriceHint();
     return;
   }
   if (!previewColor || recColors.indexOf(previewColor) < 0) previewColor = recColors[0];
@@ -1600,6 +1626,7 @@ function renderColorChips() {
     renderColorChips();
     $('#tip').textContent = `已选「${previewColor}」，点「生成预览」只出这一张，看好质感再继续。`;
   }));
+  updPriceHint();
 }
 
 $('#genBtn').addEventListener('click', async () => {
