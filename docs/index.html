@@ -194,7 +194,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v4.9</span>
+      <span class="ver">v5.0</span>
     </div>
   </div>
 
@@ -1013,15 +1013,18 @@ function garmentClause() {
         return `${which}的收口完全照参考图，原图没有罗纹坑条就必须做平滑收口，不许自己加`;
       }
       if (ww === 0) return `${which}是平滑收口，没有任何罗纹坑条，绝对不许画罗纹`;
-      if (r && r !== '平针' && r !== '平针无缝') return `${which}是 ${ww}cm 罗纹收边，${r} 条/厘米密度，宽度和密度严格照参考图`;
-      return `${which}是 ${ww}cm 罗纹收边，宽度严格照参考图`;
+      if (r && r !== '平针' && r !== '平针无缝') {
+        const where = which === '袖口' ? '手腕处的袖口末端' : (which === '领口' ? '领口最外缘' : '下摆最末端');
+        return `${which}是 ${ww}cm 宽的罗纹收边，${r} 条/厘米，罗纹只出现在${where}的一小圈，宽度不超过 ${ww}cm，绝不向上延伸、绝不加宽`;
+      }
+      return `${which}是 ${ww}cm 宽的罗纹收边，只出现在最末端一小圈，宽度严格照参考图，绝不加宽`;
     };
     const btnStyle = d.btnStyle || '普通圆形平扣';
     const btnNote = btnStyle.includes('绳结') || btnStyle.includes('盘扣') || btnStyle.includes('frog')
       ? `纽扣必须是${btnStyle}：每颗纽扣上方必须有一个同色或配色的绳结套（frog buttonhole），绳结套先绕成圈再收紧套在纽扣上，这个结必须完整可见、每颗纽扣上都有、大小形状一致`
       : `纽扣必须是${btnStyle}，数量${d.btnCount || 5}颗，颜色${d.btnColor || '与衣身同色'}，每颗纽扣大小完全一致`;
     core = [
-      '衣服必须和参考图1 完全一模一样，每个细节都严格照抄，不许改动任何一处，任何改动都算失败',
+      '衣服必须和参考图1 完全一模一样，每个细节都严格照抄，不许改动任何一处，任何改动都算失败；参考图只用来照抄版型和细节做法，颜色一律以文字指定的颜色为准，不要照抄参考图里的颜色',
       `衣长：${d.bodyLength || '短款'}，下摆落在${d.bodyEnd || '髋骨上方'}，版型${d.fit || '微宽松'}，${d.sleeveFit || '常规直筒'}`,
       rib(d.neckWidth, d.neckRib, '领口'),
       rib(d.cuffWidth, d.cuffRib, '袖口') + '，两只袖子的袖口必须完全一样',
@@ -1058,7 +1061,9 @@ function buildPrompt(opts) {
 }
 
 /* ================= 生成 ================= */
-let productImage = '';       // dataUrl
+let productImage = '';       // dataUrl（压缩版，用于识别，省 token）
+let productImageFull = '';   // 原图全分辨率 dataUrl，只用于裁切单格，保证细节不糊
+let productImageCrop = '';   // 从拼图里裁出的单格放大图，优先作为生图参考
 let style = 'lifestyle';
 let results = [];            // 已生成
 let running = false;
@@ -1084,7 +1089,7 @@ async function callArk(prompt) {
     seed: Math.floor(Math.random() * 1e9),
     negative_prompt: NEGATIVE
   };
-  if (productImage) payload.image = productImage;
+  if (productImage) payload.image = productImageCrop || productImage;
   const r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
@@ -1476,6 +1481,8 @@ $('#file').addEventListener('change', () => {
   reader.onload = () => {
     compressImage(reader.result).then((url) => {
       productImage = url;
+      productImageFull = reader.result;
+      productImageCrop = '';
       $('#preview').src = productImage;
       $('#preview').classList.remove('hidden');
       $('#dropPh').classList.add('hidden');
@@ -1518,9 +1525,39 @@ function compressImage(dataUrl) {
     img.src = dataUrl;
   });
 }
+/* 拼图自动裁出一格并放大：3x3 拼图压到 1280 后每格只有 400px 左右，
+   袖口/纽扣这些细节在生图模型眼里太糊，裁出单格放大会明显更保真 */
+function cropGridCell(dataUrl, rows, cols, row, col) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const cw = Math.floor(img.width / cols);
+      const ch = Math.floor(img.height / rows);
+      const sx = Math.max(0, Math.min(img.width - cw, col * cw));
+      const sy = Math.max(0, Math.min(img.height - ch, row * ch));
+      const c = document.createElement('canvas');
+      c.width = cw; c.height = ch;
+      c.getContext('2d').drawImage(img, sx, sy, cw, ch, 0, 0, cw, ch);
+      const k = Math.max(1, 1024 / Math.max(cw, ch));
+      const c2 = document.createElement('canvas');
+      c2.width = Math.round(cw * k); c2.height = Math.round(ch * k);
+      const ctx = c2.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(c, 0, 0, c2.width, c2.height);
+      try { resolve(c2.toDataURL('image/jpeg', 0.92)); }
+      catch (_) { resolve(dataUrl); }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 $('#delBtn').addEventListener('click', (e) => {
   e.stopPropagation();
   productImage = '';
+  productImageFull = '';
+  productImageCrop = '';
   $('#file').value = '';
   $('#preview').classList.add('hidden');
   $('#preview').src = '';
@@ -1640,6 +1677,8 @@ function buildVisionPrompt() {
     'subStyle: 从 ["韩版","日系","法式","复古","小清新","通勤","学院风","ins风","慵懒风","温柔风","小香风","运动风"] 选一个',
     'season: 从 ["春季","夏季","秋季","冬季","春秋","秋冬"] 选一个',
     'colors: 数组。数清楚有几件不同颜色的同款（拼图逐格看），最多12个，不合并相近色，用常见中文色名（奶白色、燕麦色、浅粉色、雾霾蓝、酒红色等）',
+    'gridRows: 这张图如果是一张拼图，一共有几行（例如 3x3 的九宫格写 3，2x3 写 2）；如果只是一件衣服的单图，写 1',
+    'gridCols: 一共有几列（3x3 写 3，2x3 写 3）；单图写 1',
     'sizes: 数组，从 ["S","M","L","XL","2XL","3XL","均码"] 选',
     'price: 数字，预估拼多多定价，单位元',
     `extra: 卖点关键词，逗号分隔，从【${sample(HOT.fabric, 6).join('、')}】里挑 3-5 个真实的，如"不起球,可机洗"`,
@@ -1739,6 +1778,17 @@ async function recognize() {
     if (!data) throw new Error('识别结果没看懂，再试一次');
     recData = data;
     renderFields(data);
+
+    // 如果是拼图，自动裁出中间一格放大，作为生图参考图
+    try {
+      const gr = Math.max(1, parseInt(data.gridRows, 10) || 1);
+      const gc = Math.max(1, parseInt(data.gridCols, 10) || 1);
+      if (gr >= 2 && gc >= 2 && gr * gc <= 12 && productImage) {
+        productImageCrop = await cropGridCell(productImageFull || productImage, gr, gc, Math.floor(gr / 2), Math.floor(gc / 2));
+      } else {
+        productImageCrop = '';
+      }
+    } catch (_) { productImageCrop = ''; }
 
     // 识别出的颜色直接排成出图队列，颜色数就是出图张数
     recColors = (Array.isArray(data.colors) ? data.colors : [])
