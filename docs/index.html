@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.0</span>
+      <span class="ver">v7.1</span>
     </div>
   </div>
 
@@ -1549,7 +1549,7 @@ async function runJobs(list, btn) {
   }, 300);
   setStatus(`已完成 0/${total} 张 · 已用 0s`);
 
-  // 并发 5 张一起出，整批约等于一张的耗时
+  // 并发 8 张一起出，整批约等于一张的耗时
   const fresh = [];
   const worker = async () => {
     while (next < total) {
@@ -1567,7 +1567,7 @@ async function runJobs(list, btn) {
       done++;
     }
   };
-  await Promise.all(Array.from({ length: Math.min(5, total) }, worker));
+  await Promise.all(Array.from({ length: Math.min(8, total) }, worker));
 
   // 出完的图自动收进素材库，关掉网页再打开还在；只保留最近 60 张，避免撑爆浏览器空间
   if (fresh.length) {
@@ -2301,17 +2301,20 @@ async function recognize() {
       }
     }
 
-    // 等文案模型写完标题和详情再一起渲染；模型没开通会自动退回识别模型写
-    setStatus('正在写标题和详情…');
-    const copy = await copyPromise;
-    setStatus('');
-    if (copy) {
-      if (copy.title) data.title = copy.title;
-      if (copy.extra) data.extra = copy.extra;
-      if (copy.description) data.description = copy.description;
+    // 文案放到后台写，不拖慢识别：字段先给你，标题详情写完自动补进去
+    copyPromise.then((copy) => {
+      if (!copy) { $('#tip').textContent = '识别完成。标题和详情没写出来，可以再点一次识别。'; return; }
+      ['title', 'extra', 'description'].forEach((k) => { if (copy[k]) data[k] = copy[k]; });
       recData = data;
-      renderFields(data);
-    }
+      // 只回填这三个字段，不重绘整个表单，避免冲掉你正在改的内容
+      ['title', 'extra', 'description'].forEach((k) => {
+        const el = $('#recFields [data-k="' + k + '"]');
+        if (el && !el.dataset.touched) el.value = valText(data[k]);
+      });
+      try { localStorage.setItem('ks2.rec', JSON.stringify(data)); } catch (_) {}
+      $('#tip').textContent = '识别完成，标题和详情也写好了。确认无误后点「生成预览（1 张）」出图。';
+      toast('标题和详情写好了');
+    }).catch(() => {});
 
     // 记住这次的识别结果，关掉网页再打开还看得到
     try { localStorage.setItem('ks2.rec', JSON.stringify(data)); } catch (_) {}
@@ -2373,6 +2376,7 @@ function renderFields(data) {
     el.addEventListener('input', () => {
       if (!recData) recData = {};
       recData[el.dataset.k] = el.value;
+      el.dataset.touched = '1';   // 你手动改过的字段，后台文案回来后不再覆盖
     });
   });
 }
