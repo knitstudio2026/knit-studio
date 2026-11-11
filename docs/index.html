@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.4</span>
+      <span class="ver">v7.5</span>
     </div>
   </div>
 
@@ -2496,13 +2496,18 @@ $('#rewriteCopy').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = '正在写…';
   const copy = await writeCopy(recData).catch(() => null);
   btn.disabled = false; btn.textContent = old;
+  // 标题本地重新随机一版，不花钱，也不受文案模型成败影响
+  recData.title = buildTitle(recData);
+  {
+    const tEl = $('#recFields [data-k="title"]');
+    if (tEl) tEl.value = valText(recData.title);
+  }
   if (!copy || (!copy.title && !copy.description)) {
-    toast('还是没写出来：' + ((copy && copy._error) || '模型没返回内容'), 6000);
+    toast('标题已换一版；详情没写出来：' + ((copy && copy._error) || '模型没返回内容'), 6000);
     return;
   }
   ['extra', 'description'].forEach(k => { if (copy[k]) recData[k] = copy[k]; });
-  if (!recData.title) recData.title = buildTitle(recData);
-  ['title', 'extra', 'description'].forEach(k => {
+  ['extra', 'description'].forEach(k => {
     const el = $('#recFields [data-k="' + k + '"]');
     if (el) el.value = valText(recData[k]);
   });
