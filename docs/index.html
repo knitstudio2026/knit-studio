@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v6.4</span>
+      <span class="ver">v6.5</span>
     </div>
   </div>
 
@@ -907,48 +907,102 @@ const ACC_HAND = [
   '单手拎一只小巧的腋下包，包在腰侧',
   '肩上背一只细带单肩包',
   '斜挎一只迷你小方包，包身落在髋侧',
+  '斜挎一只细链条小包，链条走在肩线外侧',
   '手里拎一只帆布托特包，包垂在腿侧',
   '背一只迷你双肩包，只看到一条肩带',
   '手里拿一只手机，手机垂在身侧屏幕朝里',
   '举起手机对镜自拍，手机在脸侧',
+  '双手捧着手机低头看，手机在胸口下方',
   '单手捧一杯外带咖啡，杯子在腰侧',
   '手里握一杯奶茶，吸管朝向自己',
+  '手里拿一杯冰美式，杯壁上有水珠',
+  '手里托一只纸杯蛋糕',
+  '手里拿一支冰淇淋',
   '手里抱一本硬壳书，书贴在身侧',
   '手里卷着一本杂志，卷筒垂在腿边',
+  '手里夹着一台笔记本电脑，电脑在腰侧',
+  '手里拎一只文件袋，袋口朝上',
   '手里拎一小束干花，花头朝下',
+  '手里抱一大束鲜花，花束在腰侧、不超过胸口',
+  '手里拿一支尤加利叶',
   '手里拎一只牛皮纸袋，袋子在身侧',
   '手里拎两三个购物纸袋，袋子在小腿侧',
+  '手里拎一只藤编购物篮',
   '脖子上挂一台复古胶片相机，相机落在胸口下方不遮纽扣',
+  '手里拿一台拍立得相机，镜头朝前',
   '手里捏一副墨镜，镜腿朝下',
   '手里转着一串车钥匙',
   '手里拿一小瓶香水，瓶身在腰侧',
   '手里拿着一个小型手持风扇',
   '手里撑一把收起的折叠伞，伞尖点地',
-  '手里抱一只小号毛绒玩偶，玩偶在腰侧'
+  '手里握一支口红',
+  '手里拿一面小圆镜',
+  '手里抱一只小号毛绒玩偶，玩偶在腰侧',
+  '手里拿一把尤克里里，琴身垂在腰侧',
+  '肩上扛一只网球拍',
+  '手里握一只羽毛球拍，拍头朝下',
+  '手里拿一个甜甜圈',
+  '手里托一盒小蛋糕',
+  '手里拿一支法棍，用纸袋包着',
+  '手里捏着一只气球，绳子松松垂着',
+  '怀里抱一本手账本和一支笔',
+  '手里拿一只陶瓷马克杯，双手捧着',
+  '手里拎一只菜篮子，篮子在腿侧',
+  '手里拿一小瓶鲜花营养液',
+  '手里拎一只化妆包',
+  '斜挎一只迷你小方包，包上挂着一个小挂件'
 ];
 const ACC_WEAR = [
   '',
   '',
+  '',
   '一条极细的金色锁骨链，链坠落在锁骨窝',
+  '叠戴两条细项链，长短错开',
+  '一条小颗粒珍珠项链',
+  '一条细 choker 颈链，贴颈不勒',
   '一对小巧的珍珠耳钉',
   '一对细长垂坠耳线',
   '一对细圈耳环',
+  '一对珍珠耳圈',
+  '一对贝母小耳钉',
+  '一对流苏耳坠',
   '耳朵上叠戴两只小耳钉',
+  '左耳一只小耳骨夹',
   '手腕上一只细银镯',
+  '手腕上叠戴两只细手镯',
   '手腕上一条细皮表带手表',
+  '手腕上一条珍珠手链',
+  '手腕上一条编织手绳',
+  '手腕上系一条小方丝巾，系在手腕处',
   '手指上一枚极细的素圈戒指',
   '食指和中指叠戴两只细戒指',
+  '手指上一枚小颗珍珠戒指',
   '头上戴一顶柔软针织贝雷帽，长发自然披在帽下',
   '头上戴一顶细针织毛线帽，长发自然披在帽下',
   '头上戴一顶浅色棒球帽，长发自然披在帽下',
   '头上戴一顶草编渔夫帽，长发自然披在帽下',
+  '头上戴一顶格纹报童帽，长发自然披在帽下',
+  '头上戴一顶羊毛画家帽，稍微歪戴',
+  '头上戴一顶宽檐草帽，帽檐在眉上方',
   '头上戴一只细窄发箍，头发仍是自然披散',
+  '头上戴一只珍珠发箍',
+  '头上戴一条丝绒发带，压在前额发际线后一点',
+  '头顶戴一条细细的编织发带',
   '侧边别一枚小号珍珠发夹，头发仍是自然披散',
+  '侧边夹一只小号鲨鱼抓夹，只夹住一小缕头发',
+  '侧边别一枚蝴蝶结发夹，在耳上方、头发仍是自然披散',
+  '耳朵上方别两枚一字夹，头发仍是自然披散',
+  '发间别一朵小小的白色小花',
+  '把墨镜架在头顶发间',
   '戴一副细金属框眼镜',
   '手臂弯处搭一条薄围巾，不围在脖子上'
 ];
-function pickAccText() {
-  return [rand(ACC_HAND), rand(ACC_WEAR)].filter(Boolean).join('；');
+/* 同一批内也保证配件不重复：整批先把两个池打乱，再按序号依次取 */
+function pickAccFromBatch() {
+  const h = batchCtx.handOrder[batchCtx.accN % batchCtx.handOrder.length];
+  const w = batchCtx.wearOrder[batchCtx.accN % batchCtx.wearOrder.length];
+  batchCtx.accN++;
+  return [h, w].filter(Boolean).join('；');
 }
 function antiClause() {
   return `这一批是同一位模特在同一类地点里换位置连拍的：脸部长相、发型、妆容、衣服必须完全一致，场景风格和陈设风格也要一致（都在同一家咖啡店/同一个家里/同一条街），只改变具体座位或站位、身体姿势和机位；机位${rand(ANTI_ANGLE)}，构图${rand(ANTI_FRAME)}；不要跨场景，不要一会儿室内一会儿马路`;
@@ -1152,7 +1206,10 @@ function makeJobs(n, colors, from) {
       light: rand(LIGHTS),
       lens: rand(LENSES),
       studio: !!group.studio,
-      white: !!group.white
+      white: !!group.white,
+      handOrder: shuffleArr(ACC_HAND.slice()),
+      wearOrder: shuffleArr(ACC_WEAR.slice()),
+      accN: 0
     };
   }
   const useWhite = !!batchCtx.white;
@@ -1171,7 +1228,7 @@ function makeJobs(n, colors, from) {
     const useSelfie = !useStudio && Math.random() < 0.3;
     const pose = useStudio ? '自然站立，身体放松、站姿自然不僵硬；竖构图 3:4，从头顶拍到大腿中部，人体上下比例协调、头身比正常，宁可下摆略出画面一点，也不要压缩上身和脸' : (useSelfie ? selfies[selfieN++ % selfies.length] : poses[k % poses.length]);
     const scene = batchCtx.spots[k % batchCtx.spots.length];
-    const acc = noAcc ? '' : pickAccText();
+    const acc = noAcc ? '' : pickAccFromBatch();
     const prompt = buildPrompt({
       style: useWhite ? 'whitebg' : style, color, noAcc, accList, anti, acc,
       identity: batchCtx.identity, pose, scene, light: batchCtx.light, lens: batchCtx.lens, studio: useStudio
