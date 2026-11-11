@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v6.6</span>
+      <span class="ver">v6.7</span>
     </div>
   </div>
 
@@ -1209,6 +1209,7 @@ function makeJobs(n, colors, from) {
       white: !!group.white,
       handOrder: shuffleArr(ACC_HAND.slice()),
       wearOrder: shuffleArr(ACC_WEAR.slice()),
+      shotOrder: shuffleArr(['half', 'three', 'mirror', 'side']),
       accN: 0
     };
   }
@@ -1224,9 +1225,16 @@ function makeJobs(n, colors, from) {
   for (let i = 0; i < n; i++) {
     const k = from + i;
     const color = list[k % list.length];
-    // 约三成出「手机挡脸自拍」，其余走安全姿势；每张独立随机。影棚风格固定站立半身
-    const useSelfie = !useStudio && Math.random() < 0.3;
-    const pose = useStudio ? '自然站立，身体放松、站姿自然不僵硬；竖构图 3:4，从头顶拍到大腿中部，人体上下比例协调、头身比正常，宁可下摆略出画面一点，也不要压缩上身和脸' : (useSelfie ? selfies[selfieN++ % selfies.length] : poses[k % poses.length]);
+    // 机位轮换：半身 / 七分身 / 对镜自拍 / 侧身，同一款不同颜色看的是同一组图的不同角度，
+    // 而不是同一张脸换个颜色复制一遍；影棚风格固定站立半身
+    const shot = useStudio ? 'half' : batchCtx.shotOrder[k % batchCtx.shotOrder.length];
+    const useSelfie = shot === 'mirror';
+    const frame = shot === 'three'
+      ? '；构图拍七分身、镜头略后退，能看到腰线、下摆和膝盖上方，下摆完整、上下比例协调'
+      : (shot === 'side' ? '；身体侧转约 30 度、脸转向镜头，能看清袖子和侧面版型' : '');
+    const pose = useStudio
+      ? '自然站立，身体放松、站姿自然不僵硬；竖构图 3:4，从头顶拍到大腿中部，人体上下比例协调、头身比正常，宁可下摆略出画面一点，也不要压缩上身和脸'
+      : ((useSelfie ? selfies[selfieN++ % selfies.length] : poses[k % poses.length]) + frame);
     const scene = batchCtx.spots[k % batchCtx.spots.length];
     const acc = noAcc ? '' : pickAccFromBatch();
     const prompt = buildPrompt({
@@ -1918,6 +1926,102 @@ function makeTimer(el, label) {
   };
 }
 
+/* 把单格图里的领口、袖口、下摆三处局部裁出来，横向拼成一条长图。
+   整格 1024 图里袖口只占几十像素，拼成条带后每一处都能占到 500px 以上，模型才看得清织法。 */
+function cropEdgeStrip(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const W = img.width, H = img.height;
+      // 参照：领口在顶部中间，袖口在左右下侧，下摆在底部中间
+      const spots = [
+        [Math.round(W * 0.22), Math.round(H * 0.08), Math.round(W * 0.56), Math.round(H * 0.16)], // 领口
+        [Math.round(W * 0.00), Math.round(H * 0.62), Math.round(W * 0.34), Math.round(H * 0.26)], // 左手袖口
+        [Math.round(W * 0.66), Math.round(H * 0.62), Math.round(W * 0.34), Math.round(H * 0.26)], // 右手袖口
+        [Math.round(W * 0.20), Math.round(H * 0.80), Math.round(W * 0.60), Math.round(H * 0.18)]  // 下摆
+      ];
+      const cellW = 620, cellH = 460;
+      const c = document.createElement('canvas');
+      c.width = cellW * spots.length; c.height = cellH;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      spots.forEach((s, i) => {
+        ctx.drawImage(img, s[0], s[1], s[2], s[3], i * cellW, 0, cellW, cellH);
+        ctx.strokeStyle = '#bbb';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(i * cellW + 1, 1, cellW - 2, cellH - 2);
+      });
+      try { resolve(c.toDataURL('image/jpeg', 0.94)); }
+      catch (_) { resolve(''); }
+    };
+    img.onerror = () => resolve('');
+    img.src = dataUrl;
+  });
+}
+
+/* 第三道校验：只在第一次判断「有罗纹」时才跑，专门确认罗纹的宽度和位置，平滑款跳过省钱 */
+async function confirmRibDetail(strip, prev) {
+  const key = (settings.apiKey || '').trim();
+  if (!key || !strip) return null;
+  const url = (settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/chat/completions';
+  const prompt = [
+    '这是一件针织开衫的四处局部放大，从左到右依次是：领口、左手袖口、右手袖口、下摆。',
+    '只回答这四处边口的织法，输出 JSON，不要解释、不要 markdown。',
+    '先判断每一处：是「平滑收边」（只有一道平整的包边或卷边，看不到一根根竖条）还是「罗纹/坑条」（能看到一排排竖向细条）。',
+    '罗纹只在最末端很窄的一圈，高度大约一个指节，绝不是宽腰头那种宽条。',
+    '字段：neckWidth neckRib cuffWidth cuffRib hemWidth hemRib，宽度单位 cm（平滑写 0，坑条密度写 "平针"）；',
+    'cuffSame 两只袖口织法是否完全一致（true/false）；note 一句话说明你看到的边缘做法。',
+    '拿不准时按平滑写 0，宁可写小不许写大。只返回 JSON。'
+  ].join('\n');
+  const body = {
+    model: settings.visionModel || 'doubao-seed-2-1-pro-260915',
+    temperature: 0,
+    max_tokens: 400,
+    thinking: { type: 'disabled' },
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: prompt },
+      { type: 'image_url', image_url: { url: strip, zoom_in: true } }
+    ] }]
+  };
+  try {
+    let r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify(body)
+    });
+    if (r.status === 400) {
+      r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify(Object.assign({}, body, { thinking: undefined }))
+      });
+    }
+    if (!r.ok) return null;
+    const j = await r.json().catch(() => null);
+    const text = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+    const o = parseJsonLoose(text);
+    if (!o || typeof o !== 'object') return null;
+    const num = (v) => {
+      const n = parseFloat(String(v).replace(/[^\d.]/g, ''));
+      return isFinite(n) ? n : null;
+    };
+    const out = {};
+    ['neck', 'cuff', 'hem'].forEach((k) => {
+      const w = num(o[k + 'Width']);
+      if (w !== null) out[k + 'Width'] = w <= 0.5 ? '0' : String(w);
+      if (o[k + 'Rib']) out[k + 'Rib'] = o[k + 'Rib'];
+    });
+    if (prev && prev.cuffWidth && out.cuffWidth && String(prev.cuffWidth) !== String(out.cuffWidth)) {
+      // 两次结论差得太多时，取更窄的那个（宁可窄，不要凭空加宽）
+      const a = parseFloat(prev.cuffWidth), b = parseFloat(out.cuffWidth);
+      if (isFinite(a) && isFinite(b)) out.cuffWidth = String(Math.min(a, b));
+    }
+    return Object.keys(out).length ? out : null;
+  } catch (_) { return null; }
+}
 /* 拼图裁出单格后，再用视觉模型专门放大看一遍边口细节，校准罗纹宽度和位置。
    整张 3x3 拼图里每个袖口只有几百像素，一次识别很难看清，这一步是关键。 */
 async function refineGarmentDetail(img) {
@@ -2028,6 +2132,18 @@ async function recognize() {
           {}, (data.garmentDetail && typeof data.garmentDetail === 'object') ? data.garmentDetail : {}, refined
         );
         recData = data;
+      }
+      // 只有判断出「有罗纹」时才跑第三道局部放大校验；平滑款直接跳过，不多花钱
+      const g0 = data.garmentDetail || {};
+      const ribW = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(/[^\d.]/g, '')); return isFinite(n) && n > 0.5; };
+      if (ribW(g0.neckWidth) || ribW(g0.cuffWidth) || ribW(g0.hemWidth)) {
+        setStatus('放大了再看一眼领口袖口…');
+        const strip = await cropEdgeStrip(productImageCrop);
+        const conf = await confirmRibDetail(strip, g0);
+        if (conf) {
+          data.garmentDetail = Object.assign({}, g0, conf);
+          recData = data;
+        }
       }
     }
 
