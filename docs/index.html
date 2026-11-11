@@ -152,8 +152,8 @@ html{color-scheme:light only}
   background:#fff;font-size:12.5px;color:#374151;cursor:pointer}
 .field .cp:active{background:#eef2f8}
 .copyrow{display:flex;gap:8px;margin-top:12px}
-.copyrow button{flex:1;padding:10px;border-radius:9px;border:1px solid var(--line);background:#fff;
-  font-size:13px;color:#374151}
+.copyrow button{flex:1;min-width:0;padding:10px 6px;border-radius:9px;border:1px solid var(--line);background:#fff;
+  font-size:12.5px;color:#374151;white-space:nowrap}
 .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:rgba(20,23,26,.92);
   color:#fff;font-size:13px;padding:10px 16px;border-radius:22px;z-index:120;max-width:86vw;
   text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.1</span>
+      <span class="ver">v7.2</span>
     </div>
   </div>
 
@@ -227,6 +227,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div class="copyrow hidden" id="copyRow">
           <button id="copyTitle">复制标题</button>
           <button id="copyAll">复制全部字段</button>
+          <button id="rewriteCopy">重写标题详情</button>
         </div>
       </div>
 
@@ -2010,40 +2011,52 @@ function buildCopyPrompt(data) {
 
 async function writeCopy(data) {
   const key = (settings.apiKey || '').trim();
-  const model = (settings.copyModel || '').trim();
-  if (!key || !model) return null;
+  if (!key) return null;
   const url = (settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/chat/completions';
   const prompt = buildCopyPrompt(data);
   const ask = async (m) => {
-    const body = {
-      model: m, temperature: 0.9, max_tokens: 2400,
-      messages: [{ role: 'user', content: prompt }]
+    const mk = (think) => {
+      const b = { model: m, temperature: 0.9, max_tokens: 3000,
+        messages: [{ role: 'user', content: prompt }] };
+      if (think) b.thinking = { type: 'disabled' };
+      return b;
     };
-    let r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify(body)
-    });
+    const send = async (b) => {
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const to = setTimeout(() => { try { ctl && ctl.abort(); } catch (_) {} }, 40000);
+      try {
+        return await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+          body: JSON.stringify(b),
+          signal: ctl ? ctl.signal : undefined
+        });
+      } finally { clearTimeout(to); }
+    };
+    let r = await send(mk(true));
+    // 有的模型不认 thinking 参数，去掉重试一次
+    if (r.status === 400) r = await send(mk(false));
     const j = await r.json().catch(() => null);
     if (!r.ok) {
       const msg = (j && j.error && (j.error.message || j.error.code)) || ('HTTP ' + r.status);
-      throw new Error(msg);
+      throw new Error(m + ' ' + msg);
     }
-    const txt = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+    const mObj = j && j.choices && j.choices[0] && j.choices[0].message;
+    let txt = mObj && mObj.content;
+    if (Array.isArray(txt)) txt = txt.map(p => (p && (p.text || '')) || '').join('');
     return parseJsonLoose(txt);
   };
-  try {
-    const o = await ask(model);
-    if (o && (o.title || o.description)) return o;
-  } catch (_) {}
-  // 文案模型没开通或报错时，退回识别模型纯文本再写一次，保证标题不会空
-  try {
-    if ((settings.visionModel || '') && model !== settings.visionModel) {
-      const o = await ask(settings.visionModel);
+  const list = [settings.copyModel, settings.visionModel]
+    .map(x => String(x || '').trim()).filter((m, i, a) => m && a.indexOf(m) === i);
+  let err = '';
+  for (const m of list) {
+    try {
+      const o = await ask(m);
       if (o && (o.title || o.description)) return o;
-    }
-  } catch (_) {}
-  return null;
+      err = m + ' 没返回可用内容';
+    } catch (e) { err = e.message || String(e); }
+  }
+  return { _error: err || '文案模型没配置' };
 }
 
 let recData = null;
@@ -2303,7 +2316,12 @@ async function recognize() {
 
     // 文案放到后台写，不拖慢识别：字段先给你，标题详情写完自动补进去
     copyPromise.then((copy) => {
-      if (!copy) { $('#tip').textContent = '识别完成。标题和详情没写出来，可以再点一次识别。'; return; }
+      if (!copy || (!copy.title && !copy.description)) {
+        const why = (copy && copy._error) ? copy._error : '模型没返回内容';
+        $('#tip').textContent = '识别完成，标题详情没写出来：' + why + '。可点「重写标题详情」再试';
+        toast('文案没生成：' + why, 6000);
+        return;
+      }
       ['title', 'extra', 'description'].forEach((k) => { if (copy[k]) data[k] = copy[k]; });
       recData = data;
       // 只回填这三个字段，不重绘整个表单，避免冲掉你正在改的内容
@@ -2413,6 +2431,26 @@ $('#copyAll').addEventListener('click', () => {
     return label + '：' + (el ? el.value : valText(recData[k]));
   });
   copyText(lines.join('\n'));
+});
+// 只重写标题/卖点/详情，不重新识图，成本几乎为 0
+$('#rewriteCopy').addEventListener('click', async () => {
+  if (!recData) { toast('先识别一次'); return; }
+  const btn = $('#rewriteCopy');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '正在写…';
+  const copy = await writeCopy(recData).catch(() => null);
+  btn.disabled = false; btn.textContent = old;
+  if (!copy || (!copy.title && !copy.description)) {
+    toast('还是没写出来：' + ((copy && copy._error) || '模型没返回内容'), 6000);
+    return;
+  }
+  ['title', 'extra', 'description'].forEach(k => { if (copy[k]) recData[k] = copy[k]; });
+  ['title', 'extra', 'description'].forEach(k => {
+    const el = $('#recFields [data-k="' + k + '"]');
+    if (el) el.value = valText(recData[k]);
+  });
+  try { localStorage.setItem('ks2.rec', JSON.stringify(recData)); } catch (_) {}
+  toast('标题和详情已重写');
 });
 
 /* ================= 大图 ================= */
