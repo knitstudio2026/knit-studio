@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.5</span>
+      <span class="ver">v7.6</span>
     </div>
   </div>
 
@@ -1140,6 +1140,7 @@ function garmentClause(studio) {
       rib(d.hemWidth, d.hemRib, '下摆'),
       `门襟：${d.placket || '单层直门襟'}，笔直贯通`,
       btnNote,
+      ...(d.closureNote ? [`门襟扣件必须 100% 原样复刻：${d.closureNote}；有几种扣件就画几种，每种的数量一颗都不能少，两侧扣件的位置和上下顺序必须和参考图一致，绝对不许简化成只有一排扣，绝对不许漏掉盘扣或金属扣`] : []),
       `口袋：${d.pocket || '无口袋'}；口袋的数量、位置和左右对称必须和参考图完全一致：参考图左右各有一个就左右各做一个，参考图有几个就画几个，一只都不能少；参考图没有口袋就一个都不许加；不许只画单边一个口袋，不许改大小、形状和高度`,
       `图案：${d.pattern || '无图案纯色'}`,
       '以上每一条都是硬性要求，必须在图里 100% 体现出来，少一条或错一条都不行'
@@ -2015,6 +2016,7 @@ function buildVisionPrompt() {
       '  btnCount: 纽扣数量（整数）。必须从领口第一颗一直数到下摆最后一颗，一颗一颗数清楚，只数正面门襟上的，不要凭感觉估；数出来几颗就写几颗，绝不许少写\n' +
       '  btnColor: 纽扣颜色，比如 "珍珠白" / "古铜色" / "与衣身同色"\n' +
       '  btnStyle: 纽扣款式，必须从这些里选一个最贴近的："普通圆形平扣" / "珍珠扣" / "金属扣" / "带绳结套的盘扣（frog buttonhole）" / "带小结套的绳结扣" / "镂空扣" / "方形扣"\n' +
+      '  closureNote: 门襟扣件的完整做法，用一句话说清楚。必须放大看清楚门襟上有几种扣件、每种几颗、各在门襟的哪一侧、从上到下什么顺序，例如 "门襟左侧一列 5 颗布包圆球盘扣，右侧一列 4 颗银色金属圆扣，两列等距排列"；如果只有一种扣件，就写这一列的做法。绝对不许只写"金属扣"而漏掉旁边的盘扣\n' +
       '  bodyLength: 衣长类型，"短款" / "常规款" / "中长款" / "长款"\n' +
       '  bodyEnd: 下摆大概落在身体什么位置，比如 "髋骨上方" / "盖住一半臀部" / "大腿中段"\n' +
       '  fit: 衣身松紧，"宽松" / "常规" / "修身" / "微宽松"\n' +
@@ -2246,6 +2248,7 @@ async function refineGarmentDetail(img) {
     'hemWidth 下摆罗纹高度（cm，平滑无罗纹写 0）；hemRib 下摆坑条密度（条/cm，无罗纹写 "平针"）；',
     'placket 门襟做法，如 "单层直门襟"；btnCount 纽扣数量（整数）；btnColor 纽扣颜色；',
     'btnStyle 从 ["普通圆形平扣","珍珠扣","金属扣","带绳结套的盘扣（frog buttonhole）","带小结套的绳结扣","镂空扣","方形扣"] 选一个；',
+    'closureNote 门襟扣件的完整做法：放大看清有几种扣件、每种几颗、各在门襟哪一侧，写成一句话，如 "门襟左侧一列5颗布包盘扣，右侧一列4颗金属圆扣"；只有一种扣就写一列；',
     'bodyLength 从 ["短款","常规款","中长款","长款"] 选；bodyEnd 下摆落在身体的位置，如 "髋骨上方"；',
     'fit 从 ["宽松","常规","修身","微宽松"] 选；sleeveFit 从 ["常规直筒","微收袖","落肩宽松"] 选；',
     'pocket 口袋数量+形状+袋口做法（左右都要数清楚，通常左右各一个）；pattern 图案位置和种类。',
@@ -2254,7 +2257,7 @@ async function refineGarmentDetail(img) {
   const body = {
     model: settings.visionModel || 'doubao-seed-2-1-pro-260915',
     temperature: 0,
-    max_tokens: 500,
+    max_tokens: 700,
     thinking: { type: 'disabled' },
     messages: [{ role: 'user', content: [
       { type: 'text', text: prompt },
