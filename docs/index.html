@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.3</span>
+      <span class="ver">v7.4</span>
     </div>
   </div>
 
@@ -1805,16 +1805,21 @@ const PDD_FIELDS = [
 
 /* ===== 标题 / 详情页词库：每次识别随机抽样，避免每次生成都是同一句 ===== */
 const HOT = {
-  season: ['秋冬新款', '2025新款', '秋季新品', '早秋新款', '冬款', '反季上新', '新款上市', '当季新品', '秋冬必备', '秋季穿搭', '今年流行', '换季上新', '秋冬季', '冬装新款', '2025秋冬', '秋冬穿搭', '秋季新款', '冬季新品'],
+  season: (() => { const y = new Date().getFullYear(); return ['秋冬新款', y + '新款', '秋季新品', '早秋新款', '冬款', '新款上市', '当季新品', '秋冬必备', '秋季穿搭', '今年流行', '换季上新', '秋冬季', '冬装新款', y + '秋冬', '秋冬穿搭', '秋季新款', '冬季新品', '入冬必备', '深秋新款']; })(),
   style: ['慵懒风', '温柔风', '高级感', '法式', '韩系', '小香风', 'ins风', '复古风', '甜酷风', '氛围感', '松弛感', 'clean fit', '老钱风', '美拉德', '静奢风', '极简风', '软妹风', '轻熟风', '文艺风', '气质风', '千金风', '田园风', '日系', '学院风', '甜妹风', '通勤风', '都市风', '简约风', '森系', '复古港风', '法式复古', '韩版宽松', '高级小众', 'chic', '高级感穿搭', '日常高级', '一眼高级'],
   body: ['显瘦', '显白', '小个子', '微胖穿搭', '高个子', '梨形身材', '遮肉显瘦', '显高', '纸片人', '大码友好', '不挑身材', '包容性强', '显腰细', '藏肉', '显瘦神器', '上身显瘦', '小个子可穿', '微胖也能穿', '遮肚子', '显瘦显高', '遮胯宽', '修饰比例', '不压个子'],
   crowd: ['学生党', '通勤', '上班族', '宝妈', '少女感', '轻熟', '减龄', '大学生', '职场穿搭', '日常', '约会', '打工人', '小个子女生', '微胖女生', '20岁', '30岁', '气质女人', '妈妈装', '职场女性', '刚毕业', '约会穿搭', '日常通勤'],
   fabric: ['软糯', '不起球', '亲肤', '不扎人', '加厚', '保暖', '轻薄', '透气', '抗起球', '不易变形', '可机洗', '有弹力', '手感细腻', '不厚重', '贴肤不刺', '蓬松柔软', '垂坠感', '不掉毛', '亲肤不痒', '手感软糯', '柔软不扎', '厚实保暖', '不闷热', '抗皱', '免烫', '不挑肤', '细腻柔滑', '轻柔软糯'],
-  category: ['针织开衫', '毛衣外套', '针织外套', '套头毛衣', '针织衫', '毛衣女', '开衫外套', '外搭针织', '薄毛衣', '打底针织', '毛衣开衫', '短款开衫', '针织上衣', '毛衣外穿', '针织小开衫', '圆领毛衣', '秋冬毛衣', '女式毛衣', '针织毛衣', '小香风开衫', '外穿毛衣', '毛衣女外套', '针织打底衫', '长袖针织衫'],
+  category: ['针织开衫', '毛衣外套', '针织外套', '套头毛衣', '针织衫', '毛衣女', '开衫外套', '外搭针织', '薄毛衣', '打底针织', '毛衣开衫', '短款开衫', '针织上衣', '毛衣外穿', '针织小开衫', '圆领毛衣', '秋冬毛衣', '女式毛衣', '针织毛衣', '小香风开衫', '外穿毛衣', '毛衣女外套', '针织打底衫', '长袖针织衫',
+    '毛衣女秋冬', '针织衫女', '开衫女', '毛衣外套女', '套头针织衫', '针织马甲', '针织连衣裙', 'V领毛衣', '半高领毛衣', '高领毛衣', '翻领毛衣', 'polo针织衫', '宽松毛衣', '加厚毛衣', '大码毛衣', '胖mm毛衣', '学生毛衣', '妈妈毛衣', '慵懒风毛衣', '法式毛衣', '韩版毛衣', '复古毛衣', '薄款针织衫', '加绒毛衣', '毛绒毛衣', '水貂绒毛衣', '羊羔毛外套', '毛衣背心', '针织套装'],
   detail: ['圆领', 'V领', '纽扣', '口袋', '坑条', '麻花', '镂空', '提花', '刺绣', '拼色', '撞色', '小熊图案', '花朵刺绣', '蝴蝶结', '珍珠扣', '复古扣', '小香风扣', '立体花扣', '编织纹理', '罗纹收口', '贴袋', '双口袋', '单排扣', '撞色包边', '菱格纹', '竖条纹', '小立领', '开襟', '微落肩', '短款设计',
     '平针','元宝针','麻花辫纹','阿兰花','桂花针','提花菱格','芝麻点','空心针','双元宝','假口袋','立体贴袋','明贴袋','斜插袋','袋盖','金属扣','贝壳扣','树脂扣','包布扣','四合扣','盘扣','绳结扣','暗门襟','明门襟','双层门襟','无门襟','门襟压线','开衩下摆','平下摆','弧形下摆','花边下摆','螺纹下摆','卷边袖口','翻边袖口','收口袖','落肩线','正肩线','插肩线','拼色袖口','撞色领口','撞色下摆','胸标','织带','织唛','后背拼接','后中缝','侧缝开衩','荷叶边','小飞袖','羊腿袖','泡泡袖'],
   scene: ['通勤', '约会', '逛街', '上课', '上班', '旅行', '拍照', '居家', '秋冬内搭', '叠穿', '早八', '周末出游', '咖啡店', 'citywalk', '见家长', '聚会', '旅行度假', '图书馆', '下午茶', '探店', '过节', '年会', '日常出街', '春游', '露营', '拍照打卡', '闺蜜约饭', '看展',
-    '办公室','空调房','逛超市','接送孩子','自习','看电影','逛花市','面试','朋友生日','居家办公','逛书店','逛商场','坐高铁','住民宿','遛狗','早午餐','下午办公','逛菜市场','夜跑后','周末宅家','开车出门']
+    '办公室','空调房','逛超市','接送孩子','自习','看电影','逛花市','面试','朋友生日','居家办公','逛书店','逛商场','坐高铁','住民宿','遛狗','早午餐','下午办公','逛菜市场','夜跑后','周末宅家','开车出门'],
+  // 下面三组只在识别结果确实符合时才拼进标题，保证不写假属性
+  neck: ['圆领', 'V领', '半高领', '高领', '翻领', 'POLO领', '方领', '一字领', '大圆领', '小立领', '连帽'],
+  len: ['短款', '常规款', '中长款', '长款', '及臀'],
+  thick: ['加厚', '加绒', '薄款', '厚款']
 };
 const TITLE_SHAPES = [
   '季节热搜词 + 风格热搜词 + 领型 + 版型 + 品类 + 核心卖点',
@@ -1923,6 +1928,54 @@ function sample(arr, n) {
   return out;
 }
 
+/* 标题不再让模型自由发挥：全部由本地拼多多热搜词库按识别出的真实属性拼出来。
+   顺序固定为 季节 → 风格 → 身材 → 领型 → 品类 → 衣长 → 厚薄 → 元素 → 人群，
+   每个词都只在识别结果确实符合时才拼进去，绝不出现衣服上没有的属性。 */
+function buildTitle(d) {
+  const rnd = (a) => a[Math.floor(Math.random() * a.length)];
+  const txt = (v) => String(v == null ? '' : (Array.isArray(v) ? v.join(' ') : v));
+  const hit = (pool, attr) => {
+    const a = txt(attr).trim();
+    return a.length >= 2 ? pool.filter(w => a.indexOf(w) >= 0) : [];
+  };
+  const nkTxt = txt(d.neck), wsTxt = txt(d.wearStyle), wtTxt = txt(d.weight), slTxt = txt(d.sleeveLen);
+  // 品类词要跟穿法、领型、厚薄、袖长对得上，避免标题写假属性
+  const badNeck = ['V领', '半高领', '高领', '翻领', 'POLO领', 'polo', '方领', '一字领', '小立领', '连帽', '圆领', '大圆领', '小圆领', '娃娃领', 'peter pan'];
+  let catPool = HOT.category.filter(w => !badNeck.some(k => w.indexOf(k) >= 0 && nkTxt.indexOf(k) < 0));
+  if (/开衫|外套/.test(wsTxt)) catPool = catPool.filter(w => !/套头|连衣裙|马甲|背心|套装/.test(w));
+  if (/套头/.test(wsTxt)) catPool = catPool.filter(w => !/开衫|外套/.test(w));
+  if (/短袖|无袖/.test(slTxt)) catPool = catPool.filter(w => !/长袖/.test(w));
+  if (!/连衣裙|马甲|背心|套装/.test(txt(d.category))) catPool = catPool.filter(w => !/连衣裙|马甲|背心|套装/.test(w));
+  if (!/加厚/.test(wtTxt)) catPool = catPool.filter(w => !/加厚/.test(w));
+  if (!/加绒/.test(wtTxt)) catPool = catPool.filter(w => !/加绒/.test(w));
+  if (!/薄/.test(wtTxt)) catPool = catPool.filter(w => !/薄款/.test(w));
+  catPool = catPool.filter(w => !/大码|胖mm/.test(w));   // 尺码不能乱写
+
+  const parts = [];
+  const add = (w) => { if (w && parts.indexOf(w) < 0) parts.push(w); };
+  add(rnd(HOT.season));
+  const st = hit(HOT.style, txt(d.mainStyle) + ' ' + txt(d.subStyle));
+  add(st.length ? rnd(st) : rnd(HOT.style));
+  const bodyPool = HOT.body.filter(w => w !== '微胖穿搭' && w !== '高个子');
+  add(rnd(bodyPool));
+  const nk = hit(HOT.neck, nkTxt).sort((a, b) => b.length - a.length);
+  if (nk.length) add(nk[0]);
+  const catOk = catPool.filter(w => !parts.some(p => p.length >= 2 && w.indexOf(p) >= 0));
+  add(catOk.length ? rnd(catOk) : (catPool.length ? rnd(catPool) : rnd(HOT.category)));
+  const ln = hit(HOT.len, d.length);
+  if (ln.length) add(ln[0]);
+  let th = hit(HOT.thick, wtTxt);
+  if (!th.length && wtTxt) th = /薄/.test(wtTxt) ? ['薄款'] : (/厚/.test(wtTxt) ? ['厚款'] : []);
+  if (th.length) add(th[0]);
+  const el = hit(HOT.detail, d.elements);
+  if (el.length) add(rnd(el));
+  const crowdPool = HOT.crowd.filter(w => ['日常', '约会', '日常通勤', '约会穿搭'].indexOf(w) < 0);
+  add(rnd(crowdPool));
+  let t = parts.join('');
+  while (t.length > 60 && parts.length > 3) { parts.pop(); t = parts.join(''); }
+  return t;
+}
+
 function buildVisionPrompt() {
   return [
     '你是拼多多女装类目运营。仔细看这张服装实拍图，输出拼多多发布商品页需要填的信息。',
@@ -1972,17 +2025,10 @@ function buildVisionPrompt() {
   ].join('\n');
 }
 
-/* 第二段：把识别出来的字段交给文字模型写标题和详情。
-   识别模型只负责看图（看图贵、输出长），文案交给免费额度的文字模型，费用更低、文案更好。 */
+/* 第二段：把识别出来的字段交给文字模型写卖点和详情。
+   标题不走模型，由 buildTitle() 用本地热搜词库按真实属性拼，避免模型乱写。 */
 function buildCopyPrompt(data) {
   const d = data || {};
-  const h = [
-    sample(HOT.season, 6).join('、'), sample(HOT.style, 10).join('、'),
-    sample(HOT.body, 8).join('、'), sample(HOT.crowd, 6).join('、'),
-    sample(HOT.fabric, 10).join('、'), sample(HOT.category, 8).join('、'),
-    sample(HOT.detail, 10).join('、')
-  ];
-  const shape = TITLE_SHAPES[Math.floor(Math.random() * TITLE_SHAPES.length)];
   const descStyle = DESC_STYLES[Math.floor(Math.random() * DESC_STYLES.length)];
   const descShape = DESC_SHAPES[Math.floor(Math.random() * DESC_SHAPES.length)];
   const descOpener = DESC_OPENERS[Math.floor(Math.random() * DESC_OPENERS.length)];
@@ -1995,14 +2041,10 @@ function buildCopyPrompt(data) {
     真实细节: d.detailBrief
   };
   return [
-    '你是拼多多女装类目资深运营，负责给上架商品写标题和详情文案。',
+    '你是拼多多女装类目资深运营，负责给上架商品写卖点和详情文案。',
     '下面是一件毛衣的实拍识别结果（JSON），你必须严格依据这些字段来写，不许写这个 JSON 里没有的属性：',
     JSON.stringify(info),
-    `只返回一个 JSON 对象：{"title":"","extra":"","description":""}，不要解释、不要 markdown。`,
-    `title: 商品标题，≤60个字，是拼多多站内自然流量的主要来源，必须像爆款标题一样能承接搜索词。本次使用这个结构：「${shape}」，读起来通顺，不堆砌、不重复、不用"最"等违禁词`,
-    `title 必须从下面这批【本次指定】的热搜词里挑 5-7 个最贴合本款的，不许用名单之外的词：季节【${h[0]}】风格【${h[1]}】身材【${h[2]}】人群【${h[3]}】面料卖点【${h[4]}】品类【${h[5]}】元素【${h[6]}】`,
-    'title 开头第一个词必须是流量最大的季节词或品类词（如"秋冬新款""针织开衫"），绝不许用"办公室""咖啡店""早八"这类场景词开头；场景词不进标题',
-    'title 硬性要求：挑出的每个热搜词都必须和上面的真实属性对得上——领型是圆领就不许写V领，没有坑条就不许写坑条，不是提花就不许写提花，不是加厚就不许写加厚；宁可少写几个，也绝不许为了堆词而写不符合的词。标题必须和字段里的领型、图案、元素、衣长、成分自洽',
+    `只返回一个 JSON 对象：{"extra":"","description":""}，不要解释、不要 markdown。`,
     `extra: 卖点关键词，逗号分隔，从【${sample(HOT.fabric, 10).join('、')}】里挑 4-6 个真实的，如"不起球,可机洗"，不许写这件衣服做不到的卖点`,
     `description: 详情页文案，150-220字，用「${descStyle}」，行文按这个思路展开：「${descShape}」，第一句的写法参考：「${descOpener}」。必须写到：面料手感和厚度、版型与衣长、适合什么身材、2 个具体穿着场景、一句搭配建议（下面配什么裤子或裙子）、洗护注意。多用短句，口语化，不用违禁词，不要把标题里的词反复堆砌`,
     '上面这些「口吻/思路/写法」只是给你参考的结构说明，绝对不许把说明文字本身写进文案，要直接写出成品的详情页句子',
@@ -2280,6 +2322,10 @@ async function recognize() {
     if (!data) throw new Error('识别结果没看懂，再试一次');
     recData = data;
     renderFields(data);
+    // 标题先用本地热搜词库按真实属性拼好，不等文字模型，也绝不乱写
+    data.title = buildTitle(data);
+    const tEl = $('#recFields [data-k="title"]');
+    if (tEl) tEl.value = data.title;
     // 看图识别完成后，立刻让文字模型并行写标题和详情，不阻塞后面的裁图校验
     const copyPromise = writeCopy(data).catch(() => null);
 
@@ -2317,6 +2363,13 @@ async function recognize() {
       }
     }
 
+    // 复核过边口之后，用最终属性再拼一次标题，保证领型/衣长/厚薄都是对的
+    data.title = buildTitle(data);
+    {
+      const tEl2 = $('#recFields [data-k="title"]');
+      if (tEl2) tEl2.value = data.title;
+    }
+
     // 文案放到后台写，不拖慢识别：字段先给你，标题详情写完自动补进去
     copyPromise.then((copy) => {
       if (!copy || (!copy.title && !copy.description)) {
@@ -2325,10 +2378,10 @@ async function recognize() {
         toast('文案没生成：' + why, 6000);
         return;
       }
-      ['title', 'extra', 'description'].forEach((k) => { if (copy[k]) data[k] = copy[k]; });
+      ['extra', 'description'].forEach((k) => { if (copy[k]) data[k] = copy[k]; });
       recData = data;
-      // 只回填这三个字段，不重绘整个表单，避免冲掉你正在改的内容
-      ['title', 'extra', 'description'].forEach((k) => {
+      // 只回填这两个字段，标题由本地热搜词库拼，不被模型改写
+      ['extra', 'description'].forEach((k) => {
         const el = $('#recFields [data-k="' + k + '"]');
         if (el && !el.dataset.touched) el.value = valText(data[k]);
       });
@@ -2447,7 +2500,8 @@ $('#rewriteCopy').addEventListener('click', async () => {
     toast('还是没写出来：' + ((copy && copy._error) || '模型没返回内容'), 6000);
     return;
   }
-  ['title', 'extra', 'description'].forEach(k => { if (copy[k]) recData[k] = copy[k]; });
+  ['extra', 'description'].forEach(k => { if (copy[k]) recData[k] = copy[k]; });
+  if (!recData.title) recData.title = buildTitle(recData);
   ['title', 'extra', 'description'].forEach(k => {
     const el = $('#recFields [data-k="' + k + '"]');
     if (el) el.value = valText(recData[k]);
