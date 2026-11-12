@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v8.5</span>
+      <span class="ver">v8.6</span>
     </div>
   </div>
 
@@ -321,10 +321,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           </select>
         </div>
         <div class="row">
-          <label>自动质检重拍<small>每张多花约5分，发现衣服细节画错就自动重拍一次</small></label>
+          <label>自动质检重拍<small>开启后每张约多花 1 分钟和 5 分钱，发现衣服细节画错就自动重拍一次</small></label>
           <select id="qaFix">
-            <option value="on">开启（推荐）</option>
-            <option value="off">关闭</option>
+            <option value="off">关闭（默认，出图最快）</option>
+            <option value="on">开启（更较真，但慢一倍）</option>
           </select>
         </div>
         <div class="hint" id="priceHint" style="margin-top:0"></div>
@@ -380,7 +380,13 @@ if (!settings.imageModel || /seedream-4-0|seedream-3-0/.test(settings.imageModel
 if (!settings.visionModel) settings.visionModel = 'doubao-seed-2-1-pro-260915';
 if (!settings.copyModel) settings.copyModel = 'kimi-k3-1-pro-261024';
 if (!settings.quality) settings.quality = 'big';
-if (settings.qaFix === undefined) settings.qaFix = 'on';
+if (settings.qaFix === undefined) settings.qaFix = 'off';
+// 质检重拍会让单张多花一倍时间，v8.6 起改成默认关闭，想用的人自己开
+if (!settings.qaVer) {
+  settings.qaVer = 1;
+  settings.qaFix = 'off';
+  try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
+}
 // 老版本默认是 157 万像素，一次性升到 258 万像素（同样 0.30 元一档）
 if (!settings.pixVer) {
   settings.pixVer = 1;
