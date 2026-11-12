@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v8.2</span>
+      <span class="ver">v8.3</span>
     </div>
   </div>
 
@@ -1218,11 +1218,14 @@ async function callArk(prompt, opts) {
     negative_prompt: NEGATIVE + edgeNeg() + ((opts && opts.extraNeg) || '')
   };
   if (productImage) payload.image = productImageCrop || productImage;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 180000);
   const r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-    body: JSON.stringify(payload)
-  });
+    body: JSON.stringify(payload),
+    signal: ac.signal
+  }).finally(() => clearTimeout(timer));
   const j = await r.json().catch(() => null);
   if (!r.ok) {
     const msg = (j && j.error && (j.error.message || j.error.code)) || ('HTTP ' + r.status);
@@ -1266,16 +1269,21 @@ async function qaCheck(genUrl) {
     max_tokens: 220,
     thinking: { type: 'disabled' },
     messages: [{ role: 'user', content: [
-      { type: 'text', text: '图1是你自己衣服的真实参考图，图2是AI生成的。只检查图2的衣服有没有画错（颜色、场景、人物、姿势、配饰不用管，那些是故意换的）。逐项对比：1.领口/袖口/下摆的收边织法——参考图是平滑卷边就不能出现罗纹竖条，参考图有罗纹就得有同样罗纹；2.门襟扣件——种类、颗数、排列方式（一列还是几列、有没有交错）；3.口袋——数量和左右位置。只返回 JSON：完全一致返回 {"pass":true}；有错返回 {"pass":false,"issues":"用一句话说错在哪，如：袖口被画成罗纹但参考图是平滑卷边"}' },
+      { type: 'text', text: '图1是你自己衣服的真实参考图，图2是AI生成的。只检查图2的衣服有没有画错（颜色、场景、人物、姿势、配饰不用管，那些是故意换的）。逐项对比：1.领口/袖口/下摆的收边织法——参考图是平滑卷边就不能出现罗纹竖条，参考图有罗纹就得有同样罗纹；2.门襟扣件——种类、颗数、排列方式（一列还是几列、有没有交错）；3.口袋——数量和左右位置。只返回 JSON：没有明显错误就返回 {"pass":true}；只有一眼就能看出的明显错误才返回 {"pass":false,"issues":"一句话说错在哪，如：袖口被画成罗纹但参考图是平滑卷边"}；看不清、拿不准、只是略有差异，一律 pass:true' },
       { type: 'image_url', image_url: { url: refS, zoom_in: true } },
       { type: 'image_url', image_url: { url: genS, zoom_in: true } }
     ] }]
   };
-  const send = (b) => fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-    body: JSON.stringify(b)
-  });
+  const send = (b) => {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 25000);
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify(b),
+      signal: ac.signal
+    }).finally(() => clearTimeout(t));
+  };
   try {
     let r = await send(body);
     if (r.status === 400) r = await send(Object.assign({}, body, { thinking: undefined }));
@@ -1294,7 +1302,7 @@ async function genImage(prompt, size) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       let url = await callArk(prompt + extra, { size, extraNeg });
-      if (settings.qaFix !== 'off' && qaTried < 2) {
+      if (settings.qaFix !== 'off' && qaTried < 1) {
         setStatus('质检中：对比原图检查衣服细节…');
         const qa = await qaCheck(url);
         if (qa && qa.pass === false && qa.issues) {
