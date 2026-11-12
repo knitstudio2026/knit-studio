@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v8.1</span>
+      <span class="ver">v8.2</span>
     </div>
   </div>
 
@@ -320,6 +320,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             <option value="ultra">1365×2048 · 280万像素 · 0.60 元</option>
           </select>
         </div>
+        <div class="row">
+          <label>自动质检重拍<small>每张多花约5分，发现衣服细节画错就自动重拍一次</small></label>
+          <select id="qaFix">
+            <option value="on">开启（推荐）</option>
+            <option value="off">关闭</option>
+          </select>
+        </div>
         <div class="hint" id="priceHint" style="margin-top:0"></div>
         <button class="btn" id="saveBtn" style="margin-top:14px">保存设置</button>
         <div class="hint">
@@ -373,6 +380,7 @@ if (!settings.imageModel || /seedream-4-0|seedream-3-0/.test(settings.imageModel
 if (!settings.visionModel) settings.visionModel = 'doubao-seed-2-1-pro-260915';
 if (!settings.copyModel) settings.copyModel = 'kimi-k3-1-pro-261024';
 if (!settings.quality) settings.quality = 'big';
+if (settings.qaFix === undefined) settings.qaFix = 'on';
 // 老版本默认是 157 万像素，一次性升到 258 万像素（同样 0.30 元一档）
 if (!settings.pixVer) {
   settings.pixVer = 1;
@@ -395,6 +403,7 @@ function fillSettings() {
   $('#copyModel').value = settings.copyModel || 'kimi-k3-1-pro-261024';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
   $('#quality').value = settings.quality || 'big';
+  $('#qaFix').value = settings.qaFix === 'off' ? 'off' : 'on';
   updPriceHint();
 }
 // 每档清晰度标出像素和单价，随时知道这批要花多少钱
@@ -417,6 +426,7 @@ $('#saveBtn').addEventListener('click', () => {
   settings.copyModel = $('#copyModel').value.trim();
   settings.baseUrl = $('#baseUrl').value.trim().replace(/\/$/, '');
   settings.quality = $('#quality').value || 'big';
+  settings.qaFix = $('#qaFix').value === 'off' ? 'off' : 'on';
   localStorage.setItem(KEY, JSON.stringify(settings));
   updPriceHint();
   toast('已保存');
@@ -1205,7 +1215,7 @@ async function callArk(prompt, opts) {
     watermark: false,
     n: 1,
     seed: Math.floor(Math.random() * 1e9),
-    negative_prompt: NEGATIVE + edgeNeg()
+    negative_prompt: NEGATIVE + edgeNeg() + ((opts && opts.extraNeg) || '')
   };
   if (productImage) payload.image = productImageCrop || productImage;
   const r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
@@ -1226,12 +1236,77 @@ async function callArk(prompt, opts) {
 }
 
 
-// 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图
+// 质检：把参考图和生成图一起发给视觉模型，只比衣服本身，不管颜色/场景/人物
+function shrinkUrl(dataUrl, max) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k));
+      c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      try { resolve(c.toDataURL('image/jpeg', 0.85)); }
+      catch (_) { resolve(dataUrl); }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function qaCheck(genUrl) {
+  const key = (settings.apiKey || '').trim();
+  const ref = productImageCrop || productImage;
+  if (!key || !settings.visionModel || !ref) return { pass: true, issues: '' };
+  const url = (settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/chat/completions';
+  const [refS, genS] = await Promise.all([shrinkUrl(ref, 720), shrinkUrl(genUrl, 720)]);
+  const body = {
+    model: settings.visionModel,
+    temperature: 0,
+    max_tokens: 220,
+    thinking: { type: 'disabled' },
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: '图1是你自己衣服的真实参考图，图2是AI生成的。只检查图2的衣服有没有画错（颜色、场景、人物、姿势、配饰不用管，那些是故意换的）。逐项对比：1.领口/袖口/下摆的收边织法——参考图是平滑卷边就不能出现罗纹竖条，参考图有罗纹就得有同样罗纹；2.门襟扣件——种类、颗数、排列方式（一列还是几列、有没有交错）；3.口袋——数量和左右位置。只返回 JSON：完全一致返回 {"pass":true}；有错返回 {"pass":false,"issues":"用一句话说错在哪，如：袖口被画成罗纹但参考图是平滑卷边"}' },
+      { type: 'image_url', image_url: { url: refS, zoom_in: true } },
+      { type: 'image_url', image_url: { url: genS, zoom_in: true } }
+    ] }]
+  };
+  const send = (b) => fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+    body: JSON.stringify(b)
+  });
+  try {
+    let r = await send(body);
+    if (r.status === 400) r = await send(Object.assign({}, body, { thinking: undefined }));
+    if (!r.ok) return { pass: true, issues: '' };
+    const j = await r.json().catch(() => null);
+    const text = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+    const o = parseJsonLoose(text);
+    if (!o || typeof o.pass !== 'boolean') return { pass: true, issues: '' };
+    return o;
+  } catch (_) { return { pass: true, issues: '' }; }
+}
+
+// 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图；质检不过也自动重拍
 async function genImage(prompt, size) {
-  let lastErr;
+  let lastErr, extra = '', extraNeg = '', qaTried = 0;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      let url = await callArk(prompt, { size });
+      let url = await callArk(prompt + extra, { size, extraNeg });
+      if (settings.qaFix !== 'off' && qaTried < 2) {
+        setStatus('质检中：对比原图检查衣服细节…');
+        const qa = await qaCheck(url);
+        if (qa && qa.pass === false && qa.issues) {
+          qaTried++;
+          setStatus('发现' + qa.issues + '，自动重拍…');
+          extra = '【上一版有错必须修正】' + qa.issues + '；这一版衣服的领口、袖口、下摆收边和门襟扣件、口袋必须和参考图1完全一致';
+          extraNeg = ', ribbed cuffs, ribbed hem, ribbed neckline, ribbed trim';
+          attempt--;
+          await new Promise((r) => setTimeout(r, 600));
+          continue;
+        }
+      }
       url = await postProcess(url);
       return url;
     } catch (e) {
