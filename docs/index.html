@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v8.9</span>
+      <span class="ver">v9.0</span>
     </div>
   </div>
 
@@ -1219,7 +1219,8 @@ async function callArk(prompt, opts) {
     seed: Math.floor(Math.random() * 1e9),
     negative_prompt: NEGATIVE + edgeNeg() + ((opts && opts.extraNeg) || '')
   };
-  if (productImage) payload.image = productImageCrop || productImage;
+  const refImg = (opts && opts.ref) || productImageCrop || productImage;
+  if (refImg) payload.image = refImg;
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 110000);
   const r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
@@ -1260,11 +1261,26 @@ function shrinkUrl(dataUrl, max) {
 }
 
 // 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图；质检不过也自动重拍
-async function genImage(prompt, size) {
+let gridDims = { r: 0, c: 0, colors: [] };
+const refCache = new Map();
+// 拼图款：每个颜色取它自己那一格做参考图，避免用中间格的粉色去生成奶白色
+async function refForColor(color) {
+  if (!gridDims.r || !gridDims.c || !productImage) return '';
+  const idx = gridDims.colors.indexOf(color);
+  if (idx < 0) return '';
+  if (refCache.has(color)) return refCache.get(color);
+  const r = Math.floor(idx / gridDims.c), c = idx % gridDims.c;
+  let out = '';
+  try { out = await cropGridCell(productImageFull || productImage, gridDims.r, gridDims.c, r, c); } catch (_) { out = ''; }
+  refCache.set(color, out);
+  return out;
+}
+
+async function genImage(prompt, size, ref) {
   let lastErr = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const url = await callArk(prompt, { size });
+      const url = await callArk(prompt, { size, ref });
       return await postProcess(url);
     } catch (e) {
       lastErr = e;
@@ -1327,7 +1343,7 @@ function makeJobs(n, colors, from) {
       style: useWhite ? 'whitebg' : style, color, noAcc, accList, anti, acc,
       identity: batchCtx.identity, pose, scene, light: batchCtx.light, lens: batchCtx.lens, studio: useStudio
     });
-    out.push({ prompt, label: color || '商品图', style, size: useWhite ? outSize('3:4') : (useStudio ? outSize('3:4') : '') });
+    out.push({ prompt, label: color || '商品图', color: color || '', style, size: useWhite ? outSize('3:4') : (useStudio ? outSize('3:4') : '') });
   }
   return out;
 }
@@ -1556,7 +1572,7 @@ async function retryOne(idx) {
   running = true;
   setStatus('正在重试 1 张…');
   try {
-    const url = await genImage(item.prompt, item.size);
+    const url = await genImage(item.prompt, item.size, await refForColor(item.color));
     results[idx] = { url, label: item.label };
     renderResults();
     toast('重试成功');
@@ -1589,7 +1605,7 @@ async function runJobs(list, btn) {
     while (next < total) {
       const i = next++;
       try {
-        const url = await genImage(list[i].prompt, list[i].size);
+        const url = await genImage(list[i].prompt, list[i].size, await refForColor(list[i].color));
         results.unshift({ url, label: list[i].label });
         fresh.push({ url, label: list[i].label });
         renderResults();
@@ -2228,7 +2244,8 @@ async function confirmRibDetail(strip, prev) {
     thinking: { type: 'disabled' },
     messages: [{ role: 'user', content: [
       { type: 'text', text: prompt },
-      { type: 'image_url', image_url: { url: strip, zoom_in: true } }
+      { type: 'image_url', image_url: { url: strip, zoom_in: true } },
+      ...(strip2 ? [{ type: 'image_url', image_url: { url: strip2, zoom_in: true } }] : [])
     ] }]
   };
   try {
@@ -2273,9 +2290,9 @@ function cropPlacketStrip(dataUrl) {
     const img = new Image();
     img.onload = () => {
       const W = img.width, H = img.height;
-      const sx = Math.round(W * 0.28), sw = Math.round(W * 0.46);
-      const sy = Math.round(H * 0.12), sh = Math.round(H * 0.80);
-      const cw = 620, ch = 1500;
+      const sx = Math.round(W * 0.22), sw = Math.round(W * 0.56);
+      const sy = Math.round(H * 0.10), sh = Math.round(H * 0.82);
+      const cw = 900, ch = 2200;
       const c = document.createElement('canvas');
       c.width = cw; c.height = ch;
       const ctx = c.getContext('2d');
@@ -2291,20 +2308,40 @@ function cropPlacketStrip(dataUrl) {
 }
 
 /* 门襟扣件复核：只数门襟上的扣，盘扣和圆扣分开数，避免漏掉整列盘扣 */
+function splitHalf(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const h = Math.round(img.height * 0.54);
+      const top = document.createElement('canvas'); top.width = img.width; top.height = h;
+      const b = document.createElement('canvas'); b.width = img.width; b.height = h;
+      top.getContext('2d').drawImage(img, 0, 0, img.width, h, 0, 0, img.width, h);
+      b.getContext('2d').drawImage(img, 0, Math.round(img.height * 0.46), img.width, h, 0, 0, img.width, h);
+      try { resolve([top.toDataURL('image/jpeg', 0.95), b.toDataURL('image/jpeg', 0.95)]); }
+      catch (_) { resolve([]); }
+    };
+    img.onerror = () => resolve([]);
+    img.src = dataUrl;
+  });
+}
+
 async function confirmClosure(strip) {
   const key = (settings.apiKey || '').trim();
   if (!key || !strip) return null;
+  const parts = await splitHalf(strip);
+  const strip2 = parts[1] || '';
   const url = (settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/chat/completions';
   const prompt = [
-    '这是针织开衫门襟的放大图，从上到下把门襟上的扣件逐颗数清。',
-    '要分清两种：一种是布包/绳结的圆球盘扣（frog closure，扣子是一个小球加一个绳圈），一种是金属或普通圆形纽扣。',
+    '这是同一件针织开衫门襟的上下两段放大图（图1上半段、图2下半段），请从上到下把门襟上的扣件逐颗数清。',
+    '要分清两类：A 类=布包或绳结的圆球盘扣（frog closure，一颗圆球配一个绳圈）；B 类=金属或普通圆形纽扣。',
     '字段：',
-    'btnCount 门襟上所有扣件的总颗数（整数）；',
-    'hasFrog 门襟上有没有盘扣/绳结扣（true/false）；',
-    'frogCount 盘扣颗数（没有写 0）；buttonCount 金属或普通纽扣颗数（没有写 0）；',
-    'frogSide 盘扣在门襟的哪一侧，写 "左侧"/"右侧"；buttonSide 圆扣在哪一侧；',
-    'closureNote 一句话完整描述，如 "门襟左侧一列 5 颗布包盘扣，右侧一列 4 颗银色金属圆扣，两列等距排列"。',
-    '必须诚实：图里只有一种扣就写一种，绝不许把盘扣说成金属扣，也绝不许漏掉盘扣。只返回 JSON。'
+    'order 从上到下的完整序列，每颗用 A 或 B 表示，用逗号隔开，例如 "A,B,B,B,B"；两张图拼起来写完整一条，不要漏任何一颗；',
+    'btnCount 总颗数（整数，必须等于 order 的项数）；',
+    'hasFrog 有没有 A 类（true/false）；',
+    'frogCount A 类颗数（没有写 0）；buttonCount B 类颗数（没有写 0）；',
+    'frogPos A 类在第几颗的位置，例如 "第1颗"，多颗就全列出来；',
+    'closureNote 一句话完整描述，必须写清从上到下的顺序，例如 "门襟从上到下：第1颗为布包盘扣，下面4颗为银色金属圆扣，共5颗，一列等距"；',
+    '注意：同一件衣服上两种扣件同时存在很正常，绝不许因为"常见做法"就把盘扣改成金属扣，也绝不许漏掉上面那一颗盘扣。只返回 JSON。'
   ].join('\n');
   const body = {
     model: settings.visionModel || 'doubao-seed-2-1-pro-260915',
@@ -2313,7 +2350,8 @@ async function confirmClosure(strip) {
     thinking: { type: 'disabled' },
     messages: [{ role: 'user', content: [
       { type: 'text', text: prompt },
-      { type: 'image_url', image_url: { url: strip, zoom_in: true } }
+      { type: 'image_url', image_url: { url: strip, zoom_in: true } },
+      ...(strip2 ? [{ type: 'image_url', image_url: { url: strip2, zoom_in: true } }] : [])
     ] }]
   };
   try {
@@ -2338,6 +2376,12 @@ async function confirmClosure(strip) {
     const n = parseInt(o.btnCount, 10);
     if (isFinite(n) && n > 0) out.btnCount = n;
     if (o.closureNote) out.closureNote = o.closureNote;
+    if (!out.closureNote && typeof o.order === 'string' && o.order.trim()) {
+      const seq = o.order.toUpperCase().replace(/[^AB,]/g, '');
+      const nA = (seq.match(/A/g) || []).length;
+      const nB = (seq.match(/B/g) || []).length;
+      out.closureNote = `门襟从上到下共 ${nA + nB} 颗扣，顺序为 ${seq}，其中布包盘扣 ${nA} 颗、金属圆扣 ${nB} 颗`;
+    }
     if (o.hasFrog === true || o.hasFrog === 'true') {
       if (o.frogCount !== undefined && o.frogCount !== null && o.frogCount !== '') out.btnFrog = String(o.frogCount);
       if (!out.closureNote) out.closureNote = '门襟上有盘扣（布包圆球扣）和圆形纽扣两种扣件，位置和数量照参考图';
@@ -2450,8 +2494,12 @@ async function recognize() {
       const gr = Math.max(1, parseInt(data.gridRows, 10) || 1);
       const gc = Math.max(1, parseInt(data.gridCols, 10) || 1);
       if (gr >= 2 && gc >= 2 && gr * gc <= 12 && productImage) {
+        gridDims = { r: gr, c: gc, colors: (Array.isArray(data.colors) ? data.colors : []).map(String) };
+        refCache.clear();
         productImageCrop = await cropGridCell(productImageFull || productImage, gr, gc, Math.floor(gr / 2), Math.floor(gc / 2));
       } else {
+        gridDims = { r: 0, c: 0, colors: [] };
+        refCache.clear();
         productImageCrop = '';
       }
     } catch (_) { productImageCrop = ''; }
