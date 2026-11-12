@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v9.1</span>
+      <span class="ver">v9.2</span>
     </div>
   </div>
 
@@ -1671,6 +1671,7 @@ async function runJobs(list, btn) {
 
 let batchTotal = 0;
 let batchProduced = 0;
+const PER_COLOR = 2; // 每个颜色生成几张
 let batchCtx = null;   // 同一批固定模特 / 场景 / 光线，只换姿势
 
 function updateRestBtn() {
@@ -1712,28 +1713,29 @@ $('#genBtn').addEventListener('click', async () => {
   if (recColors.length) {
     const first = previewColor || recColors[0];
     genColors = [first].concat(recColors.filter(c => c !== first));
-    batchTotal = genColors.length;
+    batchTotal = genColors.length * PER_COLOR;
   } else {
     genColors = [''];
-    batchTotal = Math.max(1, Number($('#count').value) || 1);
+    batchTotal = Math.max(1, Number($('#count').value) || 1) * PER_COLOR;
   }
   batchProduced = 0;
   // 同一款不换场景组/模特，只有换图上传时才会重抽；点重出只是换机位和姿势
   const start = results.length;
-  await runJobs(makeJobs(1, genColors, 0), $('#genBtn'));
+  await runJobs(makeJobs(PER_COLOR, [first || genColors[0]], 0), $('#genBtn'));
   batchProduced = results.slice(start).filter(x => x.url).length;
   if (batchProduced > 0) {
-    $('#tip').textContent = `预览「${genColors[0]}」已出，满意就点「继续生成剩余」，不满意再点一次「生成预览」重出这张。`;
+    $('#tip').textContent = `预览「${genColors[0]}」${PER_COLOR}张已出，满意就点「继续生成剩余」，不满意再点一次「生成预览」重出这${PER_COLOR}张。`;
   }
   updateRestBtn();
 });
 
 $('#restBtn').addEventListener('click', async () => {
   if (!productImage) { toast('先上传商品图'); return; }
-  const remain = batchTotal - batchProduced;
+  const restColors = genColors.slice(1); // colors[0] 已在预览阶段出过 PER_COLOR 张
+  const remain = restColors.length * PER_COLOR;
   if (remain <= 0) { toast('已经出完了'); return; }
   const start = results.length;
-  await runJobs(makeJobs(remain, genColors, batchProduced), $('#restBtn'));
+  await runJobs(makeJobs(remain, restColors, 0), $('#restBtn'));
   batchProduced += results.slice(start).filter(x => x.url).length;
   updateRestBtn();
 });
