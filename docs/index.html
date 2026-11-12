@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v9.2</span>
+      <span class="ver">v9.3</span>
     </div>
   </div>
 
@@ -1721,21 +1721,25 @@ $('#genBtn').addEventListener('click', async () => {
   batchProduced = 0;
   // 同一款不换场景组/模特，只有换图上传时才会重抽；点重出只是换机位和姿势
   const start = results.length;
-  await runJobs(makeJobs(PER_COLOR, [first || genColors[0]], 0), $('#genBtn'));
+  await runJobs(makeJobs(1, [first || genColors[0]], 0), $('#genBtn'));
   batchProduced = results.slice(start).filter(x => x.url).length;
   if (batchProduced > 0) {
-    $('#tip').textContent = `预览「${genColors[0]}」${PER_COLOR}张已出，满意就点「继续生成剩余」，不满意再点一次「生成预览」重出这${PER_COLOR}张。`;
+    $('#tip').textContent = `预览「${genColors[0]}」已出 1 张，满意就点「继续生成剩余」，不满意再点一次「生成预览」重出这张。`;
   }
   updateRestBtn();
 });
 
 $('#restBtn').addEventListener('click', async () => {
   if (!productImage) { toast('先上传商品图'); return; }
-  const restColors = genColors.slice(1); // colors[0] 已在预览阶段出过 PER_COLOR 张
-  const remain = restColors.length * PER_COLOR;
-  if (remain <= 0) { toast('已经出完了'); return; }
+  // 剩余：colors[0] 还剩 PER_COLOR-1 张，colors[1..] 每个 PER_COLOR 张
+  const rest = [];
+  rest.push(...Array(PER_COLOR - 1).fill(genColors[0]));
+  for (let i = 1; i < genColors.length; i++) {
+    rest.push(...Array(PER_COLOR).fill(genColors[i]));
+  }
+  if (rest.length === 0) { toast('已经出完了'); return; }
   const start = results.length;
-  await runJobs(makeJobs(remain, restColors, 0), $('#restBtn'));
+  await runJobs(makeJobs(rest.length, rest, 0), $('#restBtn'));
   batchProduced += results.slice(start).filter(x => x.url).length;
   updateRestBtn();
 });
