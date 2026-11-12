@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v9.4</span>
+      <span class="ver">v9.5</span>
     </div>
   </div>
 
@@ -1677,12 +1677,13 @@ let batchCtx = null;   // 同一批固定模特 / 场景 / 光线，只换姿势
 function updateRestBtn() {
   const remain = batchTotal - batchProduced;
   if (remain > 0) {
+    const leftColors = genColors.length;
     $('#restBtn').style.display = '';
     $('#restBtn').textContent = `继续生成剩余 ${remain} 张`;
-    $('#tip').textContent = `预览那张满意的话，点上面继续出剩下的 ${remain} 张。`;
+    $('#tip').textContent = `预览 1 张满意的话，点上面继续出剩下的 ${remain} 张，出完每个颜色一共 2 张（共 ${leftColors} 个颜色）。`;
   } else {
     $('#restBtn').style.display = 'none';
-    $('#tip').textContent = '这批出完了。要换颜色或重出，点「生成预览」。';
+    $('#tip').textContent = '这批出完了，每个颜色 2 张。要换颜色或重出，点「生成预览」。';
   }
 }
 
