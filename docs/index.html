@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v8.4</span>
+      <span class="ver">v8.5</span>
     </div>
   </div>
 
@@ -1236,7 +1236,7 @@ async function callArk(prompt, opts) {
   };
   if (productImage) payload.image = productImageCrop || productImage;
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 180000);
+  const timer = setTimeout(() => ac.abort(), 110000);
   const r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
@@ -1315,34 +1315,39 @@ async function qaCheck(genUrl) {
 
 // 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图；质检不过也自动重拍
 async function genImage(prompt, size) {
-  let lastErr, extra = '', extraNeg = '', qaTried = 0;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // 硬预算：一张图最多出 3 次、质检最多纠正 1 次、总时长封顶，绝不允许无限往下拖
+  const MAX_GEN = 3;
+  const QA_LIMIT = 1;
+  const DEADLINE = Date.now() + 260000;
+  let lastErr = null, lastGood = '', extra = '', extraNeg = '', qaUsed = 0, gens = 0;
+  while (gens < MAX_GEN && Date.now() < DEADLINE) {
     try {
-      let url = await callArk(prompt + extra, { size, extraNeg });
-      if (settings.qaFix !== 'off' && qaTried < 1) {
-        setStatus('质检中：对比原图检查衣服细节…');
+      gens++;
+      const url = await callArk(prompt + extra, { size, extraNeg });
+      lastGood = url;
+      if (settings.qaFix !== 'off' && qaUsed < QA_LIMIT && Date.now() + 30000 < DEADLINE) {
+        setStatus(`质检中：对比原图检查衣服细节…（第 ${gens} 张）`);
         const qa = await qaCheck(url);
         if (qa && qa.pass === false && qa.issues) {
-          qaTried++;
+          qaUsed++;
           setStatus('发现' + qa.issues + '，自动重拍…');
           extra = '【上一版有错必须修正】' + qa.issues + '；这一版衣服的领口、袖口、下摆收边和门襟扣件、口袋必须和参考图1完全一致';
           extraNeg = ', ribbed cuffs, ribbed hem, ribbed neckline, ribbed trim';
-          attempt--;
-          await new Promise((r) => setTimeout(r, 600));
           continue;
         }
       }
-      url = await postProcess(url);
-      return url;
+      return await postProcess(url);
     } catch (e) {
       lastErr = e;
-      if (attempt < 2) {
-        setStatus(`这张没出，自动重试 ${attempt + 1}/2…`);
-        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+      if (gens < MAX_GEN && Date.now() < DEADLINE) {
+        setStatus(`这张没出，自动重试 ${gens}/2…`);
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
   }
-  throw lastErr || new Error('生成失败');
+  // 重拍没成功但手里已经有能用的图，就先给这张，不让整批卡死
+  if (lastGood) { setStatus('质检重拍没赶上，先出这张'); return await postProcess(lastGood); }
+  throw lastErr || new Error('生成超时');
 }
 
 function makeJobs(n, colors, from) {
