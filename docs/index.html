@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v8.0</span>
+      <span class="ver">v8.1</span>
     </div>
   </div>
 
@@ -1115,32 +1115,18 @@ function garmentClause(studio) {
   const d = recData && recData.garmentDetail;
   let core = GARMENT_BASE;
   if (d && typeof d === 'object') {
-    const rib = (w, r, which) => {
-      const ww = Number(w);
-      if (w === undefined || w === null || w === '' || isNaN(ww)) {
-        return `${which}的收口完全照参考图，原图没有罗纹坑条就必须做平滑收口，不许自己加`;
-      }
-      if (ww === 0) return `${which}是平滑收口，没有任何罗纹坑条，绝对不许画罗纹，${which}边缘不能出现一圈竖条罗纹、不能出现罗纹领圈或罗纹边`;
-      if (r && r !== '平针' && r !== '平针无缝') {
-        const where = which === '袖口' ? '手腕处的袖口末端' : (which === '领口' ? '领口最外缘' : '下摆最末端');
-        return `${which}是 ${ww}cm 宽的极窄罗纹收边，${r} 条/厘米，罗纹只出现在${where}的一小圈，高度只有一个指节宽（约 ${ww}cm），像最末端的一道窄窄收口，绝不是宽腰头，绝不向上延伸、绝不加宽`;
-      }
-      return `${which}是 ${ww}cm 宽的极窄罗纹收边，高度只有一个指节宽，只出现在最末端一小圈，像一道窄窄收口，绝不是宽腰头，宽度严格照参考图，绝不加宽`;
-    };
     const btnStyle = d.btnStyle || '普通圆形平扣';
-    const btnQty = `数量${d.btnCount || 5}颗，从领口第一颗到下摆最后一颗等距排满，最后一颗靠近下摆，一颗都不能少`;
+    const btnQty = `数量${d.btnCount || 5}颗，全部排成笔直的一列，从领口第一颗到下摆最后一颗等距排满，最后一颗靠近下摆，一颗都不能少`;
     const btnNote = btnStyle.includes('绳结') || btnStyle.includes('盘扣') || btnStyle.includes('frog')
       ? `纽扣必须是${btnStyle}，${btnQty}：每颗纽扣上方必须有一个同色或配色的绳结套（frog buttonhole），绳结套先绕成圈再收紧套在纽扣上，这个结必须完整可见、每颗纽扣上都有、大小形状一致`
       : `纽扣必须是${btnStyle}，${btnQty}，颜色严格是${d.btnColor || '与衣身同色'}，不许偏粉、偏黄、偏灰、偏亮，每颗纽扣颜色和大小完全一致`;
     core = [
       '衣服必须和参考图1 完全一模一样，每个细节都严格照抄，不许改动任何一处，任何改动都算失败；参考图只用来照抄版型和细节做法，颜色一律以文字指定的颜色为准，不要照抄参考图里的颜色，但白色和浅色必须做出参考图那种干净本白，不许发黄发米发粉；纱线质感必须和参考图一致：细密均匀的短绒针织，针脚细腻，绒毛短而均匀、表面平顺，绝对不许变成粗花呢、粗颗粒、大毛圈、结块绒毛或明显起球',
       `衣长：${d.bodyLength || '短款'}，下摆落在${d.bodyEnd || '髋骨上方'}，版型${d.fit || '微宽松'}，${d.sleeveFit || '常规直筒'}`,
-      rib(d.neckWidth, d.neckRib, '领口'),
-      rib(d.cuffWidth, d.cuffRib, '袖口') + '，两只袖子的袖口必须完全一样',
-      rib(d.hemWidth, d.hemRib, '下摆'),
+      '领口、袖口、下摆三处收边的织法、宽度和形状必须严格照参考图1：参考图是平滑卷边就做一模一样的平滑卷边，边缘不允许出现任何竖向坑条；参考图哪里真有罗纹才照原样做，宽度位置一根不许多；领口开口的大小和深度也照参考图，不许开得更深更宽；两只袖口收边必须完全一样',
       `门襟：${d.placket || '单层直门襟'}，笔直贯通`,
       btnNote,
-      ...(d.closureNote ? [`门襟扣件必须 100% 原样复刻：${d.closureNote}；有几种扣件就画几种，每种的数量一颗都不能少，两侧扣件的位置和上下顺序必须和参考图一致，绝对不许简化成只有一排扣，绝对不许漏掉盘扣或金属扣`] : []),
+      ...(d.closureNote ? [`门襟扣件必须 100% 原样复刻：${d.closureNote}；有几种扣件就画几种，每种的数量一颗都不能少，两侧扣件的位置和上下顺序必须和参考图一致，绝对不许简化成只有一排扣，绝对不许漏掉盘扣或金属扣；几种扣件各在参考图中各自的位置，绝不允许把不同扣件混排进同一列，也不许排成之字形交错排列`] : []),
       `口袋：${d.pocket || '无口袋'}；口袋的数量、位置和左右对称必须和参考图完全一致：参考图左右各有一个就左右各做一个，参考图有几个就画几个，一只都不能少；参考图没有口袋就一个都不许加；不许只画单边一个口袋，不许改大小、形状和高度`,
       `图案：${d.pattern || '无图案纯色'}`,
       '以上每一条都是硬性要求，必须在图里 100% 体现出来，少一条或错一条都不行'
