@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v9.3</span>
+      <span class="ver">v9.4</span>
     </div>
   </div>
 
@@ -262,7 +262,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       </div>
 
       <div class="btn-row">
-        <button class="btn accent" id="genBtn">生成预览（2 张）</button>
+        <button class="btn accent" id="genBtn">生成预览（1 张）</button>
         <button class="btn ghost" id="restBtn" style="display:none">继续生成剩余</button>
       </div>
       <div class="status hidden" id="status"><div class="spin"></div><span id="statusText"></span></div>
@@ -1702,7 +1702,7 @@ function renderColorChips() {
   $$('#colorChips button').forEach(b => b.addEventListener('click', () => {
     previewColor = b.dataset.c;
     renderColorChips();
-    $('#tip').textContent = `已选「${previewColor}」，点「生成预览」只出这一个颜色 2 张，看好质感再继续。`;
+    $('#tip').textContent = `已选「${previewColor}」，点「生成预览」只出这一个颜色 1 张，看好质感再继续。`;
   }));
   updPriceHint();
 }
@@ -2596,7 +2596,7 @@ async function recognize() {
         if (el && !el.dataset.touched) el.value = valText(data[k]);
       });
       try { localStorage.setItem('ks2.rec', JSON.stringify(data)); } catch (_) {}
-      $('#tip').textContent = '识别完成，标题和详情也写好了。确认无误后点「生成预览（2 张）」出图。';
+      $('#tip').textContent = '识别完成，标题和详情也写好了。确认无误后点「生成预览（1 张）」出图。';
       toast('标题和详情写好了');
     }).catch(() => {});
 
@@ -2617,7 +2617,7 @@ async function recognize() {
     }
 
     timer.done('识别完成');
-    $('#tip').textContent = `识别完成，已填好 ${recColors.length || 1} 个颜色。确认无误后点「生成预览（2 张）」手动出图。`;
+    $('#tip').textContent = `识别完成，已填好 ${recColors.length || 1} 个颜色。确认无误后点「生成预览（1 张）」手动出图。`;
     toast('识别完成，点「生成预览」出图');
   } catch (e) {
     timer.fail('失败');
