@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v9.5</span>
+      <span class="ver">v9.6</span>
     </div>
   </div>
 
@@ -405,10 +405,12 @@ function updPriceHint() {
   const [w, h] = (QUALITY_SIZE[q] || QUALITY_SIZE.big).split('x').map(Number);
   const px = w * h;
   const per = QUALITY_PRICE[q] || 0.30;
-  const n = Math.max(1, recColors.length ? recColors.length : (Number($('#count').value) || 1));
-  $('#priceHint').innerHTML = `当前 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素），<b>${per.toFixed(2)} 元/张</b>；按 ${n} 张算约 <b>${(per * n).toFixed(2)} 元</b>（不含识图）。`;
+  const n = Math.max(1, recColors.length ? recColors.length : (Number($('#count').value) || 1)) * PER_COLOR;
+  const colorN = Math.max(1, recColors.length ? recColors.length : (Number($('#count').value) || 1));
+  const nLabel = recColors.length ? `${colorN} 个颜色 × ${PER_COLOR} 张` : `${n} 张`;
+  $('#priceHint').innerHTML = `当前 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素），<b>${per.toFixed(2)} 元/张</b>；按 ${nLabel} 算约 <b>${(per * n).toFixed(2)} 元</b>（不含识图）。`;
   const gc = $('#genCost');
-  if (gc) gc.innerHTML = `清晰度 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素）· ${per.toFixed(2)} 元/张 · 这批 ${n} 张约 <b>${(per * n).toFixed(2)} 元</b>`;
+  if (gc) gc.innerHTML = `清晰度 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素）· ${per.toFixed(2)} 元/张 · 这批 ${nLabel} 共 ${n} 张约 <b>${(per * n).toFixed(2)} 元</b>`;
 }
 $('#quality').addEventListener('change', updPriceHint);
 $('#count').addEventListener('input', updPriceHint);
@@ -1711,8 +1713,9 @@ function renderColorChips() {
 $('#genBtn').addEventListener('click', async () => {
   if (!productImage) { toast('先上传一张商品图'); return; }
   if (!settings.apiKey) { toast('先去「设置」里填火山方舟 API Key'); return; }
+  let first = '';
   if (recColors.length) {
-    const first = previewColor || recColors[0];
+    first = previewColor || recColors[0];
     genColors = [first].concat(recColors.filter(c => c !== first));
     batchTotal = genColors.length * PER_COLOR;
   } else {
@@ -2604,7 +2607,7 @@ async function recognize() {
     // 记住这次的识别结果，关掉网页再打开还看得到
     try { localStorage.setItem('ks2.rec', JSON.stringify(data)); } catch (_) {}
 
-    // 识别出的颜色直接排成出图队列，颜色数就是出图张数
+    // 识别出的颜色直接排成出图队列，每个颜色出 PER_COLOR 张
     recColors = (Array.isArray(data.colors) ? data.colors : [])
       .map(x => String(x || '').trim()).filter(Boolean).slice(0, 12);
     if (!recColors.length) {
@@ -2612,7 +2615,7 @@ async function recognize() {
       if (one) recColors = [one];
     }
     if (recColors.length) {
-      $('#count').value = recColors.length;
+      $('#count').value = recColors.length * PER_COLOR;
       previewColor = recColors[0];
       renderColorChips();
     }
