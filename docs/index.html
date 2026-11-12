@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v9.0</span>
+      <span class="ver">v9.1</span>
     </div>
   </div>
 
@@ -1058,6 +1058,32 @@ function pickAccFromBatch() {
   batchCtx.accN++;
   return [h, w].filter(Boolean).join('；');
 }
+
+/* 场景-配饰互斥：草帽、草编包、运动器材只适合户外，室内出现很违和 */
+const OUTDOOR_HINTS = ['私人花园', '公园林荫', '海边湖畔', '天台露台', '城市街道', '街边店铺', '法式下午茶餐厅', '老洋房民宿'];
+const INDOOR_ONLY_HINTS = ['极简女装买手店', '奶油米色影棚', '纯白电商影棚', '纯色影棚类'];
+function sceneIsOutdoor(groupName) {
+  if (!groupName) return false;
+  if (INDOOR_ONLY_HINTS.some(h => groupName.includes(h))) return false;
+  if (OUTDOOR_HINTS.some(h => groupName.includes(h))) return true;
+  if (/街拍|街边|露台|酒店空间|酒店旅居|天台/.test(groupName)) return true;
+  return false;
+}
+const OUTDOOR_ONLY_WEAR = ['草编渔夫帽', '宽檐草帽', '墨镜架在头顶'];
+const INDOOR_ONLY_WEAR = [];
+const OUTDOOR_ONLY_HAND = ['藤编购物篮', '网球拍', '羽毛球拍', '手持风扇', '捏着一只气球', '手里撑一把折叠伞', '手里拎一只菜篮子', '手里拿一把尤克里里', '手里拿一支法棍'];
+const INDOOR_ONLY_HAND = ['怀里抱一本手账本', '手里拿一只陶瓷马克杯'];
+function filterAcc(list, outdoor, onlyOutdoor, onlyIndoor) {
+  return list.filter((item) => {
+    if (!item) return true;
+    if (outdoor) {
+      return !onlyIndoor.some(k => item.includes(k));
+    } else {
+      return !onlyOutdoor.some(k => item.includes(k));
+    }
+  });
+}
+
 function antiClause() {
   return `这一批是同一位模特在同一类地点里换位置连拍的：脸部长相、发型、妆容、衣服必须完全一致，场景风格和陈设风格也要一致（都在同一家咖啡店/同一个家里/同一条街），只改变具体座位或站位、身体姿势和机位；机位${rand(ANTI_ANGLE)}，构图${rand(ANTI_FRAME)}；不要跨场景，不要一会儿室内一会儿马路`;
 }
@@ -1309,8 +1335,9 @@ function makeJobs(n, colors, from) {
       lens: rand(LENSES),
       studio: !!group.studio,
       white: !!group.white,
-      handOrder: shuffleArr(ACC_HAND.slice()),
-      wearOrder: shuffleArr(ACC_WEAR.slice()),
+      outdoor: sceneIsOutdoor(group.name),
+      handOrder: shuffleArr(filterAcc(ACC_HAND.slice(), sceneIsOutdoor(group.name), OUTDOOR_ONLY_HAND, INDOOR_ONLY_HAND)),
+      wearOrder: shuffleArr(filterAcc(ACC_WEAR.slice(), sceneIsOutdoor(group.name), OUTDOOR_ONLY_WEAR, INDOOR_ONLY_WEAR)),
       shotOrder: shuffleArr(['half', 'three', 'mirror', 'side']),
       accN: 0
     };
