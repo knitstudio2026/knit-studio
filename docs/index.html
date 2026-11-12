@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v8.6</span>
+      <span class="ver">v8.7</span>
     </div>
   </div>
 
@@ -320,13 +320,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             <option value="ultra">1365×2048 · 280万像素 · 0.60 元</option>
           </select>
         </div>
-        <div class="row">
-          <label>自动质检重拍<small>开启后每张约多花 1 分钟和 5 分钱，发现衣服细节画错就自动重拍一次</small></label>
-          <select id="qaFix">
-            <option value="off">关闭（默认，出图最快）</option>
-            <option value="on">开启（更较真，但慢一倍）</option>
-          </select>
-        </div>
         <div class="hint" id="priceHint" style="margin-top:0"></div>
         <button class="btn" id="saveBtn" style="margin-top:14px">保存设置</button>
         <div class="hint">
@@ -380,13 +373,8 @@ if (!settings.imageModel || /seedream-4-0|seedream-3-0/.test(settings.imageModel
 if (!settings.visionModel) settings.visionModel = 'doubao-seed-2-1-pro-260915';
 if (!settings.copyModel) settings.copyModel = 'kimi-k3-1-pro-261024';
 if (!settings.quality) settings.quality = 'big';
-if (settings.qaFix === undefined) settings.qaFix = 'off';
-// 质检重拍会让单张多花一倍时间，v8.6 起改成默认关闭，想用的人自己开
-if (!settings.qaVer) {
-  settings.qaVer = 1;
-  settings.qaFix = 'off';
-  try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
-}
+// 质检重拍已整体删除（拉长时间、多花钱，效果不稳定）
+delete settings.qaFix; delete settings.qaVer; delete settings.qaMigrated;
 // 老版本默认是 157 万像素，一次性升到 258 万像素（同样 0.30 元一档）
 if (!settings.pixVer) {
   settings.pixVer = 1;
@@ -409,7 +397,6 @@ function fillSettings() {
   $('#copyModel').value = settings.copyModel || 'kimi-k3-1-pro-261024';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
   $('#quality').value = settings.quality || 'big';
-  $('#qaFix').value = settings.qaFix === 'off' ? 'off' : 'on';
   updPriceHint();
 }
 // 每档清晰度标出像素和单价，随时知道这批要花多少钱
@@ -432,7 +419,6 @@ $('#saveBtn').addEventListener('click', () => {
   settings.copyModel = $('#copyModel').value.trim();
   settings.baseUrl = $('#baseUrl').value.trim().replace(/\/$/, '');
   settings.quality = $('#quality').value || 'big';
-  settings.qaFix = $('#qaFix').value === 'off' ? 'off' : 'on';
   localStorage.setItem(KEY, JSON.stringify(settings));
   updPriceHint();
   toast('已保存');
@@ -1133,10 +1119,12 @@ function garmentClause(studio) {
   if (d && typeof d === 'object') {
     const btnStyle = d.btnStyle || '普通圆形平扣';
     const btnQty = `数量${d.btnCount || 5}颗，全部排成笔直的一列，从领口第一颗到下摆最后一颗等距排满，最后一颗靠近下摆，一颗都不能少`;
-    const btnSame = '这一列的纽扣必须全部是同一种：同样式、同颜色、同材质、同大小、同花纹，绝对不许在同一列里混用两种扣子（不许毛球扣和水晶扣、珍珠扣混在一起），不许一颗白一颗透，不许大小不一，不许左右交错、不许之字形摆放，必须一条笔直竖线、间距均匀';
-    const btnNote = btnStyle.includes('绳结') || btnStyle.includes('盘扣') || btnStyle.includes('frog')
-      ? `纽扣必须是${btnStyle}，${btnQty}：每颗纽扣上方必须有一个同色或配色的绳结套（frog buttonhole），绳结套先绕成圈再收紧套在纽扣上，这个结必须完整可见、每颗纽扣上都有、大小形状一致；${btnSame}`
-      : `纽扣必须是${btnStyle}，${btnQty}，颜色严格是${d.btnColor || '与衣身同色'}，不许偏粉、偏黄、偏灰、偏亮；${btnSame}`;
+    const btnSame = '同一种扣件必须颗颗一致：同样式、同颜色、同材质、同大小、同花纹，不许一颗白一颗透、不许大小不一、不许左右交错之字形摆放，必须一条笔直竖线、间距均匀；门襟上有两种扣件时，按参考图的上下顺序分段排列（例如领口往下先是几颗盘扣、再是几颗金属扣），绝不允许把两种扣件交叉混排在同一段里';
+    const btnNote = (d.closureNote && String(d.closureNote).trim())
+      ? `门襟扣件严格按参考图复刻：${String(d.closureNote).trim()}；有几种扣件就画几种，每种的数量和上下顺序一颗都不能错，不许漏掉盘扣、也不许多加扣子；${btnSame}`
+      : (btnStyle.includes('绳结') || btnStyle.includes('盘扣') || btnStyle.includes('frog')
+        ? `纽扣必须是${btnStyle}，${btnQty}：每颗纽扣上方必须有一个同色或配色的绳结套（frog buttonhole），绳结套先绕成圈再收紧套在纽扣上，这个结必须完整可见、每颗纽扣上都有、大小形状一致；${btnSame}`
+        : `纽扣必须是${btnStyle}，${btnQty}，颜色严格是${d.btnColor || '与衣身同色'}，不许偏粉、偏黄、偏灰、偏亮；${btnSame}`);
     // 识别为平滑收边时，额外把"不收口、无罗纹"写死，压住模型看到开衫就加罗纹的习惯
     const smoothEdge = (() => {
       const n = parseFloat(String(d.cuffWidth == null ? '' : d.cuffWidth).replace(/[^\d.]/g, ''));
@@ -1152,7 +1140,7 @@ function garmentClause(studio) {
       '领口、袖口、下摆三处收边的织法、宽度和形状必须严格照参考图1：参考图是平滑卷边就做一模一样的平滑卷边，边缘不允许出现任何竖向坑条；参考图哪里真有罗纹才照原样做，宽度位置一根不许多；领口开口的大小和深度也照参考图，不许开得更深更宽；两只袖口收边必须完全一样' + smoothEdge,
       `门襟：${d.placket || '单层直门襟'}，笔直贯通`,
       btnNote,
-      ...(d.closureNote ? [`门襟扣件必须 100% 原样复刻：${d.closureNote}；有几种扣件就画几种，每种的数量一颗都不能少，两侧扣件的位置和上下顺序必须和参考图一致，绝对不许简化成只有一排扣，绝对不许漏掉盘扣或金属扣；几种扣件各在参考图中各自的位置，绝不允许把不同扣件混排进同一列，也不许排成之字形交错排列`] : []),
+      ...(d.closureNote ? [`门襟扣件必须 100% 原样复刻：${d.closureNote}；有几种扣件就画几种，每种的数量一颗都不能少，上下顺序必须和参考图一致，绝对不许简化成只有一种扣，绝对不许漏掉盘扣或金属扣`] : []),
       `口袋：${d.pocket || '无口袋'}；口袋的数量、位置和左右对称必须和参考图完全一致：参考图左右各有一个就左右各做一个，参考图有几个就画几个，一只都不能少；参考图没有口袋就一个都不许加；不许只画单边一个口袋，不许改大小、形状和高度`,
       `图案：${d.pattern || '无图案纯色'}`,
       '以上每一条都是硬性要求，必须在图里 100% 体现出来，少一条或错一条都不行'
@@ -1219,13 +1207,6 @@ function edgeNeg() {
   return '';
 }
 
-/* 纽扣统一性禁令：一列里混用两种扣子是这个项目的常见错，负面词再压一道 */
-function btnNeg() {
-  const d = recData && recData.garmentDetail;
-  if (!d || typeof d !== 'object') return '';
-  return ', mixed button styles in one column, mismatched buttons, alternating button designs, buttons of different sizes';
-}
-
 async function callArk(prompt, opts) {
   const key = (settings.apiKey || '').trim();
   if (!key) throw new Error('先去「设置」里填 API Key');
@@ -1238,7 +1219,7 @@ async function callArk(prompt, opts) {
     watermark: false,
     n: 1,
     seed: Math.floor(Math.random() * 1e9),
-    negative_prompt: NEGATIVE + edgeNeg() + btnNeg() + ((opts && opts.extraNeg) || '')
+    negative_prompt: NEGATIVE + edgeNeg() + ((opts && opts.extraNeg) || '')
   };
   if (productImage) payload.image = productImageCrop || productImage;
   const ac = new AbortController();
@@ -1280,80 +1261,22 @@ function shrinkUrl(dataUrl, max) {
   });
 }
 
-async function qaCheck(genUrl) {
-  const key = (settings.apiKey || '').trim();
-  const ref = productImageCrop || productImage;
-  if (!key || !settings.visionModel || !ref) return { pass: true, issues: '' };
-  const url = (settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/chat/completions';
-  const [refS, genS] = await Promise.all([shrinkUrl(ref, 720), shrinkUrl(genUrl, 720)]);
-  const body = {
-    model: settings.visionModel,
-    temperature: 0,
-    max_tokens: 220,
-    thinking: { type: 'disabled' },
-    messages: [{ role: 'user', content: [
-      { type: 'text', text: '图1是你自己衣服的真实参考图，图2是AI生成的。只检查图2的衣服有没有画错（颜色、场景、人物、姿势、配饰不用管，那些是故意换的）。逐项对比：1.领口/袖口/下摆的收边织法——参考图是平滑卷边就不能出现罗纹竖条，参考图有罗纹就得有同样罗纹；2.门襟扣件——种类、颗数、排列方式（一列还是几列、有没有交错）；3.口袋——数量和左右位置。只返回 JSON：没有明显错误就返回 {"pass":true}；只有一眼就能看出的明显错误才返回 {"pass":false,"issues":"一句话说错在哪，如：袖口被画成罗纹但参考图是平滑卷边"}；看不清、拿不准、只是略有差异，一律 pass:true' },
-      { type: 'image_url', image_url: { url: refS, zoom_in: true } },
-      { type: 'image_url', image_url: { url: genS, zoom_in: true } }
-    ] }]
-  };
-  const send = (b) => {
-    const ac = new AbortController();
-    const t = setTimeout(() => ac.abort(), 25000);
-    return fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify(b),
-      signal: ac.signal
-    }).finally(() => clearTimeout(t));
-  };
-  try {
-    let r = await send(body);
-    if (r.status === 400) r = await send(Object.assign({}, body, { thinking: undefined }));
-    if (!r.ok) return { pass: true, issues: '' };
-    const j = await r.json().catch(() => null);
-    const text = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
-    const o = parseJsonLoose(text);
-    if (!o || typeof o.pass !== 'boolean') return { pass: true, issues: '' };
-    return o;
-  } catch (_) { return { pass: true, issues: '' }; }
-}
-
 // 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图；质检不过也自动重拍
 async function genImage(prompt, size) {
-  // 硬预算：一张图最多出 3 次、质检最多纠正 1 次、总时长封顶，绝不允许无限往下拖
-  const MAX_GEN = 3;
-  const QA_LIMIT = 1;
-  const DEADLINE = Date.now() + 260000;
-  let lastErr = null, lastGood = '', extra = '', extraNeg = '', qaUsed = 0, gens = 0;
-  while (gens < MAX_GEN && Date.now() < DEADLINE) {
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      gens++;
-      const url = await callArk(prompt + extra, { size, extraNeg });
-      lastGood = url;
-      if (settings.qaFix !== 'off' && qaUsed < QA_LIMIT && Date.now() + 30000 < DEADLINE) {
-        setStatus(`质检中：对比原图检查衣服细节…（第 ${gens} 张）`);
-        const qa = await qaCheck(url);
-        if (qa && qa.pass === false && qa.issues) {
-          qaUsed++;
-          setStatus('发现' + qa.issues + '，自动重拍…');
-          extra = '【上一版有错必须修正】' + qa.issues + '；这一版衣服的领口、袖口、下摆收边和门襟扣件、口袋必须和参考图1完全一致';
-          extraNeg = ', ribbed cuffs, ribbed hem, ribbed neckline, ribbed trim';
-          continue;
-        }
-      }
+      const url = await callArk(prompt, { size });
       return await postProcess(url);
     } catch (e) {
       lastErr = e;
-      if (gens < MAX_GEN && Date.now() < DEADLINE) {
-        setStatus(`这张没出，自动重试 ${gens}/2…`);
-        await new Promise((r) => setTimeout(r, 1000));
+      if (attempt < 2) {
+        setStatus(`这张没出，自动重试 ${attempt + 1}/2…`);
+        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
       }
     }
   }
-  // 重拍没成功但手里已经有能用的图，就先给这张，不让整批卡死
-  if (lastGood) { setStatus('质检重拍没赶上，先出这张'); return await postProcess(lastGood); }
-  throw lastErr || new Error('生成超时');
+  throw lastErr || new Error('生成失败');
 }
 
 function makeJobs(n, colors, from) {
