@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.9</span>
+      <span class="ver">v8.0</span>
     </div>
   </div>
 
@@ -1193,6 +1193,20 @@ function setStatus(text) {
   $('#statusText').textContent = text;
 }
 
+/* 识别为平滑收口时，负面词补上窄罗纹禁令（原有的只禁宽罗纹）；识别到罗纹时不加，避免打架 */
+function edgeNeg() {
+  const g = (recData && recData.garmentDetail) || {};
+  const smooth = (w, r) => {
+    const n = parseFloat(String(w == null ? '' : w).replace(/[^\d.]/g, ''));
+    return !(isFinite(n) && n > 0.5) && (!r || r === '平针' || r === '平针无缝');
+  };
+  const anySet = g.neckWidth !== undefined || g.cuffWidth !== undefined || g.hemWidth !== undefined;
+  if (anySet && smooth(g.neckWidth, g.neckRib) && smooth(g.cuffWidth, g.cuffRib) && smooth(g.hemWidth, g.hemRib)) {
+    return ', ribbed cuffs, ribbed hem, ribbed neckline, narrow rib trim';
+  }
+  return '';
+}
+
 async function callArk(prompt, opts) {
   const key = (settings.apiKey || '').trim();
   if (!key) throw new Error('先去「设置」里填 API Key');
@@ -1205,7 +1219,7 @@ async function callArk(prompt, opts) {
     watermark: false,
     n: 1,
     seed: Math.floor(Math.random() * 1e9),
-    negative_prompt: NEGATIVE
+    negative_prompt: NEGATIVE + edgeNeg()
   };
   if (productImage) payload.image = productImageCrop || productImage;
   const r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
@@ -2184,6 +2198,7 @@ async function confirmRibDetail(strip, prev) {
     '只回答这四处边口的织法，输出 JSON，不要解释、不要 markdown。',
     '先判断每一处：是「平滑收边」（只有一道平整的包边或卷边，看不到一根根竖条）还是「罗纹/坑条」（能看到一排排竖向细条）。',
     '罗纹只在最末端很窄的一圈，高度大约一个指节，绝不是宽腰头那种宽条。',
+    '绒毛感面料的毛边不是罗纹：散乱竖起的绒毛不算坑条，必须规律整齐等距的竖条才算罗纹，拿不准写 0。',
     '字段：neckWidth neckRib cuffWidth cuffRib hemWidth hemRib，宽度单位 cm（平滑写 0，坑条密度写 "平针"）；',
     'cuffSame 两只袖口织法是否完全一致（true/false）；note 一句话说明你看到的边缘做法。',
     '拿不准时按平滑写 0，宁可写小不许写大。只返回 JSON。'
@@ -2321,6 +2336,7 @@ async function refineGarmentDetail(img) {
   const prompt = [
     '你是针织服装工艺师。放大看这张针织开衫的照片，只输出一个 JSON 对象 garmentDetail，不要解释、不要 markdown。',
     '判断原则：拿不准是罗纹还是平滑收边时，一律按平滑写 0，绝不默认加罗纹；罗纹宽度按画面比例估，宁可写小不许写大。',
+    '特别注意：绒毛感面料（马海毛、貂绒、雪尼尔、毛绒纱）的卷边放大后毛茸茸的容易被看成竖条，那只是散乱绒毛，不是罗纹；罗纹必须是一排排规律、整齐、等距的竖向坑条，看不到规律坑条一律写 0。',
     '字段：',
     'neckWidth 领口罗纹高度（cm，平滑无罗纹写 0）；neckRib 领口坑条密度（条/cm，无罗纹写 "平针"）；',
     'cuffWidth 袖口罗纹高度（cm，平滑无罗纹写 0）；cuffRib 袖口坑条密度（条/cm，无罗纹写 "平针"）；',
