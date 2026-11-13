@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v9.8</span>
+      <span class="ver">v9.9</span>
     </div>
   </div>
 
@@ -1091,7 +1091,22 @@ function antiClause() {
 }
 
 /* 出图后再做一次像素级扰动：裁切、轻微旋转、色温/对比/颗粒，专门破坏图搜特征 */
-function postProcess(url) {
+function hashSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function prng(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function postProcess(url, colorSeed) {
+  const fixed = (colorSeed === undefined || colorSeed === null) ? null : prng(hashSeed(String(colorSeed)) + 7);
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -1117,10 +1132,11 @@ function postProcess(url) {
         // 色温 / 明度 / 对比扰动
         const d = g.getImageData(0, 0, outW, outH);
         const px = d.data;
-        const warm = (Math.random() - 0.5) * 8;
-        const bright = (Math.random() - 0.5) * 8;
-        const contrast = 1 + (Math.random() - 0.5) * 0.06;
-        const grain = 6 + Math.random() * 5;
+        const rnd = fixed || Math.random;
+        const warm = (rnd() - 0.5) * 8;
+        const bright = (rnd() - 0.5) * 8;
+        const contrast = 1 + (rnd() - 0.5) * 0.06;
+        const grain = 6 + rnd() * 5;
         for (let i = 0; i < px.length; i += 4) {
           let r = px[i], gg = px[i + 1], b = px[i + 2];
           r = (r - 128) * contrast + 128 + bright + warm;
@@ -1247,7 +1263,7 @@ async function callArk(prompt, opts) {
     response_format: 'b64_json',
     watermark: false,
     n: 1,
-    seed: Math.floor(Math.random() * 1e9),
+    seed: (opts && opts.seed) || Math.floor(Math.random() * 1e9),
     negative_prompt: NEGATIVE + edgeNeg() + ((opts && opts.extraNeg) || '')
   };
   const refImg = (opts && opts.ref) || productImageCrop || productImage;
@@ -1307,12 +1323,12 @@ async function refForColor(color) {
   return out;
 }
 
-async function genImage(prompt, size, ref) {
+async function genImage(prompt, size, ref, seed, color) {
   let lastErr = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const url = await callArk(prompt, { size, ref });
-      return await postProcess(url);
+      const url = await callArk(prompt, { size, ref, seed: seed || (color ? hashSeed(String(color)) : 0) });
+      return await postProcess(url, color);
     } catch (e) {
       lastErr = e;
       if (attempt < 2) {
@@ -1375,7 +1391,7 @@ function makeJobs(n, colors, from) {
       style: useWhite ? 'whitebg' : style, color, noAcc, accList, anti, acc,
       identity: batchCtx.identity, pose, scene, light: batchCtx.light, lens: batchCtx.lens, studio: useStudio
     });
-    out.push({ prompt, label: color || '商品图', color: color || '', style, size: useWhite ? outSize('3:4') : (useStudio ? outSize('3:4') : '') });
+    out.push({ prompt, label: color || '商品图', color: color || '', style, size: useWhite ? outSize('3:4') : (useStudio ? outSize('3:4') : ''), seed: hashSeed(String(color || 'x')) });
   }
   return out;
 }
@@ -1604,8 +1620,8 @@ async function retryOne(idx) {
   running = true;
   setStatus('正在重试 1 张…');
   try {
-    const url = await genImage(item.prompt, item.size, await refForColor(item.color));
-    results[idx] = { url, label: item.label };
+    const url = await genImage(item.prompt, item.size, await refForColor(item.color), item.seed, item.color);
+    results[idx] = { url, label: item.label, color: item.color, size: item.size, prompt: item.prompt, seed: item.seed };
     renderResults();
     toast('重试成功');
   } catch (e) {
@@ -1633,23 +1649,33 @@ async function runJobs(list, btn) {
 
   // 并发 8 张一起出，整批约等于一张的耗时
   const fresh = [];
-  const worker = async () => {
-    while (next < total) {
-      const i = next++;
+  // 按颜色分组：同一颜色的几张串行出，其余颜色并行，互不拖慢
+  const byColor = new Map();
+  list.forEach((job) => {
+    const key = job.color || '';
+    if (!byColor.has(key)) byColor.set(key, []);
+    byColor.get(key).push(job);
+  });
+  const colorRef = new Map(); // 同色第 1 张成品，作为后续同色图的参考图，锁死颜色和面料
+  const worker = async (group) => {
+    for (const job of group) {
       try {
-        const url = await genImage(list[i].prompt, list[i].size, await refForColor(list[i].color));
-        results.unshift({ url, label: list[i].label });
-        fresh.push({ url, label: list[i].label });
+        const ref = colorRef.get(job.color) || await refForColor(job.color);
+        const url = await genImage(job.prompt, job.size, ref, job.seed, job.color);
+        if (!colorRef.has(job.color)) colorRef.set(job.color, url);
+        results.unshift({ url, label: job.label, color: job.color, size: job.size, prompt: job.prompt });
+        fresh.push({ url, label: job.label });
         renderResults();
       } catch (e) {
-        results.unshift({ error: e.message || '未知错误', label: list[i].label, prompt: list[i].prompt });
+        results.unshift({ error: e.message || '未知错误', label: job.label, color: job.color, size: job.size, prompt: job.prompt });
         renderResults();
         toast('有 1 张失败：' + e.message, 4200);
       }
       done++;
     }
   };
-  await Promise.all(Array.from({ length: Math.min(8, total) }, worker));
+  const groups = [...byColor.values()];
+  await Promise.all(groups.slice(0, 8).map(worker).concat(groups.slice(8).reduce((p, g) => p.then(() => worker(g)), Promise.resolve())));
 
   // 出完的图自动收进素材库，关掉网页再打开还在；只保留最近 60 张，避免撑爆浏览器空间
   if (fresh.length) {
