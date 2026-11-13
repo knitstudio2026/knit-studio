@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v10.5</span>
+      <span class="ver">v10.6</span>
     </div>
   </div>
 
@@ -1292,13 +1292,20 @@ async function callArk(prompt, opts) {
   const refImg = (opts && opts.ref) || productImageCrop || productImage;
   if (refImg) payload.image = refImg;
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 110000);
-  const r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-    body: JSON.stringify(payload),
-    signal: ac.signal
-  }).finally(() => clearTimeout(timer));
+  const timer = setTimeout(() => ac.abort(), 75000);
+  let r;
+  try {
+    r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify(payload),
+      signal: ac.signal
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    if (e && e.name === 'AbortError') throw new Error('方舟生图超时（75秒），可点「重试」再试，或稍后再试');
+    throw e;
+  } finally { clearTimeout(timer); }
   const j = await r.json().catch(() => null);
   if (!r.ok) {
     const msg = (j && j.error && (j.error.message || j.error.code)) || ('HTTP ' + r.status);
@@ -1456,15 +1463,16 @@ async function refForColor(color) {
 
 async function genImage(prompt, size, ref, seed, color) {
   let lastErr = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
+      setStatus(`正在请求方舟生图${attempt ? `（重试 ${attempt}/1）` : '…'}`);
       const url = await callArk(prompt, { size, ref, seed: seed || (color ? hashSeed(String(color)) : 0) });
       return await postProcess(url, color);
     } catch (e) {
       lastErr = e;
-      if (attempt < 2) {
-        setStatus(`这张没出，自动重试 ${attempt + 1}/2…`);
-        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+      if (attempt < 1) {
+        setStatus(`这张没出，1 秒后重试…`);
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
   }
