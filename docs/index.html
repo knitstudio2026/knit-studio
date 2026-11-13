@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v10.2</span>
+      <span class="ver">v10.3</span>
     </div>
   </div>
 
@@ -254,9 +254,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div id="colorWrap" class="hidden" style="margin-top:10px">
           <div style="font-size:13px;color:#6b7280;margin-bottom:7px">先用哪个颜色试一张</div>
           <div class="chips" id="colorChips"></div>
-          <div id="refPreview" style="display:none;margin-top:10px;align-items:center;gap:10px">
-            <img id="refThumb" style="width:74px;height:98px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#f2f3f5">
-            <div style="font-size:12px;color:#6b7280;line-height:1.6">左边是这个颜色要照抄的参考图<br>如果和你选的颜色对不上，说明拼图识别偏了，<b>重新识别一次</b>再生成，别急着烧钱</div>
+          <div id="refPreview" style="display:none;margin-top:10px">
+            <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:7px">下面是从你原图裁出来的每一格。<b>点一下和「<span id="refColorName"></span>」同色的那一格</b>，生成时就照它抄。选对了再点生成，不花冤枉钱。</div>
+            <div id="refCells" style="display:flex;flex-wrap:wrap;gap:7px"></div>
           </div>
         </div>
         <div class="chk" style="margin-top:8px">
@@ -1315,6 +1315,28 @@ function shrinkUrl(dataUrl, max) {
 let gridDims = { r: 0, c: 0, colors: [], cellOf: {} };
 const refCache = new Map();
 let cellMap = null;
+let manualCell = {};
+let cellUrls = [];
+let cellKey = '';
+
+function currentCellFor(color) {
+  if (Number.isInteger(manualCell[color])) return manualCell[color];
+  if (gridDims.cellOf && Number.isInteger(gridDims.cellOf[color])) return gridDims.cellOf[color];
+  const i = gridDims.colors.indexOf(color);
+  return i >= 0 ? i : 0;
+}
+
+async function buildCellUrls() {
+  const key = `${gridDims.r}x${gridDims.c}:${(productImageFull || productImage || '').length}`;
+  if (cellKey === key && cellUrls.length) return;
+  cellUrls = [];
+  for (let i = 0; i < gridDims.r * gridDims.c; i++) {
+    let u = '';
+    try { u = await cropGridCell(productImageFull || productImage, gridDims.r, gridDims.c, Math.floor(i / gridDims.c), i % gridDims.c); } catch (_) { u = ''; }
+    cellUrls.push(u);
+  }
+  cellKey = key;
+}
 
 function rgb2hsv(r, g, b) {
   r /= 255; g /= 255; b /= 255;
@@ -1405,23 +1427,10 @@ async function refForColor(color) {
   if (!gridDims.r || !gridDims.c || !productImage) return '';
   if (refCache.has(color)) return refCache.get(color);
   let out = '';
-  const direct = gridDims.cellOf && gridDims.cellOf[color];
-  if (Number.isInteger(direct)) {
-    try { out = await cropGridCell(productImageFull || productImage, gridDims.r, gridDims.c, Math.floor(direct / gridDims.c), direct % gridDims.c); } catch (_) { out = ''; }
-  }
-  if (!out) {
-    try {
-      if (!cellMap) cellMap = await buildCellMap();
-      out = cellMap.get(color) || '';
-    } catch (_) { out = ''; }
-  }
-  if (!out) {
-    // 兜底：按识别顺序取格
-    const idx = gridDims.colors.indexOf(color);
-    if (idx >= 0) {
-      try { out = await cropGridCell(productImageFull || productImage, gridDims.r, gridDims.c, Math.floor(idx / gridDims.c), idx % gridDims.c); } catch (_) { out = ''; }
-    }
-  }
+  try {
+    await buildCellUrls();
+    out = cellUrls[currentCellFor(color)] || '';
+  } catch (_) { out = ''; }
   refCache.set(color, out);
   return out;
 }
@@ -1824,11 +1833,20 @@ function updateRestBtn() {
 async function showRefThumb() {
   const box = $('#refPreview');
   if (!box) return;
-  if (!previewColor || !gridDims.r) { box.style.display = 'none'; return; }
-  box.style.display = 'flex';
-  const url = await refForColor(previewColor);
-  if (previewColor && url) { $('#refThumb').src = url; }
-  else { box.style.display = 'none'; }
+  if (!previewColor || !gridDims.r || gridDims.r * gridDims.c < 2) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  $('#refColorName').textContent = previewColor;
+  await buildCellUrls();
+  const wrap = $('#refCells');
+  const sel = currentCellFor(previewColor);
+  wrap.innerHTML = cellUrls.map((u, i) =>
+    `<img data-i="${i}" src="${u}" style="width:62px;height:82px;object-fit:cover;border-radius:7px;cursor:pointer;border:${i === sel ? '3px solid #b5651d' : '1px solid var(--line)'};opacity:${i === sel ? 1 : 0.72}">`
+  ).join('');
+  $$('#refCells img').forEach(img => img.addEventListener('click', () => {
+    manualCell[previewColor] = Number(img.dataset.i);
+    refCache.delete(previewColor);
+    showRefThumb();
+  }));
 }
 
 function renderColorChips() {
@@ -1914,6 +1932,7 @@ $('#file').addEventListener('change', () => {
       recData = null;
       recColors = [];
       previewColor = '';
+  manualCell = {}; cellKey = '';
       $('#colorWrap').classList.add('hidden');
       $('#recFields').classList.add('hidden');
       $('#copyRow').classList.add('hidden');
@@ -2684,11 +2703,11 @@ async function recognize() {
           });
         }
         gridDims = { r: gr, c: gc, colors: names, cellOf };
-        refCache.clear(); cellMap = null;
+        refCache.clear(); cellMap = null; manualCell = {}; cellKey = '';
         productImageCrop = await cropGridCell(productImageFull || productImage, gr, gc, Math.floor(gr / 2), Math.floor(gc / 2));
       } else {
         gridDims = { r: 0, c: 0, colors: [], cellOf: {} };
-        refCache.clear(); cellMap = null;
+        refCache.clear(); cellMap = null; manualCell = {}; cellKey = '';
         productImageCrop = '';
       }
     } catch (_) { productImageCrop = ''; }
