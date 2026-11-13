@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.12</span>
+      <span class="ver">v7.13</span>
     </div>
   </div>
 
@@ -451,7 +451,6 @@ $$('.nav button').forEach(b => b.addEventListener('click', () => {
 /* ================= 图片素材 ================= */
 const IDENTITIES = [
   '23 岁亚洲女生，鹅蛋脸、五官清秀、鼻梁秀气；黑色长卷发配法式刘海，发根蓬松、发量丰盈，发尾自然带卷，长度到胸口',
-  '25 岁亚洲女生，小圆脸、眼睛偏圆、苹果肌明显；深棕色大波浪长卷发，空气刘海，发量蓬松有层次，长度到胸下',
   '22 岁亚洲女生，瓜子脸、眼尾略微上扬、唇形小巧；黑茶色长直发中分，发根蓬松、发量丰盈，发尾微内扣，长度过胸',
   '26 岁亚洲女生，心形脸、五官立体、鼻头小巧；栗棕色长发，八字刘海，发尾微卷有空气感，长度及胸',
   '24 岁亚洲女生，脸颊有点婴儿肥、圆圆的眼睛、笑起来有卧蚕；深栗色长卷发，法式刘海，蓬松俏皮，长度及胸',
@@ -1171,7 +1170,7 @@ function buildPrompt(opts) {
   const addNote = (!noAcc && acc)
     ? `。额外搭配独立配件：${acc}。铁律：这些配件只能拿在手里、拎在手上、背在肩上、戴在头上或耳朵上；绝对不许在衣服本体上添加任何东西——不许加蝴蝶结、丝带、胸针、蕾丝、贴布、刺绣、亮片、额外纽扣，不许把丝巾或围巾系在领口、脖颈或衣服上，不许把腰带系在毛衣外面，不许在衣服上别任何饰品；不能改变衣服的版型、颜色、图案、领口、袖口、纽扣、口袋和衣长；消费者收到的衣服必须和参考图1一模一样；配件也不能遮挡领口、门襟、纽扣、口袋和下摆`
     : '';
-  const keep = '。衣服本体（款式、版型、领型、袖长、门襟、纽扣数量/颜色/大小/间距、口袋位置/数量/形状、针织纹理、面料质感、衣长、图案）必须与参考图100%完全一致，不能换成别的衣服，不能改动任何一处；门襟必须笔直垂直，全部纽扣排在同一条垂直中线上、正对各自扣眼，第一颗纽扣在领口正下方居中，不能有扣子偏移、悬空或错位';
+  const keep = '。衣服本体（款式、版型、领型、袖长、门襟、纽扣数量/颜色/大小/间距、口袋位置/数量/形状、针织纹理、面料质感、衣长、图案）必须与参考图100%完全一致，不能换成别的衣服，不能改动任何一处；门襟必须笔直垂直，全部纽扣排在同一条垂直中线上、正对各自扣眼，第一颗纽扣在领口正下方居中，不能有扣子偏移、悬空或错位；衣服穿在身上平整服帖、版型挺括有型，不能有异常褶皱、不能有像纸张对折一样的折叠感、不能松松垮垮、不能有不自然的折痕';
   const bottomNote = '下装必须穿长裤（牛仔裤、休闲裤、西装裤等），绝对不穿裙子、不穿短裤、不穿半身裙、不穿百褶裙、不穿缎面裙，裤子颜色低调不抢眼';
 
   if (style === 'flatlay') {
@@ -1269,7 +1268,7 @@ async function callArk(prompt, opts) {
     response_format: 'b64_json',
     watermark: false,
     n: 1,
-    seed: Math.floor(Math.random() * 1e9),
+    seed: (batchCtx && batchCtx.seed) || Math.floor(Math.random() * 1e9),
     negative_prompt: NEGATIVE
   };
   if (productImage) {
@@ -1338,6 +1337,7 @@ function makeJobs(n, colors, from) {
       handOrder: shuffleArr(ACC_HAND.slice()),
       wearOrder: shuffleArr(ACC_WEAR.slice()),
       shotOrder: shuffleArr(['half', 'three', 'mirror', 'side']),
+      seed: Math.floor(Math.random() * 1e9),
       accN: 0
     };
   }
