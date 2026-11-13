@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.9</span>
+      <span class="ver">v7.10</span>
     </div>
   </div>
 
@@ -1160,8 +1160,8 @@ function garmentClause(studio) {
 
 function buildPrompt(opts) {
   const { style, color, noAcc, accList, anti, identity, pose, scene, light, studio, lens, acc } = opts;
-  // 颜色完全照参考图，不写颜色名，避免文字和参考图打架导致色差/渐变
-  const colorNote = '衣服颜色100%照参考图还原：色相、明度、饱和度一点都不能改，整件衣服（含领口、袖口、门襟、口袋）颜色完全一致、干净均匀，不能有色差、不能渐变、不能拼色、不能提亮、不能加深、不能加暖调或冷调；如果参考图是纯色就必须纯色，参考图有图案就照参考图的图案，不许自己加图案或改图案';
+  // 颜色完全照参考图，不写颜色名，不加任何限制，参考图是什么样就生成什么样
+  const colorNote = '衣服颜色100%照参考图还原：色相、明度、饱和度一点都不能改，不能有色差；参考图是纯色就生成纯色，参考图有渐变就照参考图的渐变方向和颜色生成，参考图是拼色就照参考图的拼色位置和颜色生成，参考图有图案就照参考图的图案，完全复刻参考图的颜色分布，不许自己加、自己改、自己减';
   const noAccNote = noAcc ? `。衣服上不要出现${accList || '丝带、蕾丝蝴蝶结、胸针等装饰'}，只保留衣服本体` : '';
   const addNote = (!noAcc && acc)
     ? `。额外搭配独立配件：${acc}。铁律：这些配件只能拿在手里、拎在手上、背在肩上、戴在头上或耳朵上；绝对不许在衣服本体上添加任何东西——不许加蝴蝶结、丝带、胸针、蕾丝、贴布、刺绣、亮片、额外纽扣，不许把丝巾或围巾系在领口、脖颈或衣服上，不许把腰带系在毛衣外面，不许在衣服上别任何饰品；不能改变衣服的版型、颜色、图案、领口、袖口、纽扣、口袋和衣长；消费者收到的衣服必须和参考图1一模一样；配件也不能遮挡领口、门襟、纽扣、口袋和下摆`
