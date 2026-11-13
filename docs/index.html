@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.5</span>
+      <span class="ver">v7.6</span>
     </div>
   </div>
 
@@ -254,6 +254,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div id="colorWrap" class="hidden" style="margin-top:10px">
           <div style="font-size:13px;color:#6b7280;margin-bottom:7px">先用哪个颜色试一张</div>
           <div class="chips" id="colorChips"></div>
+          <div id="refPreview" style="display:none;margin-top:10px">
+            <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:7px">下面是从你原图裁出来的每一格。<b>点一下和「<span id="refColorName"></span>」同色的那一格</b>，生成时就照它抄。选对了再点生成，不花冤枉钱。</div>
+            <div id="refCells" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+          </div>
         </div>
         <div class="chk" style="margin-top:8px">
           <input type="checkbox" id="anti" checked>
@@ -1182,6 +1186,62 @@ let productImage = '';       // dataUrl（压缩版，用于识别，省 token�
 let productImageFull = '';   // 原图全分辨率 dataUrl，只用于裁切单格，保证细节不糊
 let productImageCrop = '';   // 从拼图里裁出的单格放大图，优先作为生图参考
 let style = 'lifestyle';
+// 拼图选格：每个颜色选自己那一格做参考图，避免用中间格的颜色去生成别的颜色
+let gridDims = { r: 0, c: 0, colors: [], cellOf: {} };
+const refCache = new Map();
+let manualCell = {};
+let cellUrls = [];
+let cellKey = '';
+
+function currentCellFor(color) {
+  if (Number.isInteger(manualCell[color])) return manualCell[color];
+  if (gridDims.cellOf && Number.isInteger(gridDims.cellOf[color])) return gridDims.cellOf[color];
+  const i = gridDims.colors.indexOf(color);
+  return i >= 0 ? i : 0;
+}
+
+async function buildCellUrls() {
+  const key = `${gridDims.r}x${gridDims.c}:${(productImageFull || productImage || '').length}`;
+  if (cellKey === key && cellUrls.length) return;
+  cellUrls = [];
+  for (let i = 0; i < gridDims.r * gridDims.c; i++) {
+    let u = '';
+    try { u = await cropGridCell(productImageFull || productImage, gridDims.r, gridDims.c, Math.floor(i / gridDims.c), i % gridDims.c); } catch (_) { u = ''; }
+    cellUrls.push(u);
+  }
+  cellKey = key;
+}
+
+async function refForColor(color) {
+  if (!gridDims.r || !gridDims.c || !productImage) return '';
+  if (refCache.has(color)) return refCache.get(color);
+  let out = '';
+  try {
+    await buildCellUrls();
+    out = cellUrls[currentCellFor(color)] || '';
+  } catch (_) { out = ''; }
+  refCache.set(color, out);
+  return out;
+}
+
+async function showRefThumb() {
+  const box = $('#refPreview');
+  if (!box) return;
+  if (!previewColor || !gridDims.r || gridDims.r * gridDims.c < 2) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  $('#refColorName').textContent = previewColor;
+  await buildCellUrls();
+  const wrap = $('#refCells');
+  const sel = currentCellFor(previewColor);
+  wrap.innerHTML = cellUrls.map((u, i) =>
+    `<img data-i="${i}" src="${u}" style="width:62px;height:82px;object-fit:cover;border-radius:7px;cursor:pointer;border:${i === sel ? '3px solid #b5651d' : '1px solid var(--line)'};opacity:${i === sel ? 1 : 0.72}">`
+  ).join('');
+  $$('#refCells img').forEach(img => img.addEventListener('click', () => {
+    manualCell[previewColor] = Number(img.dataset.i);
+    refCache.delete(previewColor);
+    showRefThumb();
+  }));
+}
 let results = [];            // 已生成
 let running = false;
 
@@ -1206,7 +1266,16 @@ async function callArk(prompt, opts) {
     seed: Math.floor(Math.random() * 1e9),
     negative_prompt: NEGATIVE
   };
-  if (productImage) payload.image = productImageCrop || productImage;
+  if (productImage) {
+    // 拼图款：每个颜色用它自己选的那一格做参考图；单图就用整张
+    const color = opts && opts.color;
+    if (color && gridDims.r && gridDims.c) {
+      const ref = await refForColor(color);
+      payload.image = ref || productImageCrop || productImage;
+    } else {
+      payload.image = productImageCrop || productImage;
+    }
+  }
   const r = await fetch((settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/images/generations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
@@ -1226,11 +1295,11 @@ async function callArk(prompt, opts) {
 
 
 // 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图
-async function genImage(prompt, size) {
+async function genImage(prompt, size, color) {
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      let url = await callArk(prompt, { size });
+      let url = await callArk(prompt, { size, color });
       url = await postProcess(url);
       return url;
     } catch (e) {
@@ -1294,7 +1363,7 @@ function makeJobs(n, colors, from) {
       style: useWhite ? 'whitebg' : style, color, noAcc, accList, anti, acc,
       identity: batchCtx.identity, pose, scene, light: batchCtx.light, lens: batchCtx.lens, studio: useStudio
     });
-    out.push({ prompt, label: color || '商品图', style, size: useWhite ? outSize('3:4') : (useStudio ? outSize('3:4') : '') });
+    out.push({ prompt, label: color || '商品图', color: color || '', style, size: useWhite ? outSize('3:4') : (useStudio ? outSize('3:4') : '') });
   }
   return out;
 }
@@ -1523,7 +1592,7 @@ async function retryOne(idx) {
   running = true;
   setStatus('正在重试 1 张…');
   try {
-    const url = await genImage(item.prompt, item.size);
+    const url = await genImage(item.prompt, item.size, item.color);
     results[idx] = { url, label: item.label };
     renderResults();
     toast('重试成功');
@@ -1556,12 +1625,12 @@ async function runJobs(list, btn) {
     while (next < total) {
       const i = next++;
       try {
-        const url = await genImage(list[i].prompt, list[i].size);
+        const url = await genImage(list[i].prompt, list[i].size, list[i].color);
         results.unshift({ url, label: list[i].label });
         fresh.push({ url, label: list[i].label });
         renderResults();
       } catch (e) {
-        results.unshift({ error: e.message || '未知错误', label: list[i].label, prompt: list[i].prompt });
+        results.unshift({ error: e.message || '未知错误', label: list[i].label, prompt: list[i].prompt, color: list[i].color });
         renderResults();
         toast('有 1 张失败：' + e.message, 4200);
       }
@@ -1627,6 +1696,7 @@ function renderColorChips() {
     renderColorChips();
     $('#tip').textContent = `已选「${previewColor}」，点「生成预览」只出这一张，看好质感再继续。`;
   }));
+  showRefThumb();
   updPriceHint();
 }
 
@@ -1685,6 +1755,8 @@ $('#file').addEventListener('change', () => {
       recData = null;
       recColors = [];
       previewColor = '';
+      gridDims = { r: 0, c: 0, colors: [], cellOf: {} };
+      manualCell = {}; cellKey = ''; refCache.clear();
       $('#colorWrap').classList.add('hidden');
       $('#recFields').classList.add('hidden');
       $('#copyRow').classList.add('hidden');
@@ -1760,6 +1832,8 @@ $('#delBtn').addEventListener('click', (e) => {
   recData = null;
   recColors = [];
   previewColor = '';
+  gridDims = { r: 0, c: 0, colors: [], cellOf: {} };
+  manualCell = {}; cellKey = ''; refCache.clear();
   $('#colorWrap').classList.add('hidden');
   $('#recFields').classList.add('hidden');
   $('#copyRow').classList.add('hidden');
@@ -2002,6 +2076,7 @@ function buildVisionPrompt() {
     'colors: 数组。数清楚有几件不同颜色的同款（拼图逐格看），最多12个，不合并相近色，用常见中文色名（奶白色、燕麦色、浅粉色、雾霾蓝、酒红色等）',
     'gridRows: 这张图如果是一张拼图，一共有几行（例如 3x3 的九宫格写 3，2x3 写 2）；如果只是一件衣服的单图，写 1',
     'gridCols: 一共有几列（3x3 写 3，2x3 写 3）；单图写 1',
+    'colorCells: 数组，和 colors 一一对应、顺序完全一致，给出每个颜色在拼图里的格子序号。格子按行优先编号：从左到右、从上到下，左上角那格是 0，右边那格是 1，换行继续数。必须真的对照图片逐格确认这个颜色画在哪一格，不许按颜色列表顺序直接填 0,1,2,3。如果某一格里有多个颜色或颜色跨格，填这个颜色占比最大的那一格。单图就全部写 0',
     'sizes: 数组，从 ["S","M","L","XL","2XL","3XL","均码"] 选',
     'price: 数字，预估拼多多定价，单位元',
     'garmentDetail: 对象，严格按以下子字段输出，每个子字段都必须填具体数值或做法，不许笼统。如果这张是拼图里多件同色款，任选其中一格放大细看后再填。\n' +
@@ -2334,11 +2409,26 @@ async function recognize() {
       const gr = Math.max(1, parseInt(data.gridRows, 10) || 1);
       const gc = Math.max(1, parseInt(data.gridCols, 10) || 1);
       if (gr >= 2 && gc >= 2 && gr * gc <= 12 && productImage) {
+        const names = (Array.isArray(data.colors) ? data.colors : []).map(String);
+        const cellOf = {};
+        if (Array.isArray(data.colorCells)) {
+          names.forEach((nm, i) => {
+            const v = parseInt(data.colorCells[i], 10);
+            if (Number.isFinite(v) && v >= 0 && v < gr * gc) cellOf[nm] = v;
+          });
+        }
+        gridDims = { r: gr, c: gc, colors: names, cellOf };
+        refCache.clear(); manualCell = {}; cellKey = '';
         productImageCrop = await cropGridCell(productImageFull || productImage, gr, gc, Math.floor(gr / 2), Math.floor(gc / 2));
       } else {
+        gridDims = { r: 0, c: 0, colors: [], cellOf: {} };
+        refCache.clear(); manualCell = {}; cellKey = '';
         productImageCrop = '';
       }
-    } catch (_) { productImageCrop = ''; }
+    } catch (_) {
+      gridDims = { r: 0, c: 0, colors: [], cellOf: {} };
+      productImageCrop = '';
+    }
 
     // 用裁出的单格图再核对一遍边口细节，覆盖第一次的粗略判断
     if (productImageCrop) {
