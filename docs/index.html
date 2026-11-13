@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v10.0</span>
+      <span class="ver">v10.1</span>
     </div>
   </div>
 
@@ -1201,7 +1201,7 @@ function buildPrompt(opts) {
   const isGrad = /渐变/.test(color || '');
   const colorNote = color
     ? (isGrad
-      ? `这件衣服是「${color}」渐变款：必须严格照参考图呈现同一套渐变——渐变方向（上半白下半色、还是上色下白）、分界线在衣服上的高度、白色与彩色各占的比例（原图白色只占上部一小段就照此，绝不许把白色区域放大）、每种颜色的色相、明度和饱和度、过渡的柔和程度都要和参考图完全一致；彩色部分的饱和度和鲜亮度必须和参考图一样，不许褪成淡淡的灰粉、灰蓝或米色；绝不许整件变成纯白或单色，绝不许把渐变方向反过来，绝不许改成别的颜色组合；白色部分必须是参考图那种干净本白／冷白，不能发黄、发米、发粉、发灰、发暖`
+      ? `这件衣服是「${color}」渐变款：必须严格照参考图呈现同一套渐变——渐变方向（上半白下半色、还是上色下白）、分界线在衣服上的高度、白色与彩色各占的比例（原图白色只占上部一小段就照此，绝不许把白色区域放大）、每种颜色的色相、明度和饱和度、过渡的柔和程度都要和参考图完全一致；彩色部分的明度和饱和度必须和参考图一样，浅彩色（淡紫、浅蓝、浅粉、浅黄）绝不许加深成中紫、宝蓝、玫红、姜黄，也不许褪成灰粉、灰蓝、米色；绝不许整件变成纯白或单色，绝不许把渐变方向反过来，绝不许改成别的颜色组合；白色部分必须是参考图那种干净本白／冷白，不能发黄、发米、发粉、发灰、发暖`
       : `这件衣服是「${color}」：色相、明度、饱和度都要照着参考图还原，整件衣服（含领口、袖口、门襟、口袋）颜色完全一致、干净均匀，不要提亮、不要加暖调、不要偏冷、不要加深、不要出现渐变；如果这件是白色或浅色，必须是参考图那种干净的本白／冷白，绝对不能发黄、发米、发粉、发灰、发暖`)
     : '衣服颜色严格保持参考图的原色和原明度，色相、明度、饱和度一点都不能改，不要提亮、不要加深、不要加暖调或冷调；如果是白色或浅色，必须保持参考图那种干净本白，不许发黄发米发粉';
   const noAccNote = noAcc ? `。衣服上不要出现${accList || '丝带、蕾丝蝴蝶结、胸针等装饰'}，只保留衣服本体` : '';
@@ -1310,15 +1310,108 @@ function shrinkUrl(dataUrl, max) {
 // 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图；质检不过也自动重拍
 let gridDims = { r: 0, c: 0, colors: [] };
 const refCache = new Map();
+let cellMap = null;
+
+function rgb2hsv(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  return { h, s: max ? d / max : 0, v: max };
+}
+
+// 取格子下半部分的平均颜色，渐变款的主要颜色就在这里
+function sampleCell(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = 36; c.height = 36;
+        const g = c.getContext('2d');
+        g.drawImage(img, img.width * 0.2, img.height * 0.55, img.width * 0.6, img.height * 0.4, 0, 0, 36, 36);
+        const d = g.getImageData(0, 0, 36, 36).data;
+        let r = 0, gg = 0, b = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; n++; }
+        resolve(rgb2hsv(r / n, gg / n, b / n));
+      } catch (_) { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+function targetHue(name) {
+  if (/紫/.test(name)) return 270;
+  if (/蓝/.test(name)) return 215;
+  if (/青|湖/.test(name)) return 180;
+  if (/绿/.test(name)) return 120;
+  if (/黄/.test(name)) return 55;
+  if (/橙/.test(name)) return 30;
+  if (/红/.test(name)) return 5;
+  if (/粉/.test(name)) return 340;
+  if (/黑/.test(name)) return -2;
+  if (/灰/.test(name)) return -3;
+  if (/米|杏|奶|驼|卡其/.test(name)) return 45;
+  if (/棕|咖啡/.test(name)) return 25;
+  if (/白/.test(name)) return -1;
+  return null;
+}
+
+function scoreHue(name, s) {
+  if (!s) return -1e9;
+  const t = targetHue(name);
+  if (t === null) return 0;
+  if (t === -2) return s.v < 0.38 ? 100 - s.v * 40 : -s.v * 100;
+  if (t === -1) return (s.v > 0.78 && s.s < 0.2) ? 100 - s.s * 100 : -Math.abs(0.92 - s.v) * 100 - s.s * 100;
+  if (t === -3) return s.s < 0.14 ? 100 - Math.abs(0.6 - s.v) * 100 : -s.s * 100;
+  let d = Math.abs(s.h - t); if (d > 180) d = 360 - d;
+  return (1 - d / 180) * 100 + (s.s > 0.05 ? 8 : -40);
+}
+
+// 识别模型返回的颜色顺序不一定等于拼图的行优先顺序，所以按"格子真实颜色"去匹配颜色名
+async function buildCellMap() {
+  const { r, c, colors } = gridDims;
+  const cells = [];
+  for (let i = 0; i < r * c; i++) {
+    let url = '';
+    try { url = await cropGridCell(productImageFull || productImage, r, c, Math.floor(i / c), i % c); } catch (_) { url = ''; }
+    if (!url) continue;
+    cells.push({ i, url, s: await sampleCell(url) });
+  }
+  const pairs = [];
+  colors.forEach((name, ci) => cells.forEach((cell) => pairs.push({ ci, cell, sc: scoreHue(name, cell.s) })));
+  pairs.sort((a, b) => b.sc - a.sc);
+  const usedC = new Set(), usedI = new Set(), map = new Map();
+  for (const p of pairs) {
+    if (usedC.has(p.ci) || usedI.has(p.cell.i)) continue;
+    usedC.add(p.ci); usedI.add(p.cell.i);
+    map.set(colors[p.ci], p.cell.url);
+  }
+  return map;
+}
+
 // 拼图款：每个颜色取它自己那一格做参考图，避免用中间格的粉色去生成奶白色
 async function refForColor(color) {
   if (!gridDims.r || !gridDims.c || !productImage) return '';
-  const idx = gridDims.colors.indexOf(color);
-  if (idx < 0) return '';
   if (refCache.has(color)) return refCache.get(color);
-  const r = Math.floor(idx / gridDims.c), c = idx % gridDims.c;
   let out = '';
-  try { out = await cropGridCell(productImageFull || productImage, gridDims.r, gridDims.c, r, c); } catch (_) { out = ''; }
+  try {
+    if (!cellMap) cellMap = await buildCellMap();
+    out = cellMap.get(color) || '';
+  } catch (_) { out = ''; }
+  if (!out) {
+    // 兜底：按识别顺序取格
+    const idx = gridDims.colors.indexOf(color);
+    if (idx >= 0) {
+      try { out = await cropGridCell(productImageFull || productImage, gridDims.r, gridDims.c, Math.floor(idx / gridDims.c), idx % gridDims.c); } catch (_) { out = ''; }
+    }
+  }
   refCache.set(color, out);
   return out;
 }
@@ -2561,11 +2654,11 @@ async function recognize() {
       const gc = Math.max(1, parseInt(data.gridCols, 10) || 1);
       if (gr >= 2 && gc >= 2 && gr * gc <= 12 && productImage) {
         gridDims = { r: gr, c: gc, colors: (Array.isArray(data.colors) ? data.colors : []).map(String) };
-        refCache.clear();
+        refCache.clear(); cellMap = null;
         productImageCrop = await cropGridCell(productImageFull || productImage, gr, gc, Math.floor(gr / 2), Math.floor(gc / 2));
       } else {
         gridDims = { r: 0, c: 0, colors: [] };
-        refCache.clear();
+        refCache.clear(); cellMap = null;
         productImageCrop = '';
       }
     } catch (_) { productImageCrop = ''; }
