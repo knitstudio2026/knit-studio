@@ -198,7 +198,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.6</span>
+      <span class="ver">v7.7</span>
     </div>
   </div>
 
@@ -242,10 +242,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           </div>
         </div>
         <div class="row">
+          <label>出图清晰度<small>261万像素以内都是 0.30 元/张</small></label>
+          <select id="quality">
+            <option value="std">1024×1536 · 157万像素 · 快</option>
+            <option value="hd">1280×1920 · 246万像素 · 0.30 元</option>
+            <option value="big">1312×1968 · 258万像素 · 0.30 元</option>
+            <option value="ultra">1365×2048 · 280万像素 · 0.60 元</option>
+          </select>
+        </div>
+        <div class="hint" id="genCost" style="margin-top:2px"></div>
+        <div class="row">
           <label>生成张数<small>按识别出的颜色自动定，不用改</small></label>
           <input type="number" id="count" value="3" min="1" max="12">
         </div>
-        <div class="hint" id="genCost" style="margin-top:2px"></div>
         <div class="chk">
           <input type="checkbox" id="noAcc">
           <span>不带小装饰<small>丝带、蕾丝蝴蝶结、胸针等，生成时去掉</small></span>
@@ -315,16 +324,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <label>接口地址</label>
           <input type="text" id="baseUrl" value="https://ark.cn-beijing.volces.com/api/v3">
         </div>
-        <div class="row">
-          <label>出图清晰度<small>261 万像素以内都是 0.30 元/张</small></label>
-          <select id="quality">
-            <option value="std">1024×1536 · 157万像素 · 0.30 元</option>
-            <option value="hd">1280×1920 · 246万像素 · 0.30 元</option>
-            <option value="big">1312×1968 · 258万像素 · 0.30 元</option>
-            <option value="ultra">1365×2048 · 280万像素 · 0.60 元</option>
-          </select>
-        </div>
-        <div class="hint" id="priceHint" style="margin-top:0"></div>
         <button class="btn" id="saveBtn" style="margin-top:14px">保存设置</button>
         <div class="hint">
           到火山方舟控制台创建 Key：console.volcengine.com/ark<br>
@@ -408,11 +407,14 @@ function updPriceHint() {
   const px = w * h;
   const per = QUALITY_PRICE[q] || 0.30;
   const n = Math.max(1, recColors.length ? recColors.length : (Number($('#count').value) || 1));
-  $('#priceHint').innerHTML = `当前 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素），<b>${per.toFixed(2)} 元/张</b>；按 ${n} 张算约 <b>${(per * n).toFixed(2)} 元</b>（不含识图）。`;
   const gc = $('#genCost');
   if (gc) gc.innerHTML = `清晰度 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素）· ${per.toFixed(2)} 元/张 · 这批 ${n} 张约 <b>${(per * n).toFixed(2)} 元</b>`;
 }
-$('#quality').addEventListener('change', updPriceHint);
+$('#quality').addEventListener('change', () => {
+  settings.quality = $('#quality').value || 'big';
+  localStorage.setItem(KEY, JSON.stringify(settings));
+  updPriceHint();
+});
 $('#count').addEventListener('input', updPriceHint);
 $('#saveBtn').addEventListener('click', () => {
   settings.apiKey = $('#apiKey').value.trim();
