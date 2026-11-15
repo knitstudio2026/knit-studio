@@ -88,6 +88,13 @@ input.wide{width:100%}
 .chips button{border:1px solid var(--line);background:#fff;color:#4b5563;border-radius:20px;
   padding:7px 14px;font-size:13px}
 .chips button.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.chipitem{display:inline-flex;align-items:stretch;border:1px solid var(--line);background:#fff;border-radius:20px;overflow:hidden}
+.chipitem.on{border-color:var(--brand);background:#fffaf5}
+.chipitem .cname{border:0;background:transparent;border-radius:0;padding:7px 6px 7px 13px;color:#4b5563;font-size:13px}
+.chipitem.on .cname{color:var(--brand);font-weight:600}
+.chipitem .ccopy{border:0;border-left:1px solid var(--line);background:#f3f5f8;border-radius:0;padding:0 10px;font-size:11px;color:#77808f}
+.chipitem .ccopy:active{background:#e6eaf0}
+.chips .ccopyall{border:1px dashed var(--line);background:#fff;color:#77808f;border-radius:20px;padding:7px 13px;font-size:12px}
 
 .btn{width:100%;padding:14px;border:0;border-radius:12px;background:var(--brand);color:#fff;
   font-size:16px;font-weight:600;letter-spacing:.5px}
@@ -198,7 +205,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.19</span>
+      <span class="ver">v7.20</span>
     </div>
   </div>
 
@@ -261,7 +268,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <input type="text" id="accList" class="wide" value="丝带、蕾丝蝴蝶结、胸针" placeholder="要去掉的装饰">
         <div id="colorWrap" class="hidden" style="margin-top:10px">
-          <div style="font-size:13px;color:#6b7280;margin-bottom:7px">先用哪个颜色试一张</div>
+          <div style="font-size:13px;color:#6b7280;margin-bottom:7px">先用哪个颜色试一张（点「复制」一键贴到店铺）</div>
           <div class="chips" id="colorChips"></div>
           <div id="refPreview" style="display:none;margin-top:10px">
             <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:7px">下面是从你原图裁出来的每一格。<b>点一下和「<span id="refColorName"></span>」同色的那一格</b>，生成时就照它抄。选对了再点生成，不花冤枉钱。</div>
@@ -1687,6 +1694,56 @@ function updateRestBtn() {
   }
 }
 
+/* 每次识别重新起一批颜色名：同款上多店时，三家店用不同颜色名 + 不同图片，防比价。
+   只在同一色系内换同义词（白还是白、粉还是粉），不会把颜色说错。 */
+const COLOR_WORD_BANKS = [
+  { words: ['奶白', '象牙白', '云朵白', '奶油白', '珍珠白', '柔白', '米白', '雪白', '本白', '月光白', '霜白', '雾白', '白色', '纯白'],
+    pool: ['奶白', '象牙白', '云朵白', '奶油白', '珍珠白', '柔白', '米白', '雪白', '本白', '月光白', '霜白', '雾白'] },
+  { words: ['炭黑', '墨黑', '曜石黑', '暗夜黑', '纯黑', '煤黑', '碳黑', '黑色'],
+    pool: ['炭黑', '墨黑', '曜石黑', '暗夜黑', '纯黑', '煤黑', '深空黑', '碳黑'] },
+  { words: ['樱花粉', '茱萸粉', '藕粉', '蜜桃粉', '嫩粉', '烟粉', '豆沙粉', '裸粉', '奶粉', '橡皮粉', '初恋粉', '花瓣粉', '浅粉', '淡粉', '粉色'],
+    pool: ['樱花粉', '茱萸粉', '藕粉', '蜜桃粉', '烟粉', '豆沙粉', '裸粉', '奶粉', '橡皮粉', '初恋粉', '花瓣粉', '浅粉', '淡粉'] },
+  { words: ['浅薄荷蓝', '浅水蓝', '薄荷蓝', '雾霾蓝', '冰川蓝', '天空蓝', '婴儿蓝', '水蓝', '奶蓝', '湖蓝', '灰蓝', '牛仔蓝', '雾蓝', '浅蓝', '淡蓝', '蓝色'],
+    pool: ['薄荷蓝', '雾霾蓝', '冰川蓝', '天空蓝', '婴儿蓝', '水蓝', '奶蓝', '湖蓝', '灰蓝', '牛仔蓝', '雾蓝', '浅薄荷蓝'] },
+  { words: ['鹅黄', '奶黄', '黄油色', '香草黄', '浅杏黄', '姜黄', '柠檬黄', '米黄', '麦芽黄', '奶油黄', '淡黄', '黄色'],
+    pool: ['鹅黄', '奶黄', '黄油色', '香草黄', '浅杏黄', '姜黄', '柠檬黄', '米黄', '麦芽黄', '奶油黄'] },
+  { words: ['香芋紫', '薰衣草紫', '丁香紫', '奶紫', '葡萄紫', '薄雾紫', '浅紫', '淡紫', '紫色'],
+    pool: ['香芋紫', '薰衣草紫', '丁香紫', '奶紫', '葡萄紫', '薄雾紫', '浅紫', '淡紫'] },
+  { words: ['燕麦灰', '高级灰', '浅灰', '雾灰', '烟灰', '银灰', '麻灰', '灰色'],
+    pool: ['燕麦灰', '高级灰', '浅灰', '雾灰', '烟灰', '银灰', '麻灰', '灰调'] },
+  { words: ['薄荷绿', '抹茶绿', '鼠尾草绿', '牛油果绿', '青瓷绿', '豆绿', '草绿', '浅绿', '淡绿', '绿色'],
+    pool: ['薄荷绿', '抹茶绿', '鼠尾草绿', '牛油果绿', '青瓷绿', '豆绿', '草绿', '浅绿'] },
+  { words: ['奶油杏', '米杏', '燕麦色', '奶茶色', '奶咖色', '驼色', '杏色', '卡其色', '卡其', '米色'],
+    pool: ['奶油杏', '米杏', '燕麦色', '奶茶色', '奶咖色', '驼色', '杏色', '卡其色', '米色'] }
+];
+
+function varyColorName(name) {
+  let out = String(name == null ? '' : name);
+  for (const fam of COLOR_WORD_BANKS) {
+    const hits = fam.words.filter(w => out.indexOf(w) >= 0).sort((a, b) => b.length - a.length);
+    if (!hits.length) continue;
+    const cur = hits[0];
+    const cands = fam.pool.filter(x => x !== cur);
+    if (!cands.length) continue;
+    out = out.replace(cur, cands[Math.floor(Math.random() * cands.length)]);
+  }
+  return out;
+}
+
+function refreshColorNames(list) {
+  let last = [];
+  try { last = JSON.parse(localStorage.getItem('ks2.lastColorNames') || '[]') || []; } catch (_) { last = []; }
+  const used = new Set();
+  const out = list.map((old) => {
+    let n = varyColorName(old);
+    for (let i = 0; i < 16 && (used.has(n) || last.indexOf(n) >= 0); i++) n = varyColorName(old);
+    used.add(n);
+    return n;
+  });
+  try { localStorage.setItem('ks2.lastColorNames', JSON.stringify(out)); } catch (_) {}
+  return out;
+}
+
 function renderColorChips() {
   const wrap = $('#colorWrap'), box = $('#colorChips');
   if (!recColors.length) {
@@ -1697,14 +1754,24 @@ function renderColorChips() {
   }
   if (!previewColor || recColors.indexOf(previewColor) < 0) previewColor = recColors[0];
   wrap.classList.remove('hidden');
-  box.innerHTML = recColors.map(c =>
-    `<button data-c="${String(c).replace(/"/g, '&quot;')}" class="${c === previewColor ? 'on' : ''}">${String(c).replace(/</g, '&lt;')}</button>`
-  ).join('');
-  $$('#colorChips button').forEach(b => b.addEventListener('click', () => {
+  box.innerHTML = recColors.map(c => {
+    const v = esc(c);
+    return `<span class="chipitem ${c === previewColor ? 'on' : ''}">`
+      + `<button class="cname" data-c="${v}">${v}</button>`
+      + `<button class="ccopy" data-cp="${v}">复制</button>`
+      + `</span>`;
+  }).join('') + `<button class="ccopyall" id="copyAllColors">复制全部颜色</button>`;
+  $$('#colorChips .cname').forEach(b => b.addEventListener('click', () => {
     previewColor = b.dataset.c;
     renderColorChips();
     $('#tip').textContent = `已选「${previewColor}」，点「生成预览」只出这一张，看好质感再继续。`;
   }));
+  $$('#colorChips .ccopy').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    copyText(b.dataset.cp);
+  }));
+  const allBtn = $('#copyAllColors');
+  if (allBtn) allBtn.addEventListener('click', () => copyText(recColors.join('\n')));
   showRefThumb();
   updPriceHint();
 }
@@ -2410,6 +2477,8 @@ async function recognize() {
   const key = (settings.apiKey || '').trim();
   if (!key) { toast('先去「设置」里填火山方舟 API Key'); return; }
   recBusy = true;
+  // 每点一次识别都算换一批：重抽模特、场景、光线、随机种子，换店上架时图片不撞
+  batchCtx = null;
   const btn = $('#recBtn');
   btn.disabled = true;
   const timer = makeTimer($('#recTimer'), '识别中');
@@ -2444,6 +2513,10 @@ async function recognize() {
     const text = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
     const data = parseJsonLoose(text);
     if (!data) throw new Error('识别结果没看懂，再试一次');
+    // 每点一次识别都重新起一批颜色名：换店上架时颜色名不同，配合不同图片防比价
+    if (Array.isArray(data.colors) && data.colors.length) {
+      data.colors = refreshColorNames(data.colors.map(x => String(x || '').trim()).filter(Boolean));
+    }
     recData = data;
     renderFields(data);
     // 标题先用本地热搜词库按真实属性拼好，不等文字模型，也绝不乱写
@@ -2556,7 +2629,7 @@ async function recognize() {
     }
 
     timer.done('识别完成');
-    $('#tip').textContent = `识别完成，已填好 ${recColors.length || 1} 个颜色。确认无误后点「生成预览（1 张）」手动出图。`;
+    $('#tip').textContent = `识别完成，已填好 ${recColors.length || 1} 个颜色：${recColors.join('、') || '—'}。这一批图和颜色名给一个店用；换另一个店请重新点「识别」，会换一批新的颜色名和不同图片。`;
     toast('识别完成，点「生成预览」出图');
   } catch (e) {
     timer.fail('失败');
