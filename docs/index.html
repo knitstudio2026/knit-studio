@@ -205,7 +205,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.22</span>
+      <span class="ver">v7.23</span>
     </div>
   </div>
 
@@ -271,7 +271,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <div style="font-size:13px;color:#6b7280;margin-bottom:7px">先用哪个颜色试一张（点「复制」一键贴到店铺）</div>
           <div class="chips" id="colorChips"></div>
           <div id="refPreview" style="display:none;margin-top:10px">
-            <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:7px">下面是从你原图裁出来的每一格。<b>点一下和「<span id="refColorName"></span>」同色的那一格</b>，生成时就照它抄。选对了再点生成，不花冤枉钱。</div>
+            <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:7px">下面是从你原图裁出来的每一格。<b>点一下和「<span id="refColorName"></span>」同色的那一格</b>，生成时就照它抄。<b>如果多裁出来一格空白、或者这格是渐变分不清颜色，点最后的「空白·用原图」</b>，生成时直接用整张原图做参考。选对了再点生成，不花冤枉钱。</div>
             <div id="refCells" style="display:flex;flex-wrap:wrap;gap:7px"></div>
           </div>
         </div>
@@ -1264,12 +1264,18 @@ async function showRefThumb() {
   const sel = currentCellFor(previewColor);
   wrap.innerHTML = cellUrls.map((u, i) =>
     `<img data-i="${i}" src="${u}" style="width:62px;height:82px;object-fit:cover;border-radius:7px;cursor:pointer;border:${i === sel ? '3px solid #b5651d' : '1px solid var(--line)'};opacity:${i === sel ? 1 : 0.72}">`
-  ).join('');
+  ).join('') + `<div data-blank="1" style="width:62px;height:82px;border-radius:7px;cursor:pointer;border:${sel === -1 ? '3px solid #b5651d' : '1px dashed #c9ced6'};display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;line-height:1.35;color:#77808f;background:#fafbfc">空白<br>用原图</div>`;
   $$('#refCells img').forEach(img => img.addEventListener('click', () => {
     manualCell[previewColor] = Number(img.dataset.i);
     refCache.delete(previewColor);
     showRefThumb();
   }));
+  const blank = wrap.querySelector('[data-blank]');
+  if (blank) blank.addEventListener('click', () => {
+    manualCell[previewColor] = -1;
+    refCache.delete(previewColor);
+    showRefThumb();
+  });
 }
 let results = [];            // 已生成
 let running = false;
