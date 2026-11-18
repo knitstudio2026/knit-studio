@@ -205,7 +205,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.23</span>
+      <span class="ver">v7.24</span>
     </div>
   </div>
 
@@ -226,7 +226,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <input type="file" id="file" accept="image/*" class="hidden">
       </div>
 
-      <div class="card">
+      <div class="card hidden" id="targetCard">
+        <h2>② 替换目标图 <em>把衣服替换进这张图</em></h2>
+        <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:8px">上传一张想“套用”的图：别人的爆款图、模特图、场景图都行。生成后人物、背景、光线、构图原样保留，<b>只把产品换成你的衣服</b>。</div>
+        <div class="drop" id="targetDrop">
+          <div id="targetPh" class="ph">点击上传替换目标图</div>
+          <img id="targetPreview" class="hidden" alt="替换目标图">
+          <button class="del hidden" id="targetDel">×</button>
+        </div>
+        <input type="file" id="targetFile" accept="image/*" class="hidden">
+      </div>
+
+      <div class="card" id="recCard">
         <h2>② 识别 <em>按拼多多发布页字段自动填</em></h2>
         <button class="btn ghost" id="recBtn">开始识别</button>
         <div class="timer hidden" id="recTimer"></div>
@@ -241,6 +252,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div class="card">
         <h2>③ 出图设置</h2>
         <div class="row" style="display:block">
+          <label style="margin-bottom:8px;display:block">出图模式</label>
+          <div class="seg" id="modeSeg">
+            <button data-mode="tryon" class="on">模特试穿</button>
+            <button data-mode="replace">AI 替换图</button>
+          </div>
+        </div>
+        <div class="row" id="styleRow" style="display:block">
           <label style="margin-bottom:8px;display:block">出图风格</label>
           <div class="seg" id="styleSeg">
             <button data-style="lifestyle" class="on">生活种草</button>
@@ -258,11 +276,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           </select>
         </div>
         <div class="hint" id="genCost" style="margin-top:2px"></div>
-        <div class="row">
+        <div class="row" id="countRow">
           <label>生成张数<small>按识别出的颜色自动定，不用改</small></label>
           <input type="number" id="count" value="3" min="1" max="12">
         </div>
-        <div class="chk">
+        <div class="chk" id="noAccRow">
           <input type="checkbox" id="noAcc">
           <span>不带小装饰<small>丝带、蕾丝蝴蝶结、胸针等，生成时去掉</small></span>
         </div>
@@ -275,7 +293,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             <div id="refCells" style="display:flex;flex-wrap:wrap;gap:7px"></div>
           </div>
         </div>
-        <div class="chk" style="margin-top:8px">
+        <div class="chk" id="antiRow" style="margin-top:8px">
           <input type="checkbox" id="anti" checked>
           <span>防比价<small>同一模特同一类场景换位置，防同款图搜</small></span>
         </div>
@@ -1086,37 +1104,37 @@ function antiClause() {
 }
 
 /* 出图后再做一次像素级扰动：裁切、轻微旋转、色温/对比/颗粒，专门破坏图搜特征 */
-function postProcess(url) {
+function postProcess(url, soft) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       try {
-        const cropX = 0.03 + Math.random() * 0.08;
-        const cropY = 0.025 + Math.random() * 0.07;
+        const cropX = soft ? 0 : 0.03 + Math.random() * 0.08;
+        const cropY = soft ? 0 : 0.025 + Math.random() * 0.07;
         const sw = img.width * (1 - cropX * 2);
         const sh = img.height * (1 - cropY * 2);
         // 输出尺寸跟随原图，只做轻微随机缩放（防指纹），不再压成固定 1000 宽
-        const outW = Math.max(600, Math.round(sw * (0.92 + Math.random() * 0.06)));
-        const outH = Math.round(outW * (sh / sw)) + Math.floor(Math.random() * 30);
+        const outW = Math.max(600, Math.round(sw * (soft ? 1 : (0.92 + Math.random() * 0.06))));
+        const outH = Math.round(outW * (sh / sw)) + (soft ? 0 : Math.floor(Math.random() * 30));
         const c = document.createElement('canvas');
         c.width = outW; c.height = outH;
         const g = c.getContext('2d');
         g.save();
-        const rot = (Math.random() - 0.5) * 6 * Math.PI / 180;
+        const rot = soft ? 0 : (Math.random() - 0.5) * 6 * Math.PI / 180;
         g.translate(outW / 2, outH / 2);
         g.rotate(rot);
-        if (Math.random() < 0.5) g.scale(-1, 1);
-        const scale = 1.03 + Math.random() * 0.06;
+        if (!soft && Math.random() < 0.5) g.scale(-1, 1);
+        const scale = soft ? 1 : 1.03 + Math.random() * 0.06;
         g.drawImage(img, img.width * cropX, img.height * cropY, sw, sh, -outW * scale / 2, -outH * scale / 2, outW * scale, outH * scale);
         g.restore();
         // 色温 / 明度 / 对比扰动（防比价：每张图的色调亮度都略有不同）
         const d = g.getImageData(0, 0, outW, outH);
         const px = d.data;
-        const warm = (Math.random() - 0.5) * 12;
-        const bright = 14 + Math.random() * 10;
-        const contrast = 1 + (Math.random() - 0.5) * 0.08;
-        const sat = 1 + (Math.random() - 0.5) * 0.06;
-        const grain = 8 + Math.random() * 7;
+        const warm = soft ? 0 : (Math.random() - 0.5) * 12;
+        const bright = soft ? 3 + Math.random() * 5 : 14 + Math.random() * 10;
+        const contrast = 1 + (Math.random() - 0.5) * (soft ? 0.02 : 0.08);
+        const sat = 1 + (Math.random() - 0.5) * (soft ? 0.02 : 0.06);
+        const grain = soft ? 3 + Math.random() * 3 : 8 + Math.random() * 7;
         for (let i = 0; i < px.length; i += 4) {
           let r = px[i], gg = px[i + 1], b = px[i + 2];
           // 饱和度微调
@@ -1301,7 +1319,12 @@ async function callArk(prompt, opts) {
     seed: (batchCtx && batchCtx.seed) || Math.floor(Math.random() * 1e9),
     negative_prompt: NEGATIVE
   };
-  if (productImage) {
+  if (opts && opts.noNeg) delete payload.negative_prompt;
+  if (opts && opts.images && opts.images.length) {
+    payload.image = opts.images;
+  } else if (opts && opts.noRef) {
+    // 纯文字出图，不带参考图
+  } else if (productImage) {
     // 拼图款：每个颜色用它自己选的那一格做参考图；单图就用整张
     const color = opts && opts.color;
     if (color && gridDims.r && (gridDims.rowCols || []).length) {
@@ -1330,12 +1353,12 @@ async function callArk(prompt, opts) {
 
 
 // 生成失败自动重试：最多再试 2 次，避开偶发的接口超时/空图
-async function genImage(prompt, size, color) {
+async function genImage(prompt, size, color, images, noNeg, soft) {
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      let url = await callArk(prompt, { size, color });
-      url = await postProcess(url);
+      let url = await callArk(prompt, { size, color, images, noNeg });
+      url = await postProcess(url, soft);
       return url;
     } catch (e) {
       lastErr = e;
@@ -1661,7 +1684,7 @@ async function runJobs(list, btn) {
     while (next < total) {
       const i = next++;
       try {
-        const url = await genImage(list[i].prompt, list[i].size, list[i].color);
+        const url = await genImage(list[i].prompt, list[i].size, list[i].color, list[i].images, list[i].noNeg, list[i].soft);
         results.unshift({ url, label: list[i].label });
         fresh.push({ url, label: list[i].label });
         renderResults();
@@ -1798,9 +1821,127 @@ function renderColorChips() {
   updPriceHint();
 }
 
+/* ================= AI 替换图 ================= */
+let genMode = 'tryon';
+let targetImage = null;
+
+const REPLACE_MAIN = '这是两张参考图。图1是我的产品实拍：一件针织毛衣。图2是一张现成的商品/模特图。请把图2里的服装完整替换成图1这件毛衣：版型、颜色和渐变、面料纹理与毛感、纽扣数量和位置、口袋、领口袖口下摆的罗纹、衣长，必须和图1完全一致，100% 还原，不得改款改色。图2里的人物、脸部、发型、身体姿态、手部、背景、光线、镜头角度、构图、画面比例全部原样保留，只替换服装本身；替换处边缘自然贴合，没有拼接感、没有重影、没有色差断层。成片真实自然，像真实拍摄，明亮干净。';
+
+const REPLACE_DETAILS = [
+  { label: '领口细节', text: '领口和门襟的细节特写，能看清针织纹理、罗纹收边和第一颗纽扣' },
+  { label: '纽扣细节', text: '纽扣和口袋的细节特写，纽扣数量、形状、颜色、缝法清晰可见' },
+  { label: '袖口细节', text: '袖口罗纹和下摆收边的细节特写，能看清收边针法和面料厚度' },
+  { label: '面料纹理', text: '面料质感的极近特写，能看清纱线粗细、毛绒感、针织密度和针法走向' }
+];
+
+function detailPrompt(text) {
+  return `参考图1是我的产品实拍：一件针织毛衣。请生成这件毛衣的细节特写：${text}。颜色、渐变、面料纹理、毛感、针脚密度必须和图1完全一致，100% 还原，不得改款改色。浅景深，背景干净虚化，明亮柔和的自然光，真实摄影质感，高清。无水印、无文字、无logo。`;
+}
+
+// 替换图按目标图的比例出图，避免人物被拉变形
+function replaceSize() {
+  const img = $('#targetPreview');
+  const r = (img.naturalWidth || 3) / (img.naturalHeight || 4);
+  const base = { std: 1024, hd: 1280, big: 1312, ultra: 1365 }[settings.quality] || 1024;
+  const cands = [[3, 4], [4, 3], [1, 1], [9, 16], [16, 9]];
+  let best = cands[0], bd = 1e9;
+  for (const c of cands) {
+    const d = Math.abs(Math.log(r / (c[0] / c[1])));
+    if (d < bd) { bd = d; best = c; }
+  }
+  const [a, b] = best;
+  return `${a >= b ? Math.round(base * a / b) : base}x${b > a ? Math.round(base * b / a) : base}`;
+}
+
+async function replaceRef() {
+  if (gridDims.r && (gridDims.rowCols || []).length) {
+    const c = previewColor || recColors[0] || '';
+    if (c) {
+      const r = await refForColor(c);
+      if (r) return r;
+    }
+  }
+  return productImageCrop || productImage;
+}
+
+async function makeReplaceJobs(n, from) {
+  const ref = await replaceRef();
+  const size = replaceSize();
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const k = from + i;
+    if (k === 0) {
+      out.push({ prompt: REPLACE_MAIN, label: '替换主图', size, images: [ref, targetImage], noNeg: true, soft: true });
+    } else {
+      const d = REPLACE_DETAILS[(k - 1) % REPLACE_DETAILS.length];
+      out.push({ prompt: detailPrompt(d.text), label: d.label, size, images: [ref], noNeg: true, soft: true });
+    }
+  }
+  return out;
+}
+
+function applyMode() {
+  const rep = genMode === 'replace';
+  $('#targetCard').classList.toggle('hidden', !rep);
+  $('#recCard').classList.toggle('hidden', rep);
+  $('#styleRow').style.display = rep ? 'none' : 'block';
+  $('#countRow').style.display = rep ? 'none' : '';
+  $('#noAccRow').style.display = rep ? 'none' : '';
+  $('#antiRow').style.display = rep ? 'none' : '';
+  $('#accList').style.display = rep ? 'none' : '';
+  $('#genBtn').textContent = rep ? '生成替换图（1 张）' : '生成预览（1 张）';
+  $('#tip').textContent = rep
+    ? '先出 1 张替换主图，看衣服像不像、边缘自不自然；满意再点「继续生成剩余」，会出 4 张细节图。'
+    : '提示：第一张满意再继续，不满意就重出预览，不浪费额度。';
+}
+
+$$('#modeSeg button').forEach(b => b.addEventListener('click', () => {
+  $$('#modeSeg button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  genMode = b.dataset.mode;
+  applyMode();
+}));
+
+$('#targetDrop').addEventListener('click', (e) => {
+  if (e.target.id === 'targetDel') return;
+  $('#targetFile').click();
+});
+$('#targetDel').addEventListener('click', (e) => {
+  e.stopPropagation();
+  targetImage = null;
+  $('#targetPreview').classList.add('hidden');
+  $('#targetPh').classList.remove('hidden');
+  $('#targetDel').classList.add('hidden');
+});
+$('#targetFile').addEventListener('change', () => {
+  const f = $('#targetFile').files && $('#targetFile').files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    compressImage(reader.result).then((url) => {
+      targetImage = url;
+      $('#targetPreview').src = url;
+      $('#targetPreview').classList.remove('hidden');
+      $('#targetPh').classList.add('hidden');
+      $('#targetDel').classList.remove('hidden');
+    });
+  };
+  reader.readAsDataURL(f);
+});
+
 $('#genBtn').addEventListener('click', async () => {
   if (!productImage) { toast('先上传一张商品图'); return; }
   if (!settings.apiKey) { toast('先去「设置」里填火山方舟 API Key'); return; }
+  if (genMode === 'replace') {
+    if (!targetImage) { toast('先上传替换目标图'); return; }
+    batchTotal = 5;
+    batchProduced = 0;
+    const start = results.length;
+    await runJobs(await makeReplaceJobs(1, 0), $('#genBtn'));
+    batchProduced = results.slice(start).filter(x => x.url).length;
+    updateRestBtn();
+    return;
+  }
   if (recColors.length) {
     const first = previewColor || recColors[0];
     genColors = [first].concat(recColors.filter(c => c !== first));
@@ -1825,7 +1966,11 @@ $('#restBtn').addEventListener('click', async () => {
   const remain = batchTotal - batchProduced;
   if (remain <= 0) { toast('已经出完了'); return; }
   const start = results.length;
-  await runJobs(makeJobs(remain, genColors, batchProduced), $('#restBtn'));
+  if (genMode === 'replace') {
+    await runJobs(await makeReplaceJobs(remain, batchProduced), $('#restBtn'));
+  } else {
+    await runJobs(makeJobs(remain, genColors, batchProduced), $('#restBtn'));
+  }
   batchProduced += results.slice(start).filter(x => x.url).length;
   updateRestBtn();
 });
