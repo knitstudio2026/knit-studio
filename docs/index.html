@@ -205,7 +205,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.25</span>
+      <span class="ver">v7.26</span>
     </div>
   </div>
 
@@ -267,12 +267,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           </div>
         </div>
         <div class="row">
-          <label>出图清晰度<small>261万像素以内都是 0.30 元/张</small></label>
+          <label>出图清晰度<small>按拼多多主图规格出，上传不会被压得太狠</small></label>
           <select id="quality">
-            <option value="std">1024×1536 · 157万像素 · 快</option>
-            <option value="hd">1280×1920 · 246万像素 · 0.30 元</option>
-            <option value="big">1312×1968 · 258万像素 · 0.30 元</option>
-            <option value="ultra">1365×2048 · 280万像素 · 0.60 元</option>
+            <option value="std">1024×1536 · 157万像素 · 约 0.13 元 · 拼多多够用（推荐）</option>
+            <option value="hd">1280×1920 · 246万像素 · 约 0.18 元</option>
+            <option value="big">1312×1968 · 258万像素 · 约 0.18 元</option>
+            <option value="ultra">1365×2048 · 280万像素 · 约 0.23 元</option>
           </select>
         </div>
         <div class="hint" id="genCost" style="margin-top:2px"></div>
@@ -396,23 +396,23 @@ const KEY = 'ks2.settings';
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; }
 }
-let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-5-261028', visionModel: 'doubao-seed-2-1-pro-260915', copyModel: 'kimi-k3-1-pro-261024', quality: 'big' }, loadSettings());
+let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-5-261028', visionModel: 'doubao-seed-2-1-pro-260915', copyModel: 'kimi-k3-1-pro-261024', quality: 'std' }, loadSettings());
 if (!settings.imageModel || /seedream-4-0|seedream-3-0|seedream-5-0/.test(settings.imageModel)) {
   settings.imageModel = 'doubao-seedream-5-5-261028';
   try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
 }
 if (!settings.visionModel) settings.visionModel = 'doubao-seed-2-1-pro-260915';
 if (!settings.copyModel) settings.copyModel = 'kimi-k3-1-pro-261024';
-if (!settings.quality) settings.quality = 'big';
-// 老版本默认是 157 万像素，一次性升到 258 万像素（同样 0.30 元一档）
-if (!settings.pixVer) {
-  settings.pixVer = 1;
-  settings.quality = 'big';
+if (!settings.quality) settings.quality = 'std';
+// 拼多多主图 800×800 起，1024 宽足够；一次性把默认从 258 万降到 157 万，省钱且不压画质
+if (!settings.pddVer) {
+  settings.pddVer = 1;
+  settings.quality = 'std';
   try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
 }
 const QUALITY_SIZE = { std: '1024x1536', hd: '1280x1920', big: '1312x1968', ultra: '1365x2048' };
 // Seedream 5.5：输出图按像素档位 0.13-0.23 元/张，参考图另计 0.05 元/张
-const QUALITY_PRICE = { std: 0.13, hd: 0.18, big: 0.23, ultra: 0.23 };
+const QUALITY_PRICE = { std: 0.13, hd: 0.18, big: 0.18, ultra: 0.23 };
 const INPUT_IMG_PRICE = 0.05;
 function outSize(ratio) {
   // ratio: '3:4' 或 '4:3'；按清晰度档位换算，保持主体比例不变
@@ -427,7 +427,7 @@ function fillSettings() {
   $('#visionModel').value = settings.visionModel || 'doubao-seed-2-1-pro-260915';
   $('#copyModel').value = settings.copyModel || 'kimi-k3-1-pro-261024';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
-  $('#quality').value = settings.quality || 'big';
+  $('#quality').value = settings.quality || 'std';
   updPriceHint();
 }
 // 每档清晰度标出像素和单价，随时知道这批要花多少钱
