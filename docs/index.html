@@ -205,7 +205,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.24</span>
+      <span class="ver">v7.25</span>
     </div>
   </div>
 
@@ -335,7 +335,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div class="row">
           <label>生图模型</label>
-          <input type="text" id="imageModel" value="doubao-seedream-5-0-pro-260628">
+          <input type="text" id="imageModel" value="doubao-seedream-5-5-261028">
         </div>
         <div class="row">
           <label>识别模型</label>
@@ -396,8 +396,11 @@ const KEY = 'ks2.settings';
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { return {}; }
 }
-let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-0-pro-260628', visionModel: 'doubao-seed-2-1-pro-260915', copyModel: 'kimi-k3-1-pro-261024', quality: 'big' }, loadSettings());
-if (!settings.imageModel || /seedream-4-0|seedream-3-0/.test(settings.imageModel)) settings.imageModel = 'doubao-seedream-5-0-pro-260628';
+let settings = Object.assign({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', imageModel: 'doubao-seedream-5-5-261028', visionModel: 'doubao-seed-2-1-pro-260915', copyModel: 'kimi-k3-1-pro-261024', quality: 'big' }, loadSettings());
+if (!settings.imageModel || /seedream-4-0|seedream-3-0|seedream-5-0/.test(settings.imageModel)) {
+  settings.imageModel = 'doubao-seedream-5-5-261028';
+  try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
+}
 if (!settings.visionModel) settings.visionModel = 'doubao-seed-2-1-pro-260915';
 if (!settings.copyModel) settings.copyModel = 'kimi-k3-1-pro-261024';
 if (!settings.quality) settings.quality = 'big';
@@ -408,7 +411,9 @@ if (!settings.pixVer) {
   try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (_) {}
 }
 const QUALITY_SIZE = { std: '1024x1536', hd: '1280x1920', big: '1312x1968', ultra: '1365x2048' };
-const QUALITY_PRICE = { std: 0.30, hd: 0.30, big: 0.30, ultra: 0.60 };
+// Seedream 5.5：输出图按像素档位 0.13-0.23 元/张，参考图另计 0.05 元/张
+const QUALITY_PRICE = { std: 0.13, hd: 0.18, big: 0.23, ultra: 0.23 };
+const INPUT_IMG_PRICE = 0.05;
 function outSize(ratio) {
   // ratio: '3:4' 或 '4:3'；按清晰度档位换算，保持主体比例不变
   const q = QUALITY_SIZE[settings.quality] || QUALITY_SIZE.std;
@@ -418,7 +423,7 @@ function outSize(ratio) {
 }
 function fillSettings() {
   $('#apiKey').value = settings.apiKey || '';
-  $('#imageModel').value = settings.imageModel || 'doubao-seedream-5-0-pro-260628';
+  $('#imageModel').value = settings.imageModel || 'doubao-seedream-5-5-261028';
   $('#visionModel').value = settings.visionModel || 'doubao-seed-2-1-pro-260915';
   $('#copyModel').value = settings.copyModel || 'kimi-k3-1-pro-261024';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
@@ -430,10 +435,10 @@ function updPriceHint() {
   const q = $('#quality').value || 'big';
   const [w, h] = (QUALITY_SIZE[q] || QUALITY_SIZE.big).split('x').map(Number);
   const px = w * h;
-  const per = QUALITY_PRICE[q] || 0.30;
+  const per = QUALITY_PRICE[q] || 0.23;
   const n = Math.max(1, recColors.length ? recColors.length : (Number($('#count').value) || 1));
   const gc = $('#genCost');
-  if (gc) gc.innerHTML = `清晰度 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素）· ${per.toFixed(2)} 元/张 · 这批 ${n} 张约 <b>${(per * n).toFixed(2)} 元</b>`;
+  if (gc) gc.innerHTML = `清晰度 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素）· 约 ${per.toFixed(2)} 元/张（参考图另计 ${INPUT_IMG_PRICE.toFixed(2)} 元/张）· 这批 ${n} 张约 <b>${((per + INPUT_IMG_PRICE) * n).toFixed(2)} 元起</b>`;
 }
 $('#quality').addEventListener('change', () => {
   settings.quality = $('#quality').value || 'big';
