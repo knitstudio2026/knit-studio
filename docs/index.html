@@ -205,7 +205,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.28</span>
+      <span class="ver">v7.29</span>
     </div>
   </div>
 
@@ -273,6 +273,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             <option value="hd">1280×1920 · 246万像素 · 约 0.18 元</option>
             <option value="big">1312×1968 · 258万像素 · 约 0.18 元</option>
             <option value="ultra">1365×2048 · 280万像素 · 约 0.23 元</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>主图角标<small>生成后直接印在图片右下角，冬季加绒款提点击</small></label>
+          <select id="badge">
+            <option value="">不加</option>
+            <option value="加绒加厚">加绒加厚</option>
+            <option value="加厚加绒">加厚加绒</option>
+            <option value="加绒">加绒</option>
+            <option value="加厚">加厚</option>
           </select>
         </div>
         <div class="hint" id="genCost" style="margin-top:2px"></div>
@@ -428,6 +438,7 @@ function fillSettings() {
   $('#copyModel').value = settings.copyModel || 'kimi-k3-1-pro-261024';
   $('#baseUrl').value = settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
   $('#quality').value = settings.quality || 'std';
+  $('#badge').value = settings.badge || '';
   updPriceHint();
 }
 // 每档清晰度标出像素和单价，随时知道这批要花多少钱
@@ -446,6 +457,10 @@ $('#quality').addEventListener('change', () => {
   updPriceHint();
 });
 $('#count').addEventListener('input', updPriceHint);
+$('#badge').addEventListener('change', () => {
+  settings.badge = $('#badge').value;
+  localStorage.setItem(KEY, JSON.stringify(settings));
+});
 $('#saveBtn').addEventListener('click', () => {
   settings.apiKey = $('#apiKey').value.trim();
   settings.imageModel = $('#imageModel').value.trim();
@@ -453,6 +468,7 @@ $('#saveBtn').addEventListener('click', () => {
   settings.copyModel = $('#copyModel').value.trim();
   settings.baseUrl = $('#baseUrl').value.trim().replace(/\/$/, '');
   settings.quality = $('#quality').value || 'big';
+  settings.badge = $('#badge').value;
   localStorage.setItem(KEY, JSON.stringify(settings));
   updPriceHint();
   toast('已保存');
@@ -1154,6 +1170,38 @@ function postProcess(url, soft) {
           px[i] = r + n; px[i + 1] = gg + n; px[i + 2] = b + n;
         }
         g.putImageData(d, 0, 0);
+        // 角标：加绒加厚等卖点直接印在右下角，不靠模型写字（模型写中文容易糊）
+        const badge = (settings.badge || '').trim();
+        if (badge) {
+          const fs = Math.round(outW * 0.062);
+          g.font = `bold ${fs}px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif`;
+          const tw = g.measureText(badge).width;
+          const padX = fs * 0.55, padY = fs * 0.36;
+          const bw = tw + padX * 2, bh = fs + padY * 2;
+          const m = Math.round(outW * 0.045);
+          const x = outW - bw - m, y = outH - bh - m;
+          const r = bh * 0.26;
+          g.save();
+          g.shadowColor = 'rgba(0,0,0,.3)';
+          g.shadowBlur = fs * 0.25;
+          g.shadowOffsetY = fs * 0.1;
+          const grad = g.createLinearGradient(x, y, x, y + bh);
+          grad.addColorStop(0, '#ff5c3c');
+          grad.addColorStop(1, '#d82b12');
+          g.fillStyle = grad;
+          g.beginPath();
+          g.moveTo(x + r, y);
+          g.lineTo(x + bw - r, y); g.quadraticCurveTo(x + bw, y, x + bw, y + r);
+          g.lineTo(x + bw, y + bh - r); g.quadraticCurveTo(x + bw, y + bh, x + bw - r, y + bh);
+          g.lineTo(x + r, y + bh); g.quadraticCurveTo(x, y + bh, x, y + bh - r);
+          g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y);
+          g.closePath(); g.fill();
+          g.restore();
+          g.fillStyle = '#fff';
+          g.textAlign = 'center';
+          g.textBaseline = 'middle';
+          g.fillText(badge, x + bw / 2, y + bh / 2 + fs * 0.03);
+        }
         resolve(c.toDataURL('image/jpeg', 0.92));
       } catch (_) {
         resolve(url);
