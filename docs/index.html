@@ -205,7 +205,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.26</span>
+      <span class="ver">v7.27</span>
     </div>
   </div>
 
@@ -277,7 +277,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div class="hint" id="genCost" style="margin-top:2px"></div>
         <div class="row" id="countRow">
-          <label>生成张数<small>按识别出的颜色自动定，不用改</small></label>
+          <label>生成张数<small>没识别出颜色时用；识别出颜色时每个颜色自动 2~3 张</small></label>
           <input type="number" id="count" value="3" min="1" max="12">
         </div>
         <div class="chk" id="noAccRow">
@@ -436,7 +436,7 @@ function updPriceHint() {
   const [w, h] = (QUALITY_SIZE[q] || QUALITY_SIZE.big).split('x').map(Number);
   const px = w * h;
   const per = QUALITY_PRICE[q] || 0.23;
-  const n = Math.max(1, recColors.length ? recColors.length : (Number($('#count').value) || 1));
+  const n = recColors.length ? Math.round(recColors.length * 2.5) : Math.max(1, Number($('#count').value) || 3);
   const gc = $('#genCost');
   if (gc) gc.innerHTML = `清晰度 <b>${w}×${h}</b>（${(px / 10000).toFixed(0)} 万像素）· 约 ${per.toFixed(2)} 元/张（参考图另计 ${INPUT_IMG_PRICE.toFixed(2)} 元/张）· 这批 ${n} 张约 <b>${((per + INPUT_IMG_PRICE) * n).toFixed(2)} 元起</b>`;
 }
@@ -1890,13 +1890,13 @@ function applyMode() {
   $('#targetCard').classList.toggle('hidden', !rep);
   $('#recCard').classList.toggle('hidden', rep);
   $('#styleRow').style.display = rep ? 'none' : 'block';
-  $('#countRow').style.display = rep ? 'none' : '';
+  $('#countRow').style.display = (rep || recColors.length) ? 'none' : '';
   $('#noAccRow').style.display = rep ? 'none' : '';
   $('#antiRow').style.display = rep ? 'none' : '';
   $('#accList').style.display = rep ? 'none' : '';
   $('#genBtn').textContent = rep ? '生成替换图（1 张）' : '生成预览（1 张）';
   $('#tip').textContent = rep
-    ? '先出 1 张替换主图，看衣服像不像、边缘自不自然；满意再点「继续生成剩余」，会出 4 张细节图。'
+    ? '先出 1 张替换主图，看衣服像不像、边缘自不自然；满意再点「继续生成剩余」，会再出 1~2 张细节图。'
     : '提示：第一张满意再继续，不满意就重出预览，不浪费额度。';
 }
 
@@ -1939,7 +1939,8 @@ $('#genBtn').addEventListener('click', async () => {
   if (!settings.apiKey) { toast('先去「设置」里填火山方舟 API Key'); return; }
   if (genMode === 'replace') {
     if (!targetImage) { toast('先上传替换目标图'); return; }
-    batchTotal = 5;
+    // 替换模式：1 张主图 + 随机 1~2 张细节图，一个颜色共 2~3 张
+    batchTotal = 2 + Math.floor(Math.random() * 2);
     batchProduced = 0;
     const start = results.length;
     await runJobs(await makeReplaceJobs(1, 0), $('#genBtn'));
@@ -1949,11 +1950,17 @@ $('#genBtn').addEventListener('click', async () => {
   }
   if (recColors.length) {
     const first = previewColor || recColors[0];
-    genColors = [first].concat(recColors.filter(c => c !== first));
+    const ordered = [first].concat(recColors.filter(c => c !== first));
+    // 每个颜色随机 2~3 张，避免颜色多的时候一次出太多
+    genColors = [];
+    ordered.forEach(c => {
+      const t = 2 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < t; i++) genColors.push(c);
+    });
     batchTotal = genColors.length;
   } else {
     genColors = [''];
-    batchTotal = Math.max(1, Number($('#count').value) || 1);
+    batchTotal = 2 + Math.floor(Math.random() * 2);
   }
   batchProduced = 0;
   // 同一款不换场景组/模特，只有换图上传时才会重抽；点重出只是换机位和姿势
@@ -2003,6 +2010,7 @@ $('#file').addEventListener('change', () => {
       recData = null;
       recColors = [];
       previewColor = '';
+      $('#countRow').style.display = genMode === 'replace' ? 'none' : '';
       gridDims = { r: 0, rowCols: [], colors: [], cellOf: {} };
       manualCell = {}; cellKey = ''; refCache.clear();
       $('#colorWrap').classList.add('hidden');
@@ -2795,6 +2803,7 @@ async function recognize() {
       if (one) recColors = [one];
     }
     if (recColors.length) {
+      $('#countRow').style.display = 'none';
       $('#count').value = recColors.length;
       previewColor = recColors[0];
       renderColorChips();
