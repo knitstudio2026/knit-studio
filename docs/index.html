@@ -205,7 +205,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.31</span>
+      <span class="ver">v7.32</span>
     </div>
   </div>
 
@@ -320,9 +320,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div class="btn-row" id="saveRow" style="display:none;margin-top:12px">
         <button class="btn" id="saveAllBtn">保存到手机相册</button>
         <button class="btn ghost" id="zipBtn">打包下载 zip</button>
+        <button class="btn accent" id="kitBtn">导出拼多多上架包</button>
         <button class="btn ghost" id="libSaveBtn">存到素材库</button>
       </div>
       <div class="hint" style="text-align:center;margin-top:6px">「保存到手机相册」会弹出系统分享面板，选「保存图像/保存到相册」才会进图库；没这个选项就点每张图上的「保存」，或长按图片保存。</div>
+      <div class="hint" style="text-align:center;margin-top:2px">「导出拼多多上架包」会把图排好：1:1 主图（1000）、SKU 方图、750 宽详情图和详情长图，外加标题、详情文案、SKU 表，直接配后台批量发布用。</div>
     </section>
 
     <!-- ============ 素材库 ============ -->
@@ -1602,6 +1604,153 @@ $('#zipBtn').addEventListener('click', async () => {
     toast('已打包下载，解压后就是原图', 3000);
   } catch (e) {
     toast('打包失败：' + e.message, 4200);
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+});
+
+
+/* ================= 拼多多上架包：1:1 主图 + SKU 方图 + 750 详情图 + 详情长图 + 文案/SKU 表 ================= */
+function loadImgEl(src) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error('图片读取失败'));
+    im.src = src;
+  });
+}
+function kitName(s) {
+  return String(s || '').replace(/[\\/:*?"<>|\s]+/g, '') || '商品';
+}
+// 竖图从顶部裁方形，保住头部；横图居中裁
+async function squareJpeg(url, side) {
+  const im = await loadImgEl(url);
+  const s = Math.min(im.naturalWidth, im.naturalHeight);
+  const sx = Math.round((im.naturalWidth - s) / 2);
+  const sy = im.naturalHeight > im.naturalWidth ? 0 : Math.round((im.naturalHeight - s) / 2);
+  const c = document.createElement('canvas');
+  c.width = side; c.height = side;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, side, side);
+  g.drawImage(im, sx, sy, s, s, 0, 0, side, side);
+  return c.toDataURL('image/jpeg', 0.92);
+}
+async function widthJpeg(url, w) {
+  const im = await loadImgEl(url);
+  const h = Math.max(1, Math.round(w * im.naturalHeight / im.naturalWidth));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
+  g.drawImage(im, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.9);
+}
+async function stackJpeg(urls, w) {
+  const ims = [];
+  for (const u of urls) ims.push(await loadImgEl(u));
+  const hs = ims.map(im => Math.max(1, Math.round(w * im.naturalHeight / im.naturalWidth)));
+  const total = hs.reduce((a, b) => a + b, 0);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = Math.min(total, 20000);
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  let y = 0;
+  for (let i = 0; i < ims.length; i++) {
+    if (y >= c.height) break;
+    g.drawImage(ims[i], 0, y, w, hs[i]);
+    y += hs[i];
+  }
+  return c.toDataURL('image/jpeg', 0.9);
+}
+function fieldVal(k) {
+  const el = $('#recFields [data-k="' + k + '"]');
+  if (el && el.value) return el.value.trim();
+  return recData ? valText(recData[k]).trim() : '';
+}
+function csvCell(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function zipAddImg(zip, path, dataUrl) {
+  const b = dataUrlToBlob(dataUrl);
+  if (b) zip.file(path, b);
+}
+
+$('#kitBtn').addEventListener('click', async () => {
+  const ok = results.filter(r => r.url);
+  if (!ok.length) { toast('还没有生成好的图'); return; }
+  const btn = $('#kitBtn');
+  const old = btn.textContent;
+  btn.disabled = true;
+  try {
+    const zip = new JSZip();
+    const colors = [];
+    const byColor = {};
+    ok.forEach((r) => {
+      const c = kitName(r.label || '商品');
+      if (!byColor[c]) { byColor[c] = []; colors.push(c); }
+      byColor[c].push(r.url);
+    });
+
+    let n = 0;
+    for (const c of colors) {
+      const list = byColor[c];
+      // 1:1 主图（拼多多主图必须正方形，竖图从顶部裁）
+      for (let i = 0; i < Math.min(list.length, 3); i++) {
+        zipAddImg(zip, `01_主图/主图_${c}_${i + 1}.jpg`, await squareJpeg(list[i], 1000));
+        btn.textContent = `整理主图 ${++n}…`;
+      }
+      // SKU 小方图
+      zipAddImg(zip, `02_SKU方图/SKU_${c}.jpg`, await squareJpeg(list[0], 600));
+      // 详情图（宽 750）
+      for (let i = 0; i < list.length; i++) {
+        zipAddImg(zip, `03_详情图/详情_${c}_${i + 1}.jpg`, await widthJpeg(list[i], 750));
+      }
+      // 详情长图
+      zipAddImg(zip, `04_详情长图/详情长图_${c}.jpg`, await stackJpeg(list, 750));
+      btn.textContent = `整理详情 ${++n}…`;
+    }
+
+    const title = fieldVal('title') || '（标题没填）';
+    const desc = fieldVal('description') || '（详情没填）';
+    const sizes = (fieldVal('sizes') || '均码').split(/[,，/、\s]+/).filter(Boolean);
+    const priceRaw = fieldVal('price').replace(/[^\d.]/g, '');
+    const price = priceRaw || '';
+
+    zip.file('标题.txt', '\ufeff' + title);
+    zip.file('详情文案.txt', '\ufeff' + desc);
+    zip.file('上架信息.txt', '\ufeff' + PDD_FIELDS.map(([k, label]) =>
+      label + '：' + fieldVal(k)).join('\n') + '\n\n标题：' + title + '\n\n详情：\n' + desc);
+
+    const rows = [['颜色', '尺码', '价格', '库存', '商品编码'].join(',')];
+    colors.forEach((c) => {
+      sizes.forEach((s) => {
+        rows.push([csvCell(c), csvCell(s), csvCell(price), '100', csvCell(c + '-' + s)].join(','));
+      });
+    });
+    zip.file('SKU表.csv', '\ufeff' + rows.join('\n'));
+
+    zip.file('使用说明.txt', '\ufeff' +
+      '1. 01_主图 是 1000x1000 正方形，拼多多主图位直接传（可传 3~5 张，按顺序）。\n' +
+      '2. 02_SKU方图 是每个颜色一张 1:1 小图，填 SKU 颜色图时用。\n' +
+      '3. 03_详情图 是宽 750 的单张详情图，04_详情长图 是把同色图竖着拼好的长图，二选一上传。\n' +
+      '4. SKU表.csv 用 Excel 打开，按实际库存和价格改完，再往拼多多批量发布模板里粘。\n' +
+      '5. 同款多店：标题和详情每个店重新点「识别」或「重写标题详情」，图片重新生成，不要复用同一份包。\n');
+
+    btn.textContent = '正在打包…';
+    const content = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    const u = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = u;
+    a.download = `拼多多上架包_${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 60000);
+    toast(`上架包已导出：${colors.length} 个颜色、${ok.length} 张图`, 3600);
+  } catch (e) {
+    toast('导出失败：' + (e.message || e), 4600);
   } finally {
     btn.disabled = false; btn.textContent = old;
   }
