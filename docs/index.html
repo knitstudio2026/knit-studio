@@ -205,7 +205,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.32</span>
+      <span class="ver">v7.33</span>
     </div>
   </div>
 
@@ -566,6 +566,21 @@ const LIGHTS = [
   '纱帘柔化后的明亮日光，光线柔和发亮，整体清爽通透，人物白皙'
 ];
 const LENSES = ['85mm f/2.0', '85mm f/1.8', '50mm f/2.8', '85mm f/2.8'];
+
+/* 爆款模板：书窗半身近景（已验证卖动的那一组同款气质），按概率优先复用 */
+const HOT_SPOTS = [
+  '同一家明亮独立书店的靠窗阅读区：整面浅木书架和成排书脊，左侧大玻璃窗透进明亮日光，浅木窗台和木桌，背景轻微虚化',
+  '同一家书店的窗边过道：两侧是通顶浅木书架，地面旧木地板，窗外明亮日光从一侧照进来，画面通透不发暗',
+  '同一家书店的木质长桌前：桌面干净只放几本书，身后是整面书墙和一扇大窗，白天自然光充足',
+  '同一家书店的咖啡角：小圆木桌和窗边座位，桌上只放一本书，背景是书架和一扇透光的窗'
+];
+const HOT_LIGHT = '白天大窗户的自然光从画面一侧照进来，光线柔和但有方向，人物脸和衣服正面明亮通透，面部有从亮到暗的自然过渡，背景明亮不发灰不发黄';
+const HOT_POSES = [
+  '正面朝镜头，身体略微侧转，一只手在胸前下方捧一杯带盖的外带纸杯咖啡，杯子只在画面下沿露出上半部分，另一只手自然垂放，肩颈放松',
+  '正面朝镜头，头微微偏向一侧，双手自然垂在身侧，嘴角自然带笑，姿态松弛像被朋友随手拍到',
+  '身体侧转约 20 度、脸转向镜头，一只手拿纸杯咖啡放在腰侧，另一只手自然垂放',
+  '正面朝镜头，一只手轻搭在同侧腰侧，另一只手自然垂放，肩膀放松不耸肩'
+];
 
 
 
@@ -1211,7 +1226,7 @@ function postProcess(url, soft) {
 }
 
 /* ================= 提示词 ================= */
-function garmentClause(studio) {
+function garmentClause(studio, hot) {
   const d = recData && recData.garmentDetail;
   let core = GARMENT_BASE;
   if (d && typeof d === 'object') {
@@ -1248,7 +1263,9 @@ function garmentClause(studio) {
   }
   const hand = studio
     ? '手部按场景描述拿小道具（复古相机、牛皮纸袋、干花、小号手提包，或比耶手势），道具始终放在腰侧或身体一侧，绝不抱在胸前、绝不遮挡门襟、纽扣和胸口图案；空着的那只手自然下垂或轻搭腰侧'
-    : '手部状态：举手机自拍的姿势按姿势描述拿手机（手机挡脸或挡半张脸都可以），其余姿势两种状态二选一——要么双手自然垂在身侧，要么一只手插在裤袋里，绝不出现手扶栏杆或手撑墙；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸（自拍拿手机的手除外），空着的那只手放在身侧、腿上或口袋里';
+    : (hot
+      ? '手部按姿势描述拿道具：最多一只手拿道具，手和道具必须放在胸前下方或腰侧，绝不抱在胸前、绝不遮挡门襟、纽扣和胸口图案；空着的那只手自然下垂或轻搭腰侧，绝不出现手扶栏杆或手撑墙'
+      : '手部状态：举手机自拍的姿势按姿势描述拿手机（手机挡脸或挡半张脸都可以），其余姿势两种状态二选一——要么双手自然垂在身侧，要么一只手插在裤袋里，绝不出现手扶栏杆或手撑墙；正面对齐门襟，双手不要抱在胸前、不要捧杯子/抱枕/书挡在身前、不要托腮或撑脸（自拍拿手机的手除外），空着的那只手放在身侧、腿上或口袋里');
   const btnOpen = Math.random() < 0.5;
   const btnState = btnOpen
     ? '门襟状态：完全敞开，所有纽扣一颗都不扣，左右两片门襟自然向两侧分开，露出里面一件浅色的基础打底；门襟上的纽扣要全部完整可见'
@@ -1260,7 +1277,7 @@ function garmentClause(studio) {
 }
 
 function buildPrompt(opts) {
-  const { style, color, noAcc, accList, anti, identity, pose, scene, light, studio, lens, acc } = opts;
+  const { style, color, noAcc, accList, anti, identity, pose, scene, light, studio, lens, acc, hot } = opts;
   // 颜色完全照参考图，不写颜色名，不加任何限制，参考图是什么样就生成什么样
   const colorNote = '衣服颜色100%照参考图还原：色相、明度、饱和度一点都不能改，不能有色差；参考图是纯色就生成纯色，参考图有渐变就照参考图的渐变方向和颜色生成，参考图是拼色就照参考图的拼色位置和颜色生成，参考图有图案就照参考图的图案，完全复刻参考图的颜色分布，不许自己加、自己改、自己减';
   const noAccNote = noAcc ? `。衣服上不要出现${accList || '丝带、蕾丝蝴蝶结、胸针等装饰'}，只保留衣服本体` : '';
@@ -1277,7 +1294,11 @@ function buildPrompt(opts) {
     .replace('__LIGHT__', light)
     .replace(/__LENS__/g, lens || '50mm f/2.0');
   if (style === 'whitebg') {
-    return `参考图1是一件针织毛衣的实拍图。${garmentClause(false)}。请生成一张照片：一位模特穿着参考图1这件毛衣，全身站姿，自然站立、双手自然垂放，正面看向镜头。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${bottomNote}${noAccNote}。${photo}。无水印、无文字、无logo。`;
+    return `参考图1是一件针织毛衣的实拍图。${garmentClause(false, false)}。请生成一张照片：一位模特穿着参考图1这件毛衣，全身站姿，自然站立、双手自然垂放，正面看向镜头。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${bottomNote}${noAccNote}。${photo}。无水印、无文字、无logo。`;
+  }
+  if (hot) {
+    const hotPhoto = PHOTO_LIFE.replace('__LIGHT__', light).replace(/__LENS__/g, lens || '85mm f/2.0');
+    return `参考图1是一件针织毛衣的实拍图。${garmentClause(false, true)}。请生成一张照片：一位模特穿着参考图1这件毛衣，${pose}。场景：${scene}。模特：${identity}；${FACE_QUALITY}。${colorNote}${keep}${bottomNote}${noAccNote}${addNote}。${hotPhoto}。局部特写补充：竖构图 3:4 半身近景，从头顶拍到大腿中部，毛衣占画面 70%~80%，脸部居中偏上、头顶留出约一拳空间，背景轻微虚化但有真实书架/窗框/绿植层次。无水印、无文字、无logo。`;
   }
   const antiNote = anti ? `。${antiClause()}` : '';
   const compNote = anti ? '' : `。机位${rand(ANTI_ANGLE)}，构图${rand(ANTI_FRAME)}`;
@@ -1436,17 +1457,21 @@ function makeJobs(n, colors, from) {
   const accList = $('#accList').value.trim();
   const anti = $('#anti').checked;
   if (!batchCtx) {
-    const group = pickSceneGroup();
+    // 爆款模板：已验证卖动的那组「书店窗边 + 半身近景 + 柔光」优先复用，留四成随机换场景防同质化
+    const hot = style === 'lifestyle' && !anti && Math.random() < 0.6;
+    const group = hot ? { name: '爆款书店窗边', spots: HOT_SPOTS } : pickSceneGroup();
+    const hotFaces = IDENTITIES.filter((s) => /软糯|梨系|初恋|元气|温婉|知性/.test(s));
     batchCtx = {
-      identity: rand(IDENTITIES),
+      identity: hot ? rand(hotFaces.length ? hotFaces : IDENTITIES) : rand(IDENTITIES),
       groupName: group.name,
-      spots: shuffleArr(group.spots),
-      light: rand(LIGHTS),
-      lens: rand(LENSES),
+      hot,
+      spots: shuffleArr(group.spots.slice()),
+      light: hot ? HOT_LIGHT : rand(LIGHTS),
+      lens: hot ? '85mm f/1.8' : rand(LENSES),
       studio: !!group.studio,
       white: !!group.white,
-      handOrder: shuffleArr(ACC_HAND.slice()),
-      wearOrder: shuffleArr(ACC_WEAR.slice()),
+      handOrder: hot ? [] : shuffleArr(ACC_HAND.slice()),
+      wearOrder: hot ? [] : shuffleArr(ACC_WEAR.slice()),
       shotOrder: shuffleArr(['half', 'three', 'mirror', 'side']),
       seed: Math.floor(Math.random() * 1e9),
       accN: 0
@@ -1466,18 +1491,20 @@ function makeJobs(n, colors, from) {
     const color = list[k % list.length];
     // 机位轮换：半身 / 七分身 / 对镜自拍 / 侧身，同一款不同颜色看的是同一组图的不同角度，
     // 而不是同一张脸换个颜色复制一遍；影棚风格固定站立半身
-    const shot = useStudio ? 'half' : batchCtx.shotOrder[k % batchCtx.shotOrder.length];
-    const useSelfie = shot === 'mirror';
-    const frame = shot === 'three'
+    const shot = (useStudio || batchCtx.hot) ? 'half' : batchCtx.shotOrder[k % batchCtx.shotOrder.length];
+    const useSelfie = !batchCtx.hot && shot === 'mirror';
+    const frame = batchCtx.hot ? '' : (shot === 'three'
       ? '；构图拍七分身、镜头略后退，能看到腰线、下摆和膝盖上方，下摆完整、上下比例协调'
-      : (shot === 'side' ? '；身体侧转约 30 度、脸转向镜头，能看清袖子和侧面版型' : '');
-    const pose = useStudio
-      ? '自然站立，身体放松、站姿自然不僵硬；竖构图 3:4，从头顶拍到大腿中部，人体上下比例协调、头身比正常，宁可下摆略出画面一点，也不要压缩上身和脸'
-      : ((useSelfie ? selfies[selfieN++ % selfies.length] : poses[k % poses.length]) + frame);
+      : (shot === 'side' ? '；身体侧转约 30 度、脸转向镜头，能看清袖子和侧面版型' : ''));
+    const pose = batchCtx.hot
+      ? HOT_POSES[k % HOT_POSES.length] + '；半身近景构图，从头顶拍到大腿中部，毛衣占画面 70%~80%，头顶留一点空间、脸不要顶到画面边缘'
+      : (useStudio
+        ? '自然站立，身体放松、站姿自然不僵硬；竖构图 3:4，从头顶拍到大腿中部，人体上下比例协调、头身比正常，宁可下摆略出画面一点，也不要压缩上身和脸'
+        : ((useSelfie ? selfies[selfieN++ % selfies.length] : poses[k % poses.length]) + frame));
     const scene = batchCtx.spots[k % batchCtx.spots.length];
-    const acc = noAcc ? '' : pickAccFromBatch();
+    const acc = (noAcc || batchCtx.hot) ? '' : pickAccFromBatch();
     const prompt = buildPrompt({
-      style: useWhite ? 'whitebg' : style, color, noAcc, accList, anti, acc,
+      style: useWhite ? 'whitebg' : style, color, noAcc, accList, anti, acc, hot: !!batchCtx.hot,
       identity: batchCtx.identity, pose, scene, light: batchCtx.light, lens: batchCtx.lens, studio: useStudio
     });
     out.push({ prompt, label: color || '商品图', color: color || '', style, size: useWhite ? outSize('3:4') : (useStudio ? outSize('3:4') : '') });
