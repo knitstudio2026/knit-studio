@@ -192,6 +192,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   <nav class="nav">
     <button data-page="gen" class="on"><span class="ico">✦</span>AI 生图</button>
     <button data-page="lib"><span class="ico">▦</span>素材库</button>
+    <button data-page="appeal"><span class="ico">✎</span>售后申诉</button>
     <button data-page="set"><span class="ico">⚙</span>设置</button>
   </nav>
   <div class="side-foot">
@@ -205,7 +206,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.33</span>
+      <span class="ver">v7.34</span>
     </div>
   </div>
 
@@ -334,6 +335,90 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div class="hint" style="margin-top:0">出图后自动收进这里，关掉网页再打开还在，只保留最近 60 张。点图看大图，点「复制文案」复制整套标题和详情。注意：清除浏览器数据会一起删掉，重要的图记得存相册。</div>
         <div class="grid" id="libGrid" style="margin-top:12px"></div>
         <div class="hint hidden" id="libEmpty" style="text-align:center;padding:26px 0">素材库是空的，去「AI 生图」出图后会自动收进来</div>
+      </div>
+    </section>
+
+    <!-- ============ 售后申诉 ============ -->
+    <section id="page-appeal" class="hidden">
+      <div class="card">
+        <h2>每天先处理这两个地方</h2>
+        <div class="hint" style="margin-top:0">
+          <b>消费者负向体验补偿</b>：处罚后 <b>24 小时</b>内可申诉，逾期不能补，最优先。<br>
+          <b>退货运费 / 货款 / 判责</b>：退款成功后 <b>48 小时</b>内，在售后详情页点「维权申诉」。<br>
+          平台已不限制申诉次数，每一单都可以提，不用先挑。
+        </div>
+        <div class="btn-row">
+          <button class="btn accent" id="apOpenNeg">打开「消费者负向体验处罚明细」</button>
+          <button class="btn ghost" id="apOpenMms">打开拼多多商家后台</button>
+        </div>
+        <div class="hint">维权申诉路径：售后管理 → 售后工作台 → 退款/售后 → 进售后详情页 → 售后状态处「维权申诉」。手机浏览器打开后台可能跳 App 或提示用电脑，属正常。</div>
+      </div>
+
+      <div class="card">
+        <h2>申诉话术 <em>自动生成，也可不填 Key 用模板</em></h2>
+        <div class="row" style="display:block">
+          <label style="display:block;margin-bottom:6px">申诉类型</label>
+          <select id="apType" class="wide" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;background:#fafbfc;font-size:14px">
+            <option value="noProof">质量问题退货，买家没上传任何凭证</option>
+            <option value="hasProof">质量问题退货，买家有图但我认为不成立</option>
+            <option value="freight">退货运费判责异议</option>
+            <option value="negGoods">负向体验补偿：商品问题</option>
+            <option value="negService">负向体验补偿：服务问题（客服/物流）</option>
+            <option value="onlyRefund">仅退款 / 疑似恶意订单</option>
+          </select>
+        </div>
+        <div class="row" style="display:block">
+          <label style="display:block;margin-bottom:6px">商品名称或款号</label>
+          <input type="text" id="apGoods" class="wide" placeholder="例如：奶白蝴蝶结扣针织开衫">
+        </div>
+        <div class="field" style="border:0;padding:0">
+          <textarea id="apBuyer" placeholder="买家留言、退货原因或平台处罚说明，粘贴到这里（可空）" style="width:100%;min-height:64px"></textarea>
+        </div>
+        <div class="field" style="border:0;padding:0;margin-top:8px">
+          <textarea id="apMine" placeholder="我这边的情况和凭证，例如：发货前面单合照、实物细节图、洗标图、买家未提供任何凭证（可空）" style="width:100%;min-height:64px"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="apGenBtn">生成申诉话术</button>
+        </div>
+        <div class="field" style="border:0;margin-top:10px">
+          <textarea id="apOut" placeholder="生成结果会出现在这里，可直接改" style="width:100%;min-height:120px"></textarea>
+        </div>
+        <div class="copyrow">
+          <button id="apCopyBtn">复制话术</button>
+          <button id="apTplBtn">只看模板</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>凭证库 <em>按款存，一次上传长期用</em></h2>
+        <div class="hint" style="margin-top:0">每个款存一组：实物细节图、洗标图、发货商品与面单合照、合格证或质检报告。图片只存在本机浏览器，清数据会丢，换手机或电脑要重新传。</div>
+        <div class="row" style="display:block;margin-top:8px">
+          <input type="text" id="pfName" class="wide" placeholder="款名或款号，例如：奶白蝴蝶结扣开衫">
+        </div>
+        <div class="row" style="display:block">
+          <input type="text" id="pfNote" class="wide" placeholder="备注（可空），例如：主推款 / 三店通用">
+        </div>
+        <div class="row" style="display:block">
+          <input type="file" id="pfImgs" accept="image/*" multiple class="wide">
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="pfSaveBtn">保存这款凭证</button>
+        </div>
+        <div id="pfList" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <h2>自动申诉脚本 <em>电脑端，下一步做</em></h2>
+        <div class="hint" style="margin-top:0">
+          自动点按钮的部分只装在电脑浏览器里，手机上不能用，也不用装。<br><br>
+          1. 电脑装 Chrome 或 Edge；<br>
+          2. 装免费扩展「油猴 Tampermonkey」；<br>
+          3. 把我给你的脚本文字粘进去，打开后台就自动生效。<br><br>
+          脚本会按上面的两个时效逐单填写话术和凭证，提交前停下来给你确认。等你提供后台截图后写好放在这里，一键复制。
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost" id="apOpenTm">油猴 Tampermonkey 官网</button>
+        </div>
       </div>
     </section>
 
@@ -491,8 +576,10 @@ $$('.nav button').forEach(b => b.addEventListener('click', () => {
   $('#page-gen').classList.toggle('hidden', p !== 'gen');
   $('#page-lib').classList.toggle('hidden', p !== 'lib');
   $('#page-set').classList.toggle('hidden', p !== 'set');
-  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : '设置';
+  $('#page-appeal').classList.toggle('hidden', p !== 'appeal');
+  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : p === 'appeal' ? '售后申诉' : '设置';
   if (p === 'lib') renderLib();
+  if (p === 'appeal') renderProofs();
   window.scrollTo(0, 0);
 }));
 
@@ -3172,6 +3259,224 @@ try {
 } catch (_) {}
 if (!settings.apiKey) {
   $('#tip').innerHTML = '第一次用：先点左上角 ☰ → 设置，填火山方舟 API Key。';
+}
+
+/* ================= 售后申诉助手 ================= */
+$('#apOpenNeg').addEventListener('click', () => window.open('https://mms.pinduoduo.com/aftersales/customer_complain_appeal', '_blank'));
+$('#apOpenMms').addEventListener('click', () => window.open('https://mms.pinduoduo.com/home/', '_blank'));
+$('#apOpenTm').addEventListener('click', () => window.open('https://www.tampermonkey.net/', '_blank'));
+
+const AP_TYPES = {
+  noProof: {
+    label: '质量问题退货，买家未上传任何凭证',
+    point: '买家仅以“质量问题”为由申请退货退款，但全程未上传任何照片、视频等有效凭证，无法证明商品存在质量问题。',
+    ask: '请求平台重新审核该单责任归属，退货运费不应由我方承担，并撤销由此产生的相关扣款。'
+  },
+  hasProof: {
+    label: '质量问题退货，买家凭证不成立',
+    point: '买家上传的图片无法对应本店该商品，或所示情况属于正常穿着、洗涤、运输褶皱及主观色差，非商品质量问题。',
+    ask: '请求平台核实凭证与商品的对应关系，重新判定责任，退货运费由买家自行承担。'
+  },
+  freight: {
+    label: '退货运费判责异议',
+    point: '该单我方按约及时发货，商品与页面描述一致，买家退货属个人主观原因，并非我方责任。',
+    ask: '请求平台重新判定运费责任，返还由我方承担的退货运费。'
+  },
+  negGoods: {
+    label: '负向体验补偿：商品问题',
+    point: '该单商品发货前已经检查，实物与页面描述一致，买家未提供足以证明商品问题的有效凭证。',
+    ask: '请求平台复核该笔消费者负向体验处罚，撤销扣款。'
+  },
+  negService: {
+    label: '负向体验补偿：服务问题',
+    point: '该单我方客服响应及时、无不当言辞，物流在承诺时效内发出，相关记录可在后台查询。',
+    ask: '请求平台复核该笔消费者负向体验处罚，撤销扣款。'
+  },
+  onlyRefund: {
+    label: '仅退款 / 疑似恶意订单',
+    point: '该单买家未退回商品即申请仅退款，且未提供商品问题的有效凭证，我方已按约履行发货义务。',
+    ask: '请求平台核实订单真实性，支持我方追回货款或要求买家退回商品。'
+  }
+};
+function appealTemplate() {
+  const t = AP_TYPES[$('#apType').value] || AP_TYPES.noProof;
+  const goods = ($('#apGoods').value || '').trim();
+  const mine = ($('#apMine').value || '').trim();
+  return '平台工作人员您好：\n'
+    + '本店对以下订单的处理结果有异议，申请复核。\n'
+    + (goods ? '涉及商品：' + goods + '。\n' : '')
+    + '情况说明：' + t.point + '\n'
+    + '我方凭证：' + (mine || '发货商品与快递面单合照、商品实物细节图、洗标图、订单及聊天记录，均可提供。') + '\n'
+    + t.ask + '\n'
+    + '本店一直按平台规则经营，愿意配合补充任何材料，感谢审核。';
+}
+$('#apTplBtn').addEventListener('click', () => {
+  $('#apOut').value = appealTemplate();
+});
+$('#apCopyBtn').addEventListener('click', () => {
+  const v = ($('#apOut').value || '').trim();
+  if (!v) { toast('还没有话术，先生成或点「只看模板」'); return; }
+  copyText(v);
+});
+$('#apGenBtn').addEventListener('click', async () => {
+  const btn = $('#apGenBtn');
+  const key = (settings.apiKey || '').trim();
+  if (!key) {
+    $('#apOut').value = appealTemplate();
+    toast('没填 API Key，已按模板生成，可直接改');
+    return;
+  }
+  const t = AP_TYPES[$('#apType').value] || AP_TYPES.noProof;
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '生成中…';
+  try {
+    const url = (settings.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3').replace(/\/$/, '') + '/chat/completions';
+    const prompt = [
+      '你是拼多多资深商家售后专员，帮商家写一段「维权申诉」说明，用于平台人工审核。',
+      '要求：中文，180 字以内；只输出申诉正文，不要标题、不要解释、不要 markdown；',
+      '语气克制、尊重审核人员，只讲事实和凭证，不指责买家、不辱骂、不夸大、不虚构任何检测结论；',
+      '必须点明责任判定的关键理由，并在结尾提出明确诉求。',
+      '申诉类型：' + t.label,
+      '核心立场：' + t.point,
+      '诉求：' + t.ask,
+      '商品：' + (($('#apGoods').value || '').trim() || '针织开衫'),
+      '买家留言或处罚说明：' + (($('#apBuyer').value || '').trim() || '无'),
+      '我方情况与凭证：' + (($('#apMine').value || '').trim() || '发货商品与面单合照、实物细节图、洗标图')
+    ].join('\n');
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: settings.copyModel || 'kimi-k3-1-pro-261024',
+        temperature: 0.4,
+        max_tokens: 600,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    const txt = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+    if (!txt) throw new Error('empty');
+    $('#apOut').value = String(txt).trim();
+  } catch (e) {
+    $('#apOut').value = appealTemplate();
+    toast('接口没成功，已先用模板，可直接改');
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+});
+
+/* 凭证库：IndexedDB，按款存图 */
+let _pfdb = null;
+function pfDB() {
+  if (!_pfdb) _pfdb = new Promise((res, rej) => {
+    const rq = indexedDB.open('knitappeal', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('proofs', { keyPath: 'id', autoIncrement: true });
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+  return _pfdb;
+}
+function pfAll() {
+  return pfDB().then(d => new Promise((res, rej) => {
+    const rq = d.transaction('proofs').objectStore('proofs').getAll();
+    rq.onsuccess = () => res(rq.result || []);
+    rq.onerror = () => rej(rq.error);
+  }));
+}
+function pfPut(item) {
+  return pfDB().then(d => new Promise((res, rej) => {
+    const tx = d.transaction('proofs', 'readwrite');
+    tx.objectStore('proofs').add(item);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  }));
+}
+function pfDel(id) {
+  return pfDB().then(d => new Promise((res, rej) => {
+    const tx = d.transaction('proofs', 'readwrite');
+    tx.objectStore('proofs').delete(id);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  }));
+}
+function pfShrink(file) {
+  return new Promise((res, rej) => {
+    const rd = new FileReader();
+    rd.onerror = rej;
+    rd.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const max = 1200;
+        const s = Math.min(1, max / Math.max(im.width, im.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        res(c.toDataURL('image/jpeg', 0.85));
+      };
+      im.onerror = rej;
+      im.src = rd.result;
+    };
+    rd.readAsDataURL(file);
+  });
+}
+$('#pfSaveBtn').addEventListener('click', async () => {
+  const name = ($('#pfName').value || '').trim();
+  const files = Array.from($('#pfImgs').files || []);
+  if (!name) { toast('先填款名或款号'); return; }
+  if (!files.length) { toast('先选凭证图片'); return; }
+  const btn = $('#pfSaveBtn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    const imgs = [];
+    for (const f of files) imgs.push(await pfShrink(f));
+    await pfPut({ ts: Date.now(), name, note: ($('#pfNote').value || '').trim(), imgs });
+    $('#pfName').value = ''; $('#pfNote').value = ''; $('#pfImgs').value = '';
+    toast('已保存，共 ' + imgs.length + ' 张');
+    renderProofs();
+  } catch (e) {
+    toast('保存失败：' + (e && e.message ? e.message : '浏览器存储不可用'));
+  } finally {
+    btn.disabled = false; btn.textContent = '保存这款凭证';
+  }
+});
+async function renderProofs() {
+  const box = $('#pfList');
+  if (!box) return;
+  const list = (await pfAll()).sort((a, b) => b.ts - a.ts);
+  if (!list.length) {
+    box.innerHTML = '<div class="hint" style="text-align:center;padding:16px 0">还没有凭证，先给一个款传一组图</div>';
+    return;
+  }
+  box.innerHTML = '';
+  list.forEach((it) => {
+    const card = document.createElement('div');
+    card.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px';
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13.5px';
+    const title = document.createElement('div');
+    title.style.cssText = 'flex:1;min-width:0';
+    title.innerHTML = '<b></b><div style="font-size:11px;color:var(--sub)"></div>';
+    title.querySelector('b').textContent = it.name;
+    title.querySelector('div').textContent = (it.note ? it.note + ' · ' : '') + it.imgs.length + ' 张 · ' + new Date(it.ts).toLocaleDateString();
+    const del = document.createElement('button');
+    del.textContent = '删除';
+    del.style.cssText = 'border:1px solid var(--line);background:#fff;border-radius:7px;font-size:11px;padding:5px 9px;color:#b4472c';
+    del.onclick = async () => { await pfDel(it.id); renderProofs(); };
+    head.appendChild(title); head.appendChild(del);
+    card.appendChild(head);
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px';
+    it.imgs.forEach((u) => {
+      const im = document.createElement('img');
+      im.src = u;
+      im.style.cssText = 'width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;cursor:pointer';
+      im.onclick = () => openViewer(u);
+      grid.appendChild(im);
+    });
+    card.appendChild(grid);
+    box.appendChild(card);
+  });
 }
 </script>
 </body>
