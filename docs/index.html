@@ -206,7 +206,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.37</span>
+      <span class="ver">v7.38</span>
     </div>
   </div>
 
@@ -259,13 +259,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             <button data-mode="replace">AI 替换图</button>
           </div>
         </div>
-        <div class="row" id="styleRow" style="display:block">
-          <label style="margin-bottom:8px;display:block">出图风格</label>
-          <div class="seg" id="styleSeg">
-            <button data-style="lifestyle" class="on">生活种草</button>
-            <button data-style="whitebg">白底棚拍</button>
-            <button data-style="flatlay">平铺挂拍</button>
-          </div>
+        <div class="row">
+          <label>出图风格<small>已是「生活种草」全随机：书店、咖啡馆、卧室、街头、奶油影棚、纯白棚拍、床上平铺实物图混排</small></label>
         </div>
         <div class="row">
           <label>出图清晰度<small>按拼多多主图规格出，上传不会被压得太狠</small></label>
@@ -910,7 +905,7 @@ const SCENE_SETS = [
     '同一处露台的吧台：木质台面、高脚杯和遮阳篷，天空明亮',
     '同一处天台的晾晒区旁：白色晾衣绳、绿植和木地板，生活感自然'
   ]},
-  { name: '奶油米色影棚', studio: true, weight: 3, spots: [
+  { name: '奶油米色影棚', studio: true, weight: 5, spots: [
     '同一间奶油米色无缝影棚，正面中景：背景是干净平整的浅米色无缝墙，柔光箱从正前方均匀打亮，没有硬阴影；模特双手在腰侧轻握一台复古胶片相机，相机在腰腹位置但不遮挡门襟、纽扣和口袋',
     '同一间奶油米色无缝影棚，正面对镜：背景浅米色墙面自然渐隐，柔和顶光加正面补光；模特一只手在脸侧比耶（手指在脸颊旁边，不遮脸、不遮领口）',
     '同一间奶油米色无缝影棚，侧身约 30 度：背景是暖砂色无缝墙，柔光均匀；模特单手抱一个牛皮纸袋（袋口露出法棍），纸袋靠在身体侧边，不挡肚子、门襟和纽扣',
@@ -920,7 +915,7 @@ const SCENE_SETS = [
     '同一间奶油米色无缝影棚，七分身：背景是象牙白无缝墙，正面柔光；模特一手拿着一小束浅色干花，花束在腰侧，不遮挡衣身',
     '同一间奶油米色无缝影棚，正面稍侧：背景是浅驼色无缝墙，地面与墙同色无缝过渡；模特一只手轻搭在腰侧，另一只手自然下垂'
   ]},
-  { name: '纯白电商影棚', white: true, weight: 2, spots: [
+  { name: '纯白电商影棚', white: true, weight: 4, spots: [
     '纯白无缝背景棚拍，正面全身：模特自然站立、双手自然垂放，背景干净纯白，只有脚下极淡柔和投影',
     '纯白无缝背景棚拍，七分身：模特微微侧身，一只手轻搭腰侧，纯白背景干净，柔光均匀没有硬阴影',
     '纯白无缝背景棚拍，正面中景：模特双手在身侧自然交叠，肩膀放松，纯白背景，光线明亮均匀',
@@ -1549,7 +1544,7 @@ function makeJobs(n, colors, from) {
   const anti = $('#anti').checked;
   if (!batchCtx) {
     // 爆款模板：已验证卖动的那组「书店窗边 + 半身近景 + 柔光」优先复用，留四成随机换场景防同质化
-    const hot = style === 'lifestyle' && !anti && Math.random() < 0.6;
+    const hot = !anti && Math.random() < 0.6;
     const group = hot ? { name: '爆款书店窗边', spots: HOT_SPOTS } : pickSceneGroup();
     const hotFaces = IDENTITIES.filter((s) => /软糯|梨系|初恋|元气|温婉|知性/.test(s));
     batchCtx = {
@@ -1577,9 +1572,18 @@ function makeJobs(n, colors, from) {
     MIRROR_GROUPS.includes(batchCtx.groupName) ? MIRROR_POSES : []
   ));
   let selfieN = 0;
+  // 平铺实物图（床上+毛绒玩偶，无模特）也并进随机池：每批最多 1 张，约三成概率触发
+  const flatIdx = Math.random() < 0.34 ? Math.floor(Math.random() * n) : -1;
   for (let i = 0; i < n; i++) {
     const k = from + i;
     const color = list[k % list.length];
+    if (i === flatIdx) {
+      out.push({
+        prompt: buildPrompt({ style: 'flatlay', color, noAcc, accList, anti, identity: '', pose: '', scene: '', light: '', lens: '', studio: false }),
+        label: (color || '商品图') + '·平铺', color: color || '', style: 'flatlay', size: outSize('3:4')
+      });
+      continue;
+    }
     // 机位轮换：半身 / 七分身 / 对镜自拍 / 侧身，同一款不同颜色看的是同一组图的不同角度，
     // 而不是同一张脸换个颜色复制一遍；影棚风格固定站立半身
     const shot = (useStudio || batchCtx.hot) ? 'half' : batchCtx.shotOrder[k % batchCtx.shotOrder.length];
@@ -2207,7 +2211,6 @@ function applyMode() {
   const rep = genMode === 'replace';
   $('#targetCard').classList.toggle('hidden', !rep);
   $('#recCard').classList.toggle('hidden', rep);
-  $('#styleRow').style.display = rep ? 'none' : 'block';
   $('#countRow').style.display = (rep || recColors.length) ? 'none' : '';
   $('#noAccRow').style.display = rep ? 'none' : '';
   $('#antiRow').style.display = rep ? 'none' : '';
@@ -2456,13 +2459,6 @@ $('#delBtn').addEventListener('click', (e) => {
   $('#saveRow').style.display = 'none';
   $('#restBtn').style.display = 'none';
 });
-
-/* ================= 风格切换 ================= */
-$$('#styleSeg button').forEach(b => b.addEventListener('click', () => {
-  $$('#styleSeg button').forEach(x => x.classList.remove('on'));
-  b.classList.add('on');
-  style = b.dataset.style;
-}));
 
 /* ================= 识别（拼多多发布页字段） ================= */
 const PDD_FIELDS = [
