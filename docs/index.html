@@ -206,7 +206,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.35</span>
+      <span class="ver">v7.36</span>
     </div>
   </div>
 
@@ -353,7 +353,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         </div>
         <div id="apLinkBox" class="hidden" style="margin-top:10px">
           <input type="text" id="apLinkInput" class="wide" readonly style="width:100%;font-size:12px">
-          <div class="hint">手机上点链接会被拼多多拉去 App，落不到具体页面，所以改成复制链接。<b>粘贴到浏览器地址栏</b>打开；如果还是跳 App，在浏览器菜单里选「桌面版网站 / 电脑版」再试。负向体验这个页建议还是在电脑处理。</div>
+          <div class="hint">这个链接是<b>电脑后台</b>页面，手机上不用装任何东西，但也<b>不建议在手机上开</b>。<br>手机正确用法：在下面生成话术 → 复制 → 打开<b>拼多多商家版 App</b>，进对应售后订单点「申诉/维权申诉」粘贴提交。<br>坚持要在手机开网页：用 Safari 或 Chrome 的<b>地址栏</b>粘贴打开，不要在百度 App 里搜索这串网址，且需先登录商家账号。</div>
         </div>
         <div class="hint">维权申诉路径：售后管理 → 售后工作台 → 退款/售后 → 进售后详情页 → 售后状态处「维权申诉」。</div>
       </div>
@@ -3283,8 +3283,8 @@ function openExternal(url) {
   }
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url)
-      .then(() => toast('链接已复制，到浏览器地址栏粘贴打开'))
-      .catch(() => toast('长按下面的框复制链接，粘贴到浏览器打开'));
+      .then(() => toast('链接已复制，建议到电脑浏览器打开'))
+      .catch(() => toast('这是电脑后台链接，手机上用商家版App申诉更方便'));
   } else {
     toast('长按下面的框复制链接，粘贴到浏览器打开');
   }
