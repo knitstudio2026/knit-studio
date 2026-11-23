@@ -206,7 +206,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.38</span>
+      <span class="ver">v7.39</span>
     </div>
   </div>
 
@@ -260,7 +260,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           </div>
         </div>
         <div class="row">
-          <label>出图风格<small>已是「生活种草」全随机：书店、咖啡馆、卧室、街头、奶油影棚、纯白棚拍、床上平铺实物图混排</small></label>
+          <label>出图风格<small>「生活种草」：同一款只抽一类场景，整批在同类场景换机位（不会一张沙滩一张咖啡馆）；想换场景就重新上传图片重抽。约每 5 批随机出 1 批床上平铺实物图</small></label>
         </div>
         <div class="row">
           <label>出图清晰度<small>按拼多多主图规格出，上传不会被压得太狠</small></label>
@@ -1545,12 +1545,18 @@ function makeJobs(n, colors, from) {
   if (!batchCtx) {
     // 爆款模板：已验证卖动的那组「书店窗边 + 半身近景 + 柔光」优先复用，留四成随机换场景防同质化
     const hot = !anti && Math.random() < 0.6;
-    const group = hot ? { name: '爆款书店窗边', spots: HOT_SPOTS } : pickSceneGroup();
+    // 平铺实物图（床上+毛绒玩偶、无模特）作为独立的一整批风格：约 18% 概率整批都是平铺，
+    // 绝不和模特图混在同一批——一个款式只能有一种风格、同一类场景
+    const batchFlat = !anti && !hot && Math.random() < 0.18;
+    const group = batchFlat
+      ? { name: '床上平铺实物', flat: true, spots: ['俯拍画面略偏左、床单褶皱集中在左上', '俯拍画面略偏右、玩偶在右下角'] }
+      : (hot ? { name: '爆款书店窗边', spots: HOT_SPOTS } : pickSceneGroup());
     const hotFaces = IDENTITIES.filter((s) => /软糯|梨系|初恋|元气|温婉|知性/.test(s));
     batchCtx = {
       identity: hot ? rand(hotFaces.length ? hotFaces : IDENTITIES) : rand(IDENTITIES),
       groupName: group.name,
       hot,
+      flat: !!group.flat,
       spots: shuffleArr(group.spots.slice()),
       light: hot ? HOT_LIGHT : rand(LIGHTS),
       lens: hot ? '85mm f/1.8' : rand(LENSES),
@@ -1572,12 +1578,10 @@ function makeJobs(n, colors, from) {
     MIRROR_GROUPS.includes(batchCtx.groupName) ? MIRROR_POSES : []
   ));
   let selfieN = 0;
-  // 平铺实物图（床上+毛绒玩偶，无模特）也并进随机池：每批最多 1 张，约三成概率触发
-  const flatIdx = Math.random() < 0.34 ? Math.floor(Math.random() * n) : -1;
   for (let i = 0; i < n; i++) {
     const k = from + i;
     const color = list[k % list.length];
-    if (i === flatIdx) {
+    if (batchCtx.flat) {
       out.push({
         prompt: buildPrompt({ style: 'flatlay', color, noAcc, accList, anti, identity: '', pose: '', scene: '', light: '', lens: '', studio: false }),
         label: (color || '商品图') + '·平铺', color: color || '', style: 'flatlay', size: outSize('3:4')
