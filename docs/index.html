@@ -206,7 +206,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.39</span>
+      <span class="ver">v7.40</span>
     </div>
   </div>
 
@@ -260,7 +260,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           </div>
         </div>
         <div class="row">
-          <label>出图风格<small>「生活种草」：同一款只抽一类场景，整批在同类场景换机位（不会一张沙滩一张咖啡馆）；想换场景就重新上传图片重抽。约每 5 批随机出 1 批床上平铺实物图</small></label>
+          <label>出图风格<small>「生活种草」：同一款只抽一类场景，整批在同类场景换机位；想换场景就重新上传图片重抽。已加入公开爆款图样的早餐角、浅灰布艺、针织工作间、橱窗街拍、阳台与台座棚拍；平铺批次随机使用 7 种布置</small></label>
         </div>
         <div class="row">
           <label>出图清晰度<small>按拼多多主图规格出，上传不会被压得太狠</small></label>
@@ -905,6 +905,42 @@ const SCENE_SETS = [
     '同一处露台的吧台：木质台面、高脚杯和遮阳篷，天空明亮',
     '同一处天台的晾晒区旁：白色晾衣绳、绿植和木地板，生活感自然'
   ]},
+  { name: '原木餐桌早餐角', weight: 3, spots: [
+    '同一间明亮早餐角的原木餐桌旁：桌面只放一只白瓷杯和浅木托盘，后方是米白墙面与大玻璃窗，白天的自然光从侧前方照亮人物和衣服',
+    '同一间早餐角的白色餐边柜前：柜面有一小瓶浅色花和两只素色陶杯，浅木地板，背景干净、没有杂物，日光柔和明亮',
+    '同一间早餐角的窗边布艺餐椅旁：白纱帘、浅木窗框和一小盆绿植，椅背自然入镜，窗外过曝轻微、室内仍然明亮',
+    '同一间早餐角的浅木层架旁：层架只有几本杂志和素色陶器，大面积米白墙面，画面一侧柔和窗光、阴影很浅'
+  ]},
+  { name: '浅灰布艺客厅', weight: 3, spots: [
+    '同一间浅灰布艺客厅的沙发一端：浅灰米色细织沙发、奶油色抱枕和浅木边几，边几上只有一本书，大窗柔光，背景略虚化但材质可辨',
+    '同一间客厅的浅灰地毯旁：米白墙面、低矮浅木茶几和一只透明小花瓶，日光均匀，画面高调不发灰',
+    '同一间客厅的落地窗帘旁：象牙白落地帘与浅灰布艺单人椅，墙角一株高度适中的绿植，侧面柔光勾勒针织纹理',
+    '同一间客厅的浅木电视柜旁：柜面只有一盆小绿植和一件素色陶器，墙面留白，柔和正面补光，人物和衣服明亮'
+  ]},
+  { name: '奶油针织工作间', weight: 2, spots: [
+    '同一间明亮针织工作间的浅色操作台旁：台面整齐放着米色线团和一本色卡册，后方白墙与浅木层架，所有物品只在背景、不接触衣服',
+    '同一间工作间的浅木层架前：层架整齐摆放少量素色线团和白色收纳盒，白天大窗光，画面干净不杂乱',
+    '同一间工作间的窗边高台旁：白色台面、一只陶瓷杯和一盆小绿植，纱帘柔光，人物与毛衣是画面主体',
+    '同一间工作间的米白软木板墙前：软木板上只别着两张无色文字的浅色纸样，浅木地面，柔和均匀日光'
+  ]},
+  { name: '浅色橱窗街拍', weight: 3, spots: [
+    '同一段明亮商业街的浅色玻璃橱窗前：米白石材墙面、细窄深灰窗框，玻璃只反射淡淡天空和树影，背景没有可读招牌和文字',
+    '同一段商业街的浅色门店侧墙：细腻米灰墙面、浅石阶和一盆修剪整齐的绿植，白天柔光，地面干净',
+    '同一段商业街的骑楼柱边：浅色石柱、哑光大砖地面和透亮的店铺玻璃，背景行人完全虚化且不可辨',
+    '同一段商业街的转角位置：奶油色墙面与浅灰石材地面，远处街景浅景深，日光从正侧方照亮人物，面部不逆光'
+  ]},
+  { name: '秋冬明亮阳台', weight: 2, spots: [
+    '同一间封闭阳台的白色纱帘旁：浅木地板、藤编单椅和一盆龟背竹，窗外冬季树影柔和，室内明亮温暖不发黄',
+    '同一间阳台的浅木小圆桌旁：桌上只有白瓷杯和一本翻开的书，米白墙面，自然光从侧面照亮针织纹理',
+    '同一间阳台的绿植层架旁：白色层架上只有三四盆绿植，留出大块干净墙面，柔和日光、背景略虚化',
+    '同一间阳台的浅色坐垫长凳旁：米灰坐垫、浅木长凳和玻璃窗，窗外明亮，人物正面有充足反光补光'
+  ]},
+  { name: '柔光台座电商棚', studio: true, weight: 3, spots: [
+    '同一间明亮电商影棚的米白无缝墙前：人物右侧只有一座低矮圆形浅灰台座，台座不接触人物和衣服，正面大柔光，脚下极淡投影',
+    '同一间影棚的浅灰米色背景前：远处一个边角圆润的低矮方台，背景留有大面积空白，柔和侧光加正面补光，纹理清晰',
+    '同一间影棚的暖白弧形墙前：墙地同色无缝过渡，只有一层很浅的自然明暗渐变，无道具、无文字，人物和衣服轮廓清楚',
+    '同一间影棚的淡杏色背景前：背景有一个极浅的拱形色块但没有真实门洞，正面柔光均匀，白色或浅色毛衣边缘必须有轻微自然投影与背景分清'
+  ]},
   { name: '奶油米色影棚', studio: true, weight: 5, spots: [
     '同一间奶油米色无缝影棚，正面中景：背景是干净平整的浅米色无缝墙，柔光箱从正前方均匀打亮，没有硬阴影；模特双手在腰侧轻握一台复古胶片相机，相机在腰腹位置但不遮挡门襟、纽扣和口袋',
     '同一间奶油米色无缝影棚，正面对镜：背景浅米色墙面自然渐隐，柔和顶光加正面补光；模特一只手在脸侧比耶（手指在脸颊旁边，不遮脸、不遮领口）',
@@ -1030,6 +1066,16 @@ const PHOTO_WHITE = '纯白无缝背景棚拍、像正规品牌白底主图：�
 const PHOTO_ECOM = '高端女装电商主图风格、干净高级的奶油色影棚：__LIGHT__；__LENS__ 人像镜头拍摄，七分身竖构图，模特从头顶到大腿中部，毛衣占画面 70%~80%，头顶留出约一拳空白；人体上下比例协调、头身比正常、上下透视一致，脸的大小与肩宽比例正常，整张图上下是同一个镜头视角，不出现上半身被压缩或局部拉伸；宁可下摆略出画面一点点，也绝不能为了把整件衣服塞进画面而压缩上身和脸；背景是一整片奶油米色／象牙色无缝背景墙，地面和墙同色无缝过渡，画面里没有家具、没有杂物、没有文字；大面积柔光箱加反光板打光，光线柔和均匀，没有硬阴影、没有强烈方向光，皮肤有通透自然的高光但不惨白不过曝；模特漂亮精致、大波浪长卷发自然披散在肩后，发丝顺滑有自然光泽，五官立体、鼻梁高挺、下颌线清楚，清透淡妆、唇色自然，皮肤白皙细腻但保留真实质感和细小毛孔；表情安静放松，眼神看向镜头或轻微侧视；针织纹理清楚：针脚细密平整；领口、袖口、下摆的收口做法严格照参考图，原图没有罗纹坑条就保持平滑收口、一根都不许自己加，原图有罗纹也不许加宽；衣服表面紧实不蓬松、不是毛呢不是抓绒不是羊羔绒，不起球不脏旧，有自然褶皱和厚度、身体有正常立体体积，衣身侧面是连续弧面而不是被压扁的纸片，不能出现像被对折过的笔直折痕，纽扣质感真实；服装颜色、花纹、材质、纽扣、口袋与参考图完全一致；画面干净高级、背景和氛围偏暖奶油色，但衣服本身的颜色绝对不许被环境光染黄、必须和参考图完全一致、干净本白，像卖爆的女装主图；只出现两只手、五指数量正确、手指结构自然，拿道具的那只手位置合理、不遮挡门襟纽扣和胸口图案；无水印、无文字、无 logo；不要塑料感、不要3D渲染感、不要插画感、不要过度磨皮、不要娃娃脸修图感、不要假人脸、不要短发、不要丸子头、不要马尾、不要盘发、不要扎发';
 const PHOTO_FLAT = '这是卖家在自家卧室床上用手机随手拍的实物图，不是商品渲染图、不是3D建模、不是插画、不是广告精修图：把毛衣平铺在一张铺着揉皱白色水洗棉床单的床上，床单有自然的褶皱起伏和柔软质感，画面一角能露出一小块暖木色木地板；衣服左右两侧的床单上各放一只长毛绒玩偶，一只是白色长毛小狗、一只是浅米色垂耳小兔子，玩偶只点缀在画面边角、放在床单上，绝不遮挡衣服本体、门襟纽扣和胸口图案；白天柔和的自然光从画面一侧窗户洒入，光线温暖明亮、有自然的明暗过渡，衣服、玩偶与床单之间有真实的接触阴影和柔和投影；略微倾斜的俯拍角度，不是完全正俯视，衣服占画面约 70%~80%，四周留出一些床单褶皱，构图随手、不刻意对称；针织实物质感清楚：软糯细密的绒毛纱线、纱线走向、织纹厚薄起伏、袖口下摆的自然褶皱都看得见；颜色是日常光线下的真实颜色，允许轻微噪点和轻微曝光不均；近处清楚、床单远处轻微虚化；无水印、无文字、无logo；不要棚拍打光、不要强烈高光反射、不要完美干净的纯色背景、不要CG级干净阴影、不要3D渲染感、不要插画感、不要塑料感、不要衣架、不要人台模特、不要假人躯干';
   const NEGATIVE = 'mannequin, headless mannequin, plastic mannequin torso, plastic skin, over-saturated colors, color shift, overexposed, washed out, changed garment color, wool coat texture, fleece texture, teddy fleece, boucle, pilling, bow on pocket, ribbon knot on pocket, embroidery on pocket, extra decorations on pocket, partially buttoned cardigan, only top button fastened, half-open placket, buttons unfastened at bottom, cartoon, illustration, 3D render, CGI, product render, watermark, text, AI look, glossy face, fake eyelashes, heavy makeup, deformed hands, extra fingers, extra limbs, fused limbs, merged arm and torso, missing hand, extra arm, distorted shoulder, twisted torso, melted sleeves, arm blending into body, cropped forearm, paper-thin body, flattened torso, folded body, straight crease down the side of the body, origami body, body pressed flat, short hair, bob haircut, long cardigan, tunic length, hip-covering cardigan, oversized long hem, wide ribbed neckline, chunky rib cuff, thick rib trim, wide ribbed cuff, oversized ribbed collar, unfinished hem, bobbed hair, overly symmetrical face, doll-like face, airbrushed skin, beauty filter, small eyes, dull eyes, flat nose, wide flat face, puffy face, tired eyes, uneven eyes, dull skin, plain face, masculine features, misaligned buttons, crooked button placket, wavy placket, button offset from buttonhole, floating button, uneven button spacing, uneven button size, button off center, button outside placket, buttonhole and button not aligned, one button different from others, added ribbing not in the reference, invented ribbed cuff, invented ribbed neckline, invented ribbed hem, extra ribbing on cuff, ribbed edge that reference does not have, single pocket only, missing left pocket, missing right pocket, asymmetric pockets, one pocket only, pocket on one side only, invented extra pocket, pocket shape changed, missing button, fewer buttons than reference, vertically squashed body, compressed proportions, short torso, distorted aspect ratio, coarse tweed texture, nubby boucle, chunky loop yarn, slub texture, thick fuzzy clumps on yarn, heavy pilling, yellowish white garment, cream tinted white, pink tinted white, warm cast on garment, heavy ribbed neckline band, ribbed collar ring, squashed head, flattened head, compressed head, low cranial top, flat hair, hair stuck to scalp, helmet hair, hair as solid dark mass, cropped top of head, squashed face, flattened face, widened face, distorted facial proportions, fish-eye distortion, wide angle face distortion, horizontally stretched face, added decoration on garment, bow attached to the sweater, brooch pinned on the sweater, lace trim added to the sweater, sequins added to the sweater, extra buttons added, belt worn over the sweater, scarf tied around the neck, ribbon tied around the neckline, patch sewn on the sweater, sticker on garment';
+const FLAT_QUALITY = '真实手机实物拍摄，不是3D建模、插画或广告渲染：白天柔和自然光或大面积柔光，整体明亮，衣服与底面有真实接触阴影；衣服占画面约70%~85%，针脚、纱线走向、绒感、厚薄和边口严格照参考图呈现，不新增罗纹或装饰；袖口和下摆保持自然形态，不为了构图把衣服折短；浅色衣服放在浅底上时，必须用微弱但清楚的接触阴影和明暗差分出完整边缘，不能融进背景；道具只能放在画面边角，不能接触、压住或遮挡衣服；无水印、无文字、无logo、无衣架、无人台、无人体';
+const FLAT_SETUPS = [
+  PHOTO_FLAT,
+  '浅色原木桌面上的45度斜角俯拍：桌面有细腻浅木纹，一本没有可读文字的素色封面书和白瓷杯放在很远的左上角，只露出局部，衣服完整居中偏下，侧窗柔光',
+  '米白色水洗亚麻桌布上的正俯视平铺：桌布只有轻微自然褶皱，右上角放一小枝尤加利叶和一只素色小陶碟，道具占画面不到5%，均匀柔光',
+  '浅灰米色细织棉布背景上的干净电商平铺：没有道具、没有家具，正俯视，衣服居中，轮廓四周留出少量底布，柔和顶光加极淡接触阴影',
+  '奶白色布艺沙发坐垫上的45度平铺：坐垫有细密织物纹理，画面一角露出少量浅木地板，远处边角只放一本素色书，侧窗柔光',
+  '揉皱的白色棉质床品上的生活感平铺：不放玩偶，右上角远处只有一只白瓷杯和一小瓶浅色花，床品褶皱自然，画面不刻意对称，侧窗日光',
+  '浅暖木桌上的秋冬平铺：正俯视偏一点斜角，远端边角只放两片干净的浅棕色落叶和一只小木碟，木纹和道具都很轻，不喧宾夺主'
+];
 /* 姿势由「站/坐 + 身体朝向 + 手臂动作 + 头部角度」交叉组合生成，数百种且全部安全不易畸形 */
 const POSE_STAND = [
   '正面自然站立，重心平均落在双脚上',
@@ -1374,7 +1420,8 @@ function buildPrompt(opts) {
   const bottomNote = '下装必须穿长裤（牛仔裤、休闲裤、西装裤等），绝对不穿裙子、不穿短裤、不穿半身裙、不穿百褶裙、不穿缎面裙，裤子颜色低调不抢眼';
 
   if (style === 'flatlay') {
-    return `参考图1是一件针织毛衣的实拍图。请生成这张衣服的平铺实物图：把这件毛衣自然平铺摊开在床面上，袖口和下摆略微弯折、保持自然形态。${colorNote}${keep}${noAccNote}。特别注意：床单、木地板、两只毛绒玩偶都只是背景和道具，衣服本身的款式、颜色、图案、纽扣、领型、袖长必须严格照参考图1，不能因为出现床单或玩偶就改变衣服。${PHOTO_FLAT}`;
+    const flatKeep = keep.replace('衣服穿在身上平整服帖、版型挺括有型', '衣服平铺时保持参考图原有版型、自然厚度和完整轮廓');
+    return `参考图1是一件针织毛衣的实拍图。请生成这张衣服的平铺实物图：把这件毛衣自然平铺摊开在场景描述的底面上，袖口和下摆保持自然形态。${colorNote}${flatKeep}${noAccNote}。场景布置：${scene || PHOTO_FLAT}。特别注意：底面、家具、床品和道具都只是背景，衣服本身的款式、颜色、图案、纽扣、领型、袖长必须严格照参考图1，不能因为背景元素就改变衣服。${FLAT_QUALITY}`;
   }
   const photo = (style === 'whitebg' ? PHOTO_WHITE : (studio ? PHOTO_ECOM : PHOTO_LIFE))
     .replace('__LIGHT__', light)
@@ -1544,10 +1591,9 @@ function makeJobs(n, colors, from) {
   const anti = $('#anti').checked;
   if (!batchCtx) {
     // 爆款模板：已验证卖动的那组「书店窗边 + 半身近景 + 柔光」优先复用，留四成随机换场景防同质化
-    const hot = !anti && Math.random() < 0.6;
-    // 平铺实物图（床上+毛绒玩偶、无模特）作为独立的一整批风格：约 18% 概率整批都是平铺，
-    // 绝不和模特图混在同一批——一个款式只能有一种风格、同一类场景
-    const batchFlat = !anti && !hot && Math.random() < 0.18;
+    // 平铺是独立整批风格，约 18% 概率；一批只使用 FLAT_SETUPS 中同一种布置
+    const batchFlat = !anti && Math.random() < 0.18;
+    const hot = !anti && !batchFlat && Math.random() < 0.6;
     const group = batchFlat
       ? { name: '床上平铺实物', flat: true, spots: ['俯拍画面略偏左、床单褶皱集中在左上', '俯拍画面略偏右、玩偶在右下角'] }
       : (hot ? { name: '爆款书店窗边', spots: HOT_SPOTS } : pickSceneGroup());
@@ -1557,6 +1603,7 @@ function makeJobs(n, colors, from) {
       groupName: group.name,
       hot,
       flat: !!group.flat,
+      flatSetup: batchFlat ? rand(FLAT_SETUPS) : '',
       spots: shuffleArr(group.spots.slice()),
       light: hot ? HOT_LIGHT : rand(LIGHTS),
       lens: hot ? '85mm f/1.8' : rand(LENSES),
@@ -1583,7 +1630,7 @@ function makeJobs(n, colors, from) {
     const color = list[k % list.length];
     if (batchCtx.flat) {
       out.push({
-        prompt: buildPrompt({ style: 'flatlay', color, noAcc, accList, anti, identity: '', pose: '', scene: '', light: '', lens: '', studio: false }),
+        prompt: buildPrompt({ style: 'flatlay', color, noAcc, accList, anti, identity: '', pose: '', scene: batchCtx.flatSetup, light: '', lens: '', studio: false }),
         label: (color || '商品图') + '·平铺', color: color || '', style: 'flatlay', size: outSize('3:4')
       });
       continue;
