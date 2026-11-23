@@ -206,7 +206,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.34</span>
+      <span class="ver">v7.35</span>
     </div>
   </div>
 
@@ -351,7 +351,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           <button class="btn accent" id="apOpenNeg">打开「消费者负向体验处罚明细」</button>
           <button class="btn ghost" id="apOpenMms">打开拼多多商家后台</button>
         </div>
-        <div class="hint">维权申诉路径：售后管理 → 售后工作台 → 退款/售后 → 进售后详情页 → 售后状态处「维权申诉」。手机浏览器打开后台可能跳 App 或提示用电脑，属正常。</div>
+        <div id="apLinkBox" class="hidden" style="margin-top:10px">
+          <input type="text" id="apLinkInput" class="wide" readonly style="width:100%;font-size:12px">
+          <div class="hint">手机上点链接会被拼多多拉去 App，落不到具体页面，所以改成复制链接。<b>粘贴到浏览器地址栏</b>打开；如果还是跳 App，在浏览器菜单里选「桌面版网站 / 电脑版」再试。负向体验这个页建议还是在电脑处理。</div>
+        </div>
+        <div class="hint">维权申诉路径：售后管理 → 售后工作台 → 退款/售后 → 进售后详情页 → 售后状态处「维权申诉」。</div>
       </div>
 
       <div class="card">
@@ -3262,9 +3266,29 @@ if (!settings.apiKey) {
 }
 
 /* ================= 售后申诉助手 ================= */
-$('#apOpenNeg').addEventListener('click', () => window.open('https://mms.pinduoduo.com/aftersales/customer_complain_appeal', '_blank'));
-$('#apOpenMms').addEventListener('click', () => window.open('https://mms.pinduoduo.com/home/', '_blank'));
-$('#apOpenTm').addEventListener('click', () => window.open('https://www.tampermonkey.net/', '_blank'));
+$('#apOpenNeg').addEventListener('click', () => openExternal('https://mms.pinduoduo.com/aftersales/customer_complain_appeal'));
+$('#apOpenMms').addEventListener('click', () => openExternal('https://mms.pinduoduo.com/home/'));
+$('#apOpenTm').addEventListener('click', () => openExternal('https://www.tampermonkey.net/'));
+/* 手机点链接会被拼多多劫持去 App，落不到具体页面；改成复制链接自己粘贴 */
+function openExternal(url) {
+  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  if (!mobile) { window.open(url, '_blank'); return; }
+  const box = $('#apLinkBox');
+  if (box) {
+    box.classList.remove('hidden');
+    const input = $('#apLinkInput');
+    input.value = url;
+    input.focus();
+    try { input.select(); } catch (_) {}
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url)
+      .then(() => toast('链接已复制，到浏览器地址栏粘贴打开'))
+      .catch(() => toast('长按下面的框复制链接，粘贴到浏览器打开'));
+  } else {
+    toast('长按下面的框复制链接，粘贴到浏览器打开');
+  }
+}
 
 const AP_TYPES = {
   noProof: {
