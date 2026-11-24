@@ -185,20 +185,26 @@ function ktAppeal(){
     for(var i=0;i<all.length;i++)if(vis(all[i]))ins.push(all[i]);
     if(!ins.length){o.textContent='没找到「请选择」下拉框，先点「试开一单」';return;}
     var res=[],k=0;
+    function snap(){
+      var m={},els=document.querySelectorAll('div,li,span,a,button');
+      for(var i=0;i<els.length;i++){var e=els[i];if(!vis(e))continue;
+        var t=tx(e);if(t&&t.length<=26)m[t]=1;}
+      return m;
+    }
     function step(){
       if(k>=ins.length){
-        last=JSON.stringify({url:location.href,selects:res},null,2);
+        last=JSON.stringify({selects:res},null,2);
         o.textContent='已读取，点「复制」发我\n\n'+last.slice(0,800);return;
       }
+      var before=snap();
       try{ins[k].click();}catch(e){}
       setTimeout(function(){
-        var its=document.querySelectorAll('li,[class*="option"],[class*="Option"]'),op=[];
-        for(var i=0;i<its.length;i++){var e=its[i];if(!vis(e))continue;
-          var t=tx(e);if(!t||t.length>26)continue;if(op.indexOf(t)<0)op.push(t);}
-        res.push(op.slice(0,30));
-        try{ins[k].blur();}catch(e){}
-        k++;setTimeout(step,400);
-      },900);
+        var after=snap(),op=[];
+        for(var t in after)if(!before[t]&&!/^\d+$/.test(t))op.push(t);
+        res.push({i:k,opts:op.slice(0,30)});
+        try{document.body.click();}catch(e){}
+        k++;setTimeout(step,600);
+      },1000);
     }
     o.textContent='正在读取下拉项…';step();
   };
