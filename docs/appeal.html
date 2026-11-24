@@ -34,24 +34,22 @@ textarea{width:100%;height:110px;margin-top:10px;border:1px solid #e3e6ea;border
   <div class="sub">不用装扩展，30 秒装好，QQ 浏览器 / Edge / Chrome 都能用</div>
 
   <div class="card">
-    <div class="step"><i>1</i><div>先显示书签栏：按 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>，浏览器上方会出现一条书签栏（如果已经能看到，跳过这步）。</div></div>
-    <div class="step"><i>2</i><div>把下面这个黑色按钮<b>用鼠标拖到书签栏上</b>，松开。看到书签栏多出一个「申诉助手」就装好了。</div></div>
+    <div class="step"><i>1</i><div>先打开拼多多商家后台的页面，按 <kbd>F12</kbd>，点上面的 <b>Console</b>（控制台）。</div></div>
+    <div class="step"><i>2</i><div>回到这个页面，点下面的「<b>复制全部代码</b>」。</div></div>
+    <div class="step"><i>3</i><div>切回拼多多后台页面，点控制台最下面那行，按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴，按回车。</div></div>
+    <div class="step"><i>4</i><div>网页右下角出现「<b>申诉助手</b>」，点它 → 「诊断本页」→「复制」，把内容发我。</div></div>
     <div class="bar">
-      <a id="bm" href="#">申诉助手</a>
+      <button id="cp" style="padding:13px 26px;background:#1a1d21;color:#fff;border:0;border-radius:10px;font-size:15px;font-weight:600">复制全部代码</button>
       <span id="msg"></span>
-    </div>
-    <div class="bar" style="margin-top:14px">
-      <button id="cp">复制书签代码（拖不动就用这个）</button>
     </div>
     <textarea id="code" readonly placeholder="点上面的按钮后，代码会出现在这里"></textarea>
   </div>
 
   <div class="card">
-    <div class="step"><i>3</i><div>打开拼多多商家后台的<b>售后列表</b>或某笔售后的<b>申诉页</b>，点书签栏那个「申诉助手」。</div></div>
-    <div class="step"><i>4</i><div>面板里点「诊断本页」→「复制」，把内容发我；或者直接点「生成话术」「填入申诉框」。</div></div>
     <div class="note">
-      书签小工具和扩展一样，只在你当前打开的页面上运行，不改你的账号，不联网上传任何东西。
-      提交申诉那一键仍然由你点。
+      拼多多页面禁止从外部加载脚本，所以要把代码直接贴在控制台里运行。
+      代码只在你当前页面起作用，不联网上传任何东西，提交申诉那一键仍然由你点。
+      页面刷新后需要重新粘贴一次。
     </div>
   </div>
 </div>
@@ -127,17 +125,16 @@ function ktAppeal(){
 }
 
 (function(){
-  var code = '(' + ktAppeal.toString() + ')()';
-  var url = 'javascript:' + encodeURIComponent(code);
+  var raw = '(' + ktAppeal.toString() + ')()';
   var a = document.getElementById('bm');
-  a.href = url;
-  document.getElementById('code').value = url;
+  a.href = 'javascript:' + encodeURIComponent(raw);
+  document.getElementById('code').value = raw;
   document.getElementById('cp').onclick = function(){
     var t = document.getElementById('code');
     t.select();
     try{ document.execCommand('copy'); }catch(e){}
-    if(navigator.clipboard) navigator.clipboard.writeText(url);
-    document.getElementById('msg').textContent = '已复制，去书签栏右键新建书签粘贴到网址栏';
+    if(navigator.clipboard) navigator.clipboard.writeText(raw);
+    document.getElementById('msg').textContent = '已复制，回到后台页面按 Ctrl+V 粘贴';
   };
 })();
 </script>
