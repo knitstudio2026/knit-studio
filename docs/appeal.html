@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>申诉助手 · 安装书签</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:24px 16px 60px;background:#f4f5f7;color:#14171a;
+  font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-size:20px;margin:0 0 6px}
+.sub{color:#6b7280;font-size:13px;margin-bottom:20px}
+.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
+.step{display:flex;gap:10px;margin-bottom:14px;font-size:14px;line-height:1.75}
+.step i{flex:none;width:22px;height:22px;border-radius:50%;background:#1a1d21;color:#fff;
+  font-size:12px;font-style:normal;display:grid;place-items:center;margin-top:3px}
+kbd{background:#eef0f3;border-radius:5px;padding:1px 6px;font-size:12.5px;font-family:inherit}
+#bm{display:inline-block;padding:12px 22px;background:#1a1d21;color:#fff;border-radius:10px;
+  text-decoration:none;font-weight:600;font-size:15px;cursor:grab;user-select:none}
+#bm:active{cursor:grabbing}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px}
+#cp{padding:11px 16px;border:1px solid #e3e6ea;background:#fff;border-radius:10px;font-size:14px}
+#msg{font-size:12.5px;color:#9aa3ad;margin-left:4px}
+.note{font-size:12.5px;color:#6b7280;line-height:1.8;background:#fffaf5;border:1px solid #f2e3d5;
+  border-radius:10px;padding:12px}
+textarea{width:100%;height:110px;margin-top:10px;border:1px solid #e3e6ea;border-radius:10px;
+  padding:10px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#4b5563;background:#fafbfc}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>申诉助手 · 安装书签</h1>
+  <div class="sub">不用装扩展，30 秒装好，QQ 浏览器 / Edge / Chrome 都能用</div>
+
+  <div class="card">
+    <div class="step"><i>1</i><div>先显示书签栏：按 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>，浏览器上方会出现一条书签栏（如果已经能看到，跳过这步）。</div></div>
+    <div class="step"><i>2</i><div>把下面这个黑色按钮<b>用鼠标拖到书签栏上</b>，松开。看到书签栏多出一个「申诉助手」就装好了。</div></div>
+    <div class="bar">
+      <a id="bm" href="#">申诉助手</a>
+      <span id="msg"></span>
+    </div>
+    <div class="bar" style="margin-top:14px">
+      <button id="cp">复制书签代码（拖不动就用这个）</button>
+    </div>
+    <textarea id="code" readonly placeholder="点上面的按钮后，代码会出现在这里"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="step"><i>3</i><div>打开拼多多商家后台的<b>售后列表</b>或某笔售后的<b>申诉页</b>，点书签栏那个「申诉助手」。</div></div>
+    <div class="step"><i>4</i><div>面板里点「诊断本页」→「复制」，把内容发我；或者直接点「生成话术」「填入申诉框」。</div></div>
+    <div class="note">
+      书签小工具和扩展一样，只在你当前打开的页面上运行，不改你的账号，不联网上传任何东西。
+      提交申诉那一键仍然由你点。
+    </div>
+  </div>
+</div>
+
+<script>
+function ktAppeal(){
+  var P='kt-bm-panel';
+  var old=document.getElementById(P);
+  if(old){old.style.display=old.style.display==='none'?'flex':'none';return;}
+
+  function vis(e){if(!e)return false;var r=e.getBoundingClientRect();if(r.width<2||r.height<2)return false;
+    var s=getComputedStyle(e);return s.visibility!=='hidden'&&s.display!=='none'&&s.opacity!=='0';}
+  function tx(e){return (e.innerText||e.textContent||'').replace(/\s+/g,' ').trim();}
+  function reason(){var b=tx(document.body);
+    var m=b.match(/(退款原因|退货原因|售后原因|申请原因)[：:\s]*([^\s，。;；]{2,20})/);
+    if(m)return m[2];
+    var k=['质量问题','材质不符','做工粗糙','尺寸不符','不喜欢','效果不好','未按约定','少件漏发','发错货'];
+    for(var i=0;i<k.length;i++)if(b.indexOf(k[i])>-1)return k[i];
+    return '';}
+  function order(){var b=tx(document.body);var a=b.match(/\d{12,20}/g)||[];return a.length?a[0]:'';}
+  function goods(){var h=document.querySelector('h1,[class*="goodsName"]');return h?tx(h).slice(0,40):'';}
+  function build(){
+    var r=reason(),o=order(),g=goods();
+    var head='订单号：'+(o||'（见本页）')+(g?'，商品：'+g:'')+'。';
+    if(/负向|体验/.test(r))return head+'该订单买家反馈的体验问题与商品实际情况不符：商品按平台规则如实描述，尺码、面料、颜色均与详情页一致，发货前已逐件质检并留存实拍凭证。买家未提供有效问题凭证，恳请平台核实后撤销本次体验补偿判定。';
+    if(/质量/.test(r))return head+'买家选择"质量问题"但未上传任何有效凭证。该批次商品发货前已逐件质检，材质、做工、尺码均符合详情页描述，不存在质量问题。若买家主张质量问题，应提供能证明商品本身缺陷的照片或视频。恳请平台核实凭证情况，驳回该笔质量问题退款或改判为其他原因。';
+    if(/运费|邮费/.test(r))return head+'本单退货责任不在商家：商品无质量问题，退货原因属买家个人原因，按平台规则退回运费不应由商家承担。恳请平台重新判定运费责任，退还已扣除的运费。';
+    return head+'商家已按平台规则如实发货且商品无质量问题，买家主张与事实不符，恳请平台核实并支持商家申诉。';
+  }
+  function scan(){
+    var out=[],els=document.querySelectorAll('button,a,span,div[role="button"]');
+    for(var i=0;i<els.length&&out.length<60;i++){var e=els[i];if(!vis(e))continue;
+      var t=tx(e);if(!t||t.length>14)continue;
+      if(/申诉|维权|处罚|负向|体验|运费|举证|凭证/.test(t))out.push({t:t,c:String(e.className).slice(0,50)});}
+    var f=[],fs=document.querySelectorAll('textarea,input[type="text"],[contenteditable="true"]');
+    for(var j=0;j<fs.length&&f.length<30;j++){var x=fs[j];if(!vis(x))continue;
+      f.push({tag:x.tagName.toLowerCase(),ph:(x.getAttribute('placeholder')||'').slice(0,50)});}
+    return {url:location.href,order:order(),reason:reason(),goods:goods(),actions:out,fields:f};
+  }
+  function fill(t){
+    var els=document.querySelectorAll('textarea,[contenteditable="true"]'),tg=null;
+    for(var i=0;i<els.length;i++){var e=els[i];if(!vis(e))continue;
+      var ph=(e.getAttribute('placeholder')||'').toString();
+      if(/申诉|说明|理由|描述|备注/.test(ph)){tg=e;break;}if(!tg)tg=e;}
+    if(!tg)return '没找到输入框，先手动点一下申诉说明框再试';
+    if(tg.tagName==='TEXTAREA'){var d=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value');
+      d.set.call(tg,t);}
+    else{tg.focus();document.execCommand('selectAll',false,null);document.execCommand('insertText',false,t);}
+    tg.dispatchEvent(new Event('input',{bubbles:true}));
+    tg.dispatchEvent(new Event('change',{bubbles:true}));
+    return '已填入申诉说明，检查后手动点提交';
+  }
+  function cp(t){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t);
+    var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();
+    document.execCommand('copy');a.remove();}
+
+  var box=document.createElement('div');box.id=P;
+  box.style.cssText='position:fixed;right:16px;bottom:92px;width:320px;max-height:70vh;background:#fff;border:1px solid #e3e6ea;border-radius:12px;box-shadow:0 8px 28px rgba(16,24,40,.16);z-index:2147483000;font:13px/1.6 -apple-system,"PingFang SC",sans-serif;color:#14171a;display:flex;flex-direction:column;overflow:hidden';
+  box.innerHTML='<div style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid #eef0f3"><b style="flex:1">申诉助手</b><span id="ktx" style="cursor:pointer;color:#8b929c;padding:0 4px">✕</span></div>'+
+    '<div style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px">'+
+    '<button id="kts" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">诊断本页</button>'+
+    '<button id="ktg" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">生成话术</button>'+
+    '<button id="ktf" style="padding:6px 10px;border:0;background:#1a1d21;color:#fff;border-radius:7px;font-size:12px">填入申诉框</button>'+
+    '<button id="ktc" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">复制</button></div>'+
+    '<div id="kto" style="padding:0 12px 12px;font-size:12px;color:#374151;white-space:pre-wrap;overflow:auto;max-height:46vh"></div>';
+  document.body.appendChild(box);
+  var o=box.querySelector('#kto'),last='';
+  box.querySelector('#ktx').onclick=function(){box.style.display='none';};
+  box.querySelector('#kts').onclick=function(){last=JSON.stringify(scan(),null,2);o.textContent='已诊断，点「复制」发我\n\n'+last.slice(0,900);};
+  box.querySelector('#ktg').onclick=function(){last=build();o.textContent=last;};
+  box.querySelector('#ktf').onclick=function(){o.textContent=fill(last||build());};
+  box.querySelector('#ktc').onclick=function(){if(!last)last=build();cp(last);o.textContent='已复制到剪贴板';};
+}
+
+(function(){
+  var code = '(' + ktAppeal.toString() + ')()';
+  var url = 'javascript:' + encodeURIComponent(code);
+  var a = document.getElementById('bm');
+  a.href = url;
+  document.getElementById('code').value = url;
+  document.getElementById('cp').onclick = function(){
+    var t = document.getElementById('code');
+    t.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    if(navigator.clipboard) navigator.clipboard.writeText(url);
+    document.getElementById('msg').textContent = '已复制，去书签栏右键新建书签粘贴到网址栏';
+  };
+})();
+</script>
+</body>
+</html>
