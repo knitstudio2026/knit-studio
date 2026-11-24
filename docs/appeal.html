@@ -89,18 +89,26 @@ function ktAppeal(){
       f.push({tag:x.tagName.toLowerCase(),ph:(x.getAttribute('placeholder')||'').slice(0,50)});}
     return {url:location.href,order:order(),reason:reason(),goods:goods(),actions:out,fields:f};
   }
+  function docs(){
+    var list=[document],fs=document.querySelectorAll('iframe');
+    for(var i=0;i<fs.length;i++){try{var d=fs[i].contentDocument;if(d&&d.body)list.push(d);}catch(e){}}
+    return list;
+  }
   function rowsDump(){
-    var out=[],seen={},all=document.querySelectorAll('div,li');
-    for(var i=0;i<all.length;i++){
-      var e=all[i];if(!vis(e))continue;
-      var t=tx(e);if(t.length<20||t.length>320)continue;
-      if(!/\d{10,}/.test(t))continue;
-      var k=t.slice(0,60);if(seen[k])continue;seen[k]=1;
-      var bs=e.querySelectorAll('button,a,[class*="BTN"],[class*="btn"]'),b=[];
-      for(var j=0;j<bs.length;j++){var x=bs[j];if(!vis(x))continue;
-        var bt=tx(x);if(!bt||bt.length>12)continue;if(b.indexOf(bt)===-1)b.push(bt);}
-      out.push({t:t.slice(0,200),b:b.join(' | ')});
-      if(out.length>=15)break;
+    var out=[],seen={},ds=docs();
+    for(var n=0;n<ds.length;n++){
+      var all=ds[n].querySelectorAll('div,li,tr');
+      for(var i=0;i<all.length;i++){
+        var e=all[i];if(!vis(e))continue;
+        var t=tx(e);if(t.length<20||t.length>320)continue;
+        if(!/\d{10,}/.test(t))continue;
+        var k=t.slice(0,60);if(seen[k])continue;seen[k]=1;
+        var bs=e.querySelectorAll('button,a,[class*="BTN"],[class*="btn"]'),b=[];
+        for(var j=0;j<bs.length;j++){var x=bs[j];if(!vis(x))continue;
+          var bt=tx(x);if(!bt||bt.length>12)continue;if(b.indexOf(bt)===-1)b.push(bt);}
+        out.push({f:n,t:t.slice(0,200),b:b.join(' | ')});
+        if(out.length>=15)break;
+      }
     }
     return out;
   }
@@ -136,8 +144,9 @@ function ktAppeal(){
   box.querySelector('#ktx').onclick=function(){box.style.display='none';};
   box.querySelector('#kts').onclick=function(){last=JSON.stringify(scan(),null,2);o.textContent='已诊断，点「复制」发我\n\n'+last.slice(0,900);};
   box.querySelector('#ktl').onclick=function(){
-    var r=rowsDump();
-    last=JSON.stringify({url:location.href,rows:r},null,2);
+    var r=rowsDump(),ds=docs(),hit=0;
+    for(var n=0;n<ds.length;n++){var t=tx(ds[n].body||ds[n].documentElement);var m=t.match(/\d{10,}/g);if(m)hit+=m.length;}
+    last=JSON.stringify({url:location.href,iframes:document.querySelectorAll('iframe').length,numHits:hit,rows:r},null,2);
     o.textContent='共 '+r.length+' 行，点「复制」发我\n\n'+last.slice(0,700);
   };
   box.querySelector('#ktg').onclick=function(){last=build();o.textContent=last;};
