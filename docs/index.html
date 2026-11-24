@@ -206,7 +206,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.40</span>
+      <span class="ver">v7.41</span>
     </div>
   </div>
 
@@ -345,6 +345,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div class="btn-row">
           <button class="btn accent" id="apOpenNeg">打开「消费者负向体验处罚明细」</button>
           <button class="btn ghost" id="apOpenMms">打开拼多多商家后台</button>
+          <button class="btn" id="apOpenHelper">启动「申诉助手」自动逐单填写</button>
         </div>
         <div id="apLinkBox" class="hidden" style="margin-top:10px">
           <input type="text" id="apLinkInput" class="wide" readonly style="width:100%;font-size:12px">
@@ -579,6 +580,10 @@ $$('.nav button').forEach(b => b.addEventListener('click', () => {
   $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : p === 'appeal' ? '售后申诉' : '设置';
   if (p === 'lib') renderLib();
   if (p === 'appeal') renderProofs();
+  if (p === 'appeal' && !window.__apOpened) {
+    window.__apOpened = true;
+    try { window.open('https://mms.pinduoduo.com/orders/appeals/aftersale/order', '_blank'); } catch (e) {}
+  }
   window.scrollTo(0, 0);
 }));
 
@@ -3314,6 +3319,7 @@ if (!settings.apiKey) {
 
 /* ================= 售后申诉助手 ================= */
 $('#apOpenNeg').addEventListener('click', () => openExternal('https://mms.pinduoduo.com/aftersales/customer_complain_appeal'));
+$('#apOpenHelper').addEventListener('click', () => window.open('appeal.html', '_blank'));
 $('#apOpenMms').addEventListener('click', () => openExternal('https://mms.pinduoduo.com/home/'));
 $('#apOpenTm').addEventListener('click', () => openExternal('https://www.tampermonkey.net/'));
 /* 手机点链接会被拼多多劫持去 App，落不到具体页面；改成复制链接自己粘贴 */
