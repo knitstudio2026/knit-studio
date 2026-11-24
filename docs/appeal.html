@@ -89,6 +89,18 @@ function ktAppeal(){
       f.push({tag:x.tagName.toLowerCase(),ph:(x.getAttribute('placeholder')||'').slice(0,50)});}
     return {url:location.href,order:order(),reason:reason(),goods:goods(),actions:out,fields:f};
   }
+  function rowsDump(){
+    var out=[],trs=document.querySelectorAll('tr');
+    for(var i=0;i<trs.length&&out.length<40;i++){
+      var tr=trs[i];if(!vis(tr))continue;
+      var t=tx(tr);if(t.length<4)continue;
+      var bs=tr.querySelectorAll('button,a,[class*="BTN"],[class*="btn"]'),b=[];
+      for(var j=0;j<bs.length;j++){var e=bs[j];if(!vis(e))continue;
+        var bt=tx(e);if(!bt||bt.length>10)continue;if(b.indexOf(bt)===-1)b.push(bt);}
+      out.push({t:t.slice(0,150),b:b.slice(0,8).join(' | ')});
+    }
+    return out;
+  }
   function fill(t){
     var els=document.querySelectorAll('textarea,[contenteditable="true"]'),tg=null;
     for(var i=0;i<els.length;i++){var e=els[i];if(!vis(e))continue;
@@ -111,6 +123,7 @@ function ktAppeal(){
   box.innerHTML='<div style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid #eef0f3"><b style="flex:1">申诉助手</b><span id="ktx" style="cursor:pointer;color:#8b929c;padding:0 4px">✕</span></div>'+
     '<div style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px">'+
     '<button id="kts" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">诊断本页</button>'+
+    '<button id="ktl" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">扫描列表</button>'+
     '<button id="ktg" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">生成话术</button>'+
     '<button id="ktf" style="padding:6px 10px;border:0;background:#1a1d21;color:#fff;border-radius:7px;font-size:12px">填入申诉框</button>'+
     '<button id="ktc" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">复制</button></div>'+
@@ -119,6 +132,18 @@ function ktAppeal(){
   var o=box.querySelector('#kto'),last='';
   box.querySelector('#ktx').onclick=function(){box.style.display='none';};
   box.querySelector('#kts').onclick=function(){last=JSON.stringify(scan(),null,2);o.textContent='已诊断，点「复制」发我\n\n'+last.slice(0,900);};
+  box.querySelector('#ktl').onclick=function(){
+    var tab=null,els=document.querySelectorAll('div,span,a,button');
+    for(var i=0;i<els.length;i++){var e=els[i],t=tx(e);
+      if(t.length<=14&&/极速退款申诉|维权申诉/.test(t)){tab=e;break;}}
+    o.textContent='正在读取列表…';
+    try{if(tab)tab.click();}catch(err){}
+    setTimeout(function(){
+      var r=rowsDump();
+      last=JSON.stringify({url:location.href,rows:r},null,2);
+      o.textContent='共 '+r.length+' 行，点「复制」发我\n\n'+last.slice(0,700);
+    },1800);
+  };
   box.querySelector('#ktg').onclick=function(){last=build();o.textContent=last;};
   box.querySelector('#ktf').onclick=function(){o.textContent=fill(last||build());};
   box.querySelector('#ktc').onclick=function(){if(!last)last=build();cp(last);o.textContent='已复制到剪贴板';};
