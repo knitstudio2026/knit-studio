@@ -126,15 +126,22 @@ function ktAppeal(){
 
 (function(){
   var raw = '(' + ktAppeal.toString() + ')()';
-  var a = document.getElementById('bm');
-  a.href = 'javascript:' + encodeURIComponent(raw);
-  document.getElementById('code').value = raw;
+  var ta = document.getElementById('code');
+  ta.value = raw;
   document.getElementById('cp').onclick = function(){
-    var t = document.getElementById('code');
-    t.select();
-    try{ document.execCommand('copy'); }catch(e){}
-    if(navigator.clipboard) navigator.clipboard.writeText(raw);
-    document.getElementById('msg').textContent = '已复制，回到后台页面按 Ctrl+V 粘贴';
+    ta.focus();
+    ta.select();
+    try{ ta.setSelectionRange(0, raw.length); }catch(e){}
+    var ok = false;
+    try{ ok = document.execCommand('copy'); }catch(e){}
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(raw).then(function(){
+        document.getElementById('msg').textContent = '已复制，去后台页面 Ctrl+V';
+      }).catch(function(){});
+    }
+    document.getElementById('msg').textContent = ok
+      ? '已复制，去后台页面 Ctrl+V'
+      : '代码已全选，请按 Ctrl+C 复制';
   };
 })();
 </script>
