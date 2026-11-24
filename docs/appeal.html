@@ -158,6 +158,20 @@ function ktAppeal(){
     '<button id="ktg" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">生成话术</button>'+
     '<button id="ktf" style="padding:6px 10px;border:0;background:#1a1d21;color:#fff;border-radius:7px;font-size:12px">填入申诉框</button>'+
     '<button id="ktc" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">复制</button></div>'+
+    '<div style="padding:0 12px 8px;display:flex;flex-direction:column;gap:6px">'+
+    '<select id="kdr" style="padding:6px;border:1px solid #e3e6ea;border-radius:7px;font-size:12px">'+
+    '<option>未收到退货</option>'+
+    '<option>消费者退货商品存在问题（影响二次销售、缺损、污渍、空包、非商家商品等）</option>'+
+    '<option>消费者寄错（收到非商家商品）</option>'+
+    '<option>消费者部分换货后异常退货</option>'+
+    '<option>买家寄到付件</option>'+
+    '<option>少退商品（少件、缺件、未寄回赠品等），但消费者退款金额申请是全额</option>'+
+    '</select>'+
+    '<textarea id="kdd" style="height:62px;padding:6px;border:1px solid #e3e6ea;border-radius:7px;font-size:12px">本店该订单已按约定发出，发货前已检查商品完好，买家申请退款原因与实际不符，恳请核实撤回该笔极速退款。</textarea>'+
+    '<div style="display:flex;gap:6px">'+
+    '<button id="kda" style="flex:1;padding:7px;border:0;background:#c4683f;color:#fff;border-radius:7px;font-size:12px">开始逐单填</button>'+
+    '<button id="kds" style="padding:7px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">停止</button>'+
+    '</div></div>'+
     '<div id="kto" style="padding:0 12px 12px;font-size:12px;color:#374151;white-space:pre-wrap;overflow:auto;max-height:46vh"></div>';
   document.body.appendChild(box);
   var o=box.querySelector('#kto'),last='';
@@ -211,6 +225,91 @@ function ktAppeal(){
   box.querySelector('#ktg').onclick=function(){last=build();o.textContent=last;};
   box.querySelector('#ktf').onclick=function(){o.textContent=fill(last||build());};
   box.querySelector('#ktc').onclick=function(){if(!last)last=build();cp(last);o.textContent='已复制到剪贴板';};
+  var running=false,idx=0,btns=[];
+  function setVal(el,v){
+    var proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
+    var d=Object.getOwnPropertyDescriptor(proto,'value');d.set.call(el,v);
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  function dlg(){
+    var t=document.querySelector('textarea[placeholder*="请描述所涉及订单"]');
+    return t&&vis(t)?t:null;
+  }
+  function collect(){
+    var ds=docs(),c=[];
+    for(var n=0;n<ds.length;n++){
+      var els=ds[n].querySelectorAll('button,a,span,div');
+      for(var i=0;i<els.length;i++){
+        var e=els[i];if(!vis(e))continue;
+        if(tx(e)!=='发起申诉')continue;
+        var r=e.getBoundingClientRect();if(r.width*r.height<4)continue;
+        c.push(e);
+      }
+    }
+    var out=[];
+    for(var i=0;i<c.length;i++){
+      var has=false;
+      for(var j=0;j<c.length;j++)if(i!==j&&c[i]!==c[j]&&c[i].contains(c[j])){has=true;break;}
+      if(!has)out.push(c[i]);
+    }
+    out.sort(function(a,b){return a.getBoundingClientRect().top-b.getBoundingClientRect().top;});
+    return out;
+  }
+  function pickReason(t){
+    var ds=docs();
+    for(var n=0;n<ds.length;n++){
+      var els=ds[n].querySelectorAll('li,span,div');
+      for(var i=els.length-1;i>=0;i--){
+        var e=els[i];if(!vis(e))continue;
+        if(tx(e)!==t)continue;
+        var r=e.getBoundingClientRect();if(r.width<20)continue;
+        try{e.click();}catch(x){}
+        return true;
+      }
+    }
+    return false;
+  }
+  function waitClose(cb){
+    var n=0,id=setInterval(function(){
+      if(!running){clearInterval(id);return;}
+      if(!dlg()||n++>60){clearInterval(id);cb();}
+    },800);
+  }
+  function next(){
+    if(!running)return;
+    if(idx>=btns.length){o.textContent='本页 '+idx+' 单处理完毕；换页后重新点「开始逐单填」';running=false;return;}
+    var b=btns[idx];
+    if(!b||!vis(b)){idx++;return next();}
+    var row=b.parentElement?b.parentElement.parentElement:null;
+    var t=row?tx(row):'',m=t.match(/\d{6}-\d{10,}/)||t.match(/\d{10,}/);
+    var no=m?m[0]:'';
+    o.textContent='第 '+(idx+1)+'/'+btns.length+' 单，正在打开…';
+    try{b.click();}catch(e){}
+    setTimeout(function(){
+      if(!running)return;
+      var ta=dlg();
+      if(!ta){o.textContent='第 '+(idx+1)+' 单弹窗没出现，跳过';idx++;setTimeout(next,1200);return;}
+      var sel=null,ins=document.querySelectorAll('input[placeholder="请选择"]');
+      for(var i=0;i<ins.length;i++)if(vis(ins[i]))sel=ins[i];
+      if(sel){try{sel.click();}catch(e){}}
+      setTimeout(function(){
+        pickReason(box.querySelector('#kdr').value);
+        setTimeout(function(){
+          var d=box.querySelector('#kdd').value+(no?'\n订单号：'+no:'');
+          setVal(ta,d);
+          o.textContent='第 '+(idx+1)+' 单已填好'+(no?'（'+no+'）':'')+'\n检查后手动点「提交」，关掉弹窗后自动开下一单';
+          waitClose(function(){idx++;if(running)next();});
+        },400);
+      },800);
+    },2100);
+  }
+  box.querySelector('#kda').onclick=function(){
+    btns=collect();
+    if(!btns.length){o.textContent='没找到「发起申诉」按钮，先确认列表已显示';return;}
+    running=true;idx=0;o.textContent='共 '+btns.length+' 单，开始…';next();
+  };
+  box.querySelector('#kds').onclick=function(){running=false;o.textContent='已停止';};
 }
 
 (function(){
