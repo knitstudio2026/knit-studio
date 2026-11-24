@@ -84,10 +84,13 @@ function ktAppeal(){
     for(var i=0;i<els.length&&out.length<60;i++){var e=els[i];if(!vis(e))continue;
       var t=tx(e);if(!t||t.length>14)continue;
       if(/申诉|维权|处罚|负向|体验|运费|举证|凭证/.test(t))out.push({t:t,c:String(e.className).slice(0,50)});}
-    var f=[],fs=document.querySelectorAll('textarea,input[type="text"],[contenteditable="true"]');
-    for(var j=0;j<fs.length&&f.length<30;j++){var x=fs[j];if(!vis(x))continue;
-      f.push({tag:x.tagName.toLowerCase(),ph:(x.getAttribute('placeholder')||'').slice(0,50)});}
-    return {url:location.href,order:order(),reason:reason(),goods:goods(),actions:out,fields:f};
+    var f=[],fs=document.querySelectorAll('textarea,input,select,[contenteditable="true"]');
+    for(var j=0;j<fs.length&&f.length<40;j++){var x=fs[j];if(!vis(x))continue;
+      f.push({tag:x.tagName.toLowerCase(),ty:(x.getAttribute('type')||'').slice(0,12),
+        ph:(x.getAttribute('placeholder')||'').slice(0,40)});}
+    return {url:location.href,order:order(),reason:reason(),goods:goods(),actions:out,
+      radios:Array.prototype.map.call(document.querySelectorAll('label,[class*="radio"],[class*="Radio"]'),function(e){
+        return vis(e)?tx(e).slice(0,24):'';}).filter(function(t){return t&&t.length<24;}).slice(0,20),fields:f};
   }
   function docs(){
     var list=[document],fs=document.querySelectorAll('iframe');
@@ -112,6 +115,19 @@ function ktAppeal(){
     }
     return out;
   }
+  function firstAppealBtn(){
+    var ds=docs(),best=null,bestA=1e12;
+    for(var n=0;n<ds.length;n++){
+      var els=ds[n].querySelectorAll('button,a,[class*="BTN"],[class*="btn"],span,div');
+      for(var i=0;i<els.length;i++){
+        var e=els[i];if(!vis(e))continue;
+        if(tx(e)!=='发起申诉')continue;
+        var r=e.getBoundingClientRect(),a=r.width*r.height;
+        if(a>4&&a<bestA){bestA=a;best=e;}
+      }
+    }
+    return best;
+  }
   function fill(t){
     var els=document.querySelectorAll('textarea,[contenteditable="true"]'),tg=null;
     for(var i=0;i<els.length;i++){var e=els[i];if(!vis(e))continue;
@@ -135,6 +151,7 @@ function ktAppeal(){
     '<div style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px">'+
     '<button id="kts" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">诊断本页</button>'+
     '<button id="ktl" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">扫描列表</button>'+
+    '<button id="kto1" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">试开一单</button>'+
     '<button id="ktg" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">生成话术</button>'+
     '<button id="ktf" style="padding:6px 10px;border:0;background:#1a1d21;color:#fff;border-radius:7px;font-size:12px">填入申诉框</button>'+
     '<button id="ktc" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">复制</button></div>'+
@@ -148,6 +165,17 @@ function ktAppeal(){
     for(var n=0;n<ds.length;n++){var t=tx(ds[n].body||ds[n].documentElement);var m=t.match(/\d{10,}/g);if(m)hit+=m.length;}
     last=JSON.stringify({url:location.href,iframes:document.querySelectorAll('iframe').length,numHits:hit,rows:r},null,2);
     o.textContent='共 '+r.length+' 行，点「复制」发我\n\n'+last.slice(0,700);
+  };
+  box.querySelector('#kto1').onclick=function(){
+    var b=firstAppealBtn();
+    if(!b){o.textContent='没找到「发起申诉」按钮，确认列表已经显示出来';return;}
+    o.textContent='正在打开第一单…';
+    try{b.click();}catch(e){}
+    setTimeout(function(){
+      var s=scan();
+      last=JSON.stringify(s,null,2);
+      o.textContent='弹窗已打开，点「复制」发我（先别提交）\n\n'+last.slice(0,800);
+    },2200);
   };
   box.querySelector('#ktg').onclick=function(){last=build();o.textContent=last;};
   box.querySelector('#ktf').onclick=function(){o.textContent=fill(last||build());};
