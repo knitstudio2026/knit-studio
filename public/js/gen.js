@@ -5,18 +5,30 @@
  */
 
 export const OPTIONS = {
-  category: ['套头毛衣', '针织开衫', '毛衣马甲', '针织连衣裙', '毛衣外套', '打底针织衫'],
-  material: ['羊毛', '山羊绒', '兔绒', '羊毛混纺', '棉', '雪尼尔', '腈纶', '冰丝', '马海毛'],
-  craft: ['麻花编织', '提花', '镂空', '钩花', '拼色', '条纹', '纯色', '绞花', '坑条'],
-  neck: ['圆领', '半高领', 'V领', '高领', '翻领', '连帽', '方领', '一字领'],
-  fit: ['宽松', '修身', '落肩', '短款', '中长款', 'oversize'],
-  style: ['慵懒风', '韩版', '日系', '复古', '法式', '学院风', '通勤', 'ins风', '温柔风'],
-  audience: ['女士', '学生', '妈妈', '大码', '情侣', '青少年'],
-  weight: ['薄款', '常规', '加厚', '厚实'],
-  season: ['春秋', '秋冬', '冬季'],
-  color: ['燕麦色', '奶白色', '雾霾蓝', '奶茶色', '焦糖色', '墨绿色', '藏青色', '黑色', '灰色', '粉色', '浅杏色', '酒红色'],
-  size: ['S', 'M', 'L', 'XL', '2XL', '3XL', '均码'],
-  scene: ['内搭打底', '单穿外穿', '通勤上班', '约会日常', '校园', '居家']
+  category: ['套头毛衣', '针织开衫', '毛衣马甲', '针织连衣裙', '毛衣外套', '打底针织衫', '其他'],
+  material: ['羊毛', '羊绒', '棉', '聚酯纤维', '腈纶', '锦纶', '粘纤', '马海毛', '兔毛', '混纺'],
+  craft: ['麻花编织', '提花', '镂空', '钩花', '拼色', '条纹', '纯色', '绞花', '坑条', '其他'],
+  // 以下选项对齐拼多多「女装/毛衣针织衫」发布页的商品属性项
+  wearStyle: ['套头', '开衫', '马甲', '连衣裙'],
+  neck: ['圆领', 'V领', '高领', '半高领', '翻领', '连帽', '方领', '一字领', '娃娃领', '立领', 'POLO领'],
+  fit: ['宽松', '修身', '直筒', '收腰', '常规'],
+  length: ['短款', '常规款', '中长款', '长款'],
+  sleeveLen: ['无袖', '短袖', '五分袖', '七分袖', '九分袖', '长袖'],
+  sleeveType: ['常规', '落肩袖', '插肩袖', '泡泡袖', '灯笼袖', '公主袖', '蝙蝠袖'],
+  weight: ['薄款', '常规', '加厚', '加绒'],
+  pattern: ['纯色', '条纹', '格子', '印花', '提花', '拼色', '刺绣', '字母', '动物纹'],
+  elements: ['纯色', '纽扣', '口袋', '拉链', '蝴蝶结', '蕾丝', '荷叶边', '流苏', '刺绣', '拼接', '钉珠', '镂空'],
+  fiber: ['针织', '毛线', '羊毛', '羊绒', '雪尼尔', '棉线', '马海毛', '冰丝'],
+  age: ['青年（18-25周岁）', '中青年（26-40周岁）', '中年（41-50周岁）', '中老年（51-60周岁）'],
+  fleece: ['不加绒', '加绒'],
+  mainStyle: ['甜美清新', '个性街头', '气质名媛', '简约通勤', '文艺复古', '小众特色'],
+  subStyle: ['韩版', '日系', '法式', '复古', '小清新', '通勤', '学院风', 'ins风', '慵懒风', '温柔风', '小香风', '运动风'],
+  style: ['慵懒风', '韩版', '日系', '复古', '法式', '学院风', '通勤', 'ins风', '温柔风', '其他'],
+  audience: ['女士', '学生', '妈妈', '大码', '情侣', '青少年', '其他'],
+  season: ['春季', '夏季', '秋季', '冬季', '春秋', '秋冬', '四季'],
+  color: ['燕麦色', '奶白色', '雾霾蓝', '奶茶色', '焦糖色', '墨绿色', '藏青色', '黑色', '灰色', '粉色', '浅杏色', '酒红色', '其他'],
+  size: ['S', 'M', 'L', 'XL', '2XL', '3XL', '均码', '其他'],
+  scene: ['内搭打底', '单穿外穿', '通勤上班', '约会日常', '校园', '居家', '其他']
 };
 
 export const SIZE_WEIGHT = {
@@ -33,13 +45,14 @@ const TITLE_LIMIT = 60;
 
 const MATERIAL_FEEL = {
   羊毛: ['软糯不扎', '保暖锁温', '亲肤细腻'],
-  山羊绒: ['云朵手感', '轻盈保暖', '贴肤不扎'],
-  兔绒: ['蓬松柔软', '轻盈不压身', '暖糯亲肤'],
-  羊毛混纺: ['柔软不扎', '挺括有型', '保暖耐穿'],
+  羊绒: ['云朵手感', '轻盈保暖', '贴肤不扎'],
+  兔毛: ['蓬松柔软', '轻盈不压身', '暖糯亲肤'],
+  混纺: ['柔软不扎', '挺括有型', '保暖耐穿'],
   棉: ['亲肤透气', '吸湿排汗', '不易起球'],
-  雪尼尔: ['立体绒感', '厚实垂坠', '手感饱满'],
+  聚酯纤维: ['挺括不易皱', '耐磨耐穿', '好打理'],
   腈纶: ['弹力回弹', '不易变形', '轻盈保暖'],
-  冰丝: ['凉感垂坠', '顺滑不闷', '不易皱'],
+  锦纶: ['高弹耐磨', '回弹好', '不易变形'],
+  粘纤: ['顺滑垂坠', '亲肤透气', '不易起静电'],
   马海毛: ['毛绒质感', '蓬松有光泽', '轻盈'],
 };
 
@@ -58,6 +71,10 @@ const CRAFT_DESC = {
 const FIT_DESC = {
   宽松: '宽松落肩版型，遮腰腹不显肉，里面塞厚内搭也活动自如。',
   修身: '修身但不紧勒，贴合身形显腰线，做内搭更利落。',
+  直筒: '直筒版型不挑身材，上下一条直线，显瘦又利落。',
+  收腰: '微收腰设计，腰线清楚，显比例不臃肿。',
+  A字: 'A 字下摆，遮胯遮大腿，梨形身材也能穿。',
+  常规: '常规版型，肩线自然，日常穿不挑人。',
   落肩: '落肩袖设计，肩线自然下沉，肩宽背厚也能穿得轻松。',
   短款: '短款衣长，配高腰裤/半裙显腿长比例。',
   中长款: '中长衣长，遮胯遮臀，外面套大衣也不臃肿。',
@@ -118,7 +135,7 @@ export function makeTitles(input) {
   const synonyms = CAT_SYNONYMS[cat] || [cat];
   const catWord = synonyms[0].replace(/针织/, '');
   const catSyn = synonyms[1] || catWord;
-  const matWord = mats.length ? (mats.length > 1 ? '羊毛混纺' : mats[0]) : '针织';
+  const matWord = mats.length ? (mats.length > 1 ? mats.join('') : mats[0]) : '针织';
   const styleWord = styles[0] || '慵懒风';
   const styleWord2 = styles[1] || '百搭';
   const audWord = aud[0] || '女士';
@@ -170,8 +187,17 @@ export function makeTitles(input) {
     [0, 1, 2, 3, 4, 5, 6, 7, 10, n - 5, n - 4, n - 2]
   ].map((idxs) => idxs.map(at));
 
+  // 防比价：每次生成随机打乱 2~3 个词的位置，并随机加一个语气词/修饰词，避免标题和别家完全一致
+  const extraFlavor = ['洋气', '减龄', '显白', '遮肉', '不起球', '不缩水', '高质感', '氛围感', '小香风', '甜美', '显瘦', '百搭', '软糯', '亲肤', '高级感', '韩系', '温柔', '气质', '慵懒', '简约'];
+  const flav = extraFlavor[Math.floor(Math.random() * extraFlavor.length)];
   const titles = combos.map((parts, i) => {
-    const t = fitLimit(parts.filter(Boolean).join(' '));
+    const useFlav = Math.random() > 0.4 ? [flav] : [];
+    // 随机交换 1 对相邻元素位置
+    if (parts.length > 2 && Math.random() > 0.5) {
+      const k = Math.floor(Math.random() * (parts.length - 1));
+      [parts[k], parts[k + 1]] = [parts[k + 1], parts[k]];
+    }
+    const t = fitLimit(useFlav.concat(parts).filter(Boolean).join(' '));
     return { text: t, len: charLen(t), kind: ['关键词堆砌', '卖点前置', '场景痛点', '风格人群', '材质工艺', '同义词长尾', '满配长尾'][i] };
   });
 
@@ -228,17 +254,72 @@ export function makeSkus(input) {
   const price = Number(input.price) || 59.9;
   const skus = [];
   let n = 1;
+  // 防比价：给每个颜色随机一个别名后缀，SKU 规格名不和同行撞
+  const colorAlias = {
+    燕麦色: ['燕麦奶', '杏奶茶', '米杏色', '燕麦奶白'],
+    奶白色: ['奶油白', '云朵白', '象牙白', '糯米白', '本白'],
+    米白色: ['米白', '本白', '象牙白', '生椰白', '原色白'],
+    雾霾蓝: ['灰雾蓝', '雾感蓝', '烟灰蓝', '雾霾灰蓝'],
+    奶茶色: ['焦糖奶', '棕奶茶', '拿铁棕', '奶茶棕'],
+    焦糖色: ['焦糖棕', '红棕焦糖', '太妃糖', '焦糖橘'],
+    墨绿色: ['森林绿', '复古墨绿', '暗松绿', '墨松绿'],
+    藏青色: ['深海蓝', '藏青蓝', '暗夜蓝', '深蓝藏青'],
+    黑色: ['经典黑', '炭黑', '暗夜黑', '纯黑', '曜石黑'],
+    灰色: ['云雾灰', '高级灰', '烟灰', '浅麻灰'],
+    粉色: ['樱花粉', '蜜桃粉', '奶油粉', '雾粉'],
+    浅粉色: ['浅樱粉', '柔粉', '雾面粉', '淡粉', '奶油浅粉'],
+    浅蓝色: ['雾蓝', '天青蓝', '冰川蓝', '淡蓝', '浅雾蓝'],
+    浅紫色: ['丁香紫', '雾紫', '薰衣草紫', '淡紫', '香芋紫'],
+    浅黄色: ['奶油黄', '鹅黄', '淡黄', '香草黄', '浅奶黄'],
+    浅杏色: ['浅杏奶', '杏色', '奶茶杏', '裸杏色'],
+    酒红色: ['复古酒红', '勃艮第红', '暗酒红', '车厘子红']
+  };
+  // 表里没有的颜色：用同义前缀生成，保证描述依然准确（浅X色 → 浅X/淡X/柔X）
+  const anti = input.antiCompare !== false;
+  const aliasOf = (c) => {
+    if (colorAlias[c]) return colorAlias[c][Math.floor(Math.random() * colorAlias[c].length)];
+    if (!anti) return c;
+    const base = c.replace(/^(浅|淡|深|亮|嫩)/, '').replace(/\s/g, '');
+    const head = /^(浅|淡|嫩|亮)/.test(c) ? c.replace(/\s/g, '') : '';
+    const core = base.replace(/色$/, '');
+    const variants = [c, core, '柔' + core, '淡' + core, (head ? head : '') + core];
+    return variants[Math.floor(Math.random() * variants.length)] || c;
+  };
+  const randomSuffix = () => String(Math.floor(Math.random() * 900) + 100);
+  // SKU 文字是比价权重最高的一项（实测 70%+）：颜色名、尺码写法、分隔符、卖点前后缀全部随机，避免和同行撞
+  const sizeText = (s) => {
+    if (!anti) return `${s}码`;
+    const t = ['码', '碼', '号', '號', ''][Math.floor(Math.random() * 5)];
+    return s + t;
+  };
+  const antiTag = () => {
+    if (!anti) return '';
+    const pool = ['现货', '新款', '软糯', '实拍', '可拍', '包邮', '当天发', '不退不换'];
+    const w = String(input.weight || '');
+    const se = String(input.season || '');
+    if (/加厚|加绒/.test(w)) pool.push('加厚');
+    if (/秋|冬/.test(se)) pool.push(se + '款');
+    const t = pool[Math.floor(Math.random() * pool.length)];
+    if (!t) return '';
+    // 卖点放在前面或后面随机，进一步降低文字相似度
+    const sep = ['-', '·', ' ', '/', '｜'][Math.floor(Math.random() * 5)];
+    return Math.random() < 0.3 ? `${t}${sep}` : `${sep}${t}`;
+  };
   colors.forEach((c) => {
     sizes.forEach((s) => {
+      const alias = aliasOf(c);
+      const sep = ['-', '/', '·', ' ', '｜', '_'][Math.floor(Math.random() * 6)];
+      const tag = antiTag();
+      const nameBody = `${alias}${sep}${sizeText(s)}`;
       skus.push({
         id: 'sku-' + n++,
-        spec1: c,
+        spec1: anti ? alias : c,
         spec2: s,
-        name: `${c} ${s}码`,
-        pddName: `${c}-${s}`,
+        name: `${alias} ${sizeText(s)}`,
+        pddName: tag.endsWith(sep) ? `${tag}${nameBody}` : `${nameBody}${tag}`,
         price: price.toFixed(2),
         stock: 100,
-        code: `KN${String(n - 1).padStart(3, '0')}`
+        code: `KN${randomSuffix()}${String(n - 1).padStart(2, '0')}`
       });
     });
   });
@@ -337,26 +418,32 @@ export function makeDetail(input) {
 
 export function makeAttrs(input) {
   const mats = uniq(input.materials || []);
-  const crafts = uniq(input.crafts || []);
-  const sizes = uniq(input.sizes || ['M']);
-  const weight = input.weight || '常规';
+  const elems = uniq(input.elements || []);
   const year = new Date().getFullYear();
+  const main = mats[0] || '聚酯纤维';
+  const pct = mats.length > 1 ? `${main}30%+${mats[1]}70%` : `${main}100%`;
+  // 字段和顺序照拼多多女装商品属性：品牌、穿着方式、厚薄、衣长、领型、袖长、袖型、服装版型、
+  // 图案、主面料成分、成分含量、面料俗称、适用年龄、流行元素、是否加绒、上市时节、主风格、风格
   return [
-    ['商品类型', input.category || '套头毛衣'],
-    ['材质成分', mats.length ? mats.join(' + ') : '针织'],
+    ['商品类目', input.category || '套头毛衣'],
+    ['品牌', '无品牌'],
+    ['穿着方式', input.wearStyle || '套头'],
+    ['厚薄', input.weight || '常规'],
+    ['衣长', input.length || '常规款'],
     ['领型', input.neck || '圆领'],
-    ['版型', input.fit || '宽松'],
-    ['图案', crafts.includes('条纹') ? '条纹' : crafts.includes('拼色') ? '拼色' : crafts.includes('提花') ? '提花' : '纯色'],
-    ['厚薄', weight],
-    ['衣长', input.fit === '短款' ? '短款' : input.fit === '中长款' ? '中长款' : '常规'],
-    ['适用季节', input.season || '秋冬'],
-    ['风格', (input.styles || ['慵懒风']).join('/')],
-    ['适用人群', (input.audience || ['女士']).join('/')],
-    ['尺码', sizes.join('/')],
-    ['颜色', (input.colors || ['燕麦色']).join('/')],
-    ['是否连帽', input.neck === '连帽' ? '是' : '否'],
-    ['洗涤方式', '手洗 / 轻柔机洗'],
-    ['上市年份季节', `${year}年${input.season || '秋冬'}`]
+    ['袖长', input.sleeveLen || '长袖'],
+    ['袖型', input.sleeveType || '常规'],
+    ['服装版型', input.fit || '宽松'],
+    ['图案', input.pattern || '纯色'],
+    ['主面料成分', main],
+    ['成分含量', pct],
+    ['面料俗称', input.fiber || '针织'],
+    ['适用年龄', input.age || '中青年（26-40周岁）'],
+    ['流行元素', elems.length ? elems.join('、') : '纯色'],
+    ['是否加绒', input.fleece || '不加绒'],
+    ['上市时节', `${year}年${input.season || '秋冬'}`],
+    ['主风格', input.mainStyle || '简约通勤'],
+    ['风格', input.subStyle || '慵懒风']
   ];
 }
 

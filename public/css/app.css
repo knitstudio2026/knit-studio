@@ -308,14 +308,28 @@ table.tbl tr:hover td { background: #fdfbf7; }
 .thumb {
   position: relative; border-radius: 12px; overflow: hidden;
   border: 1px solid var(--line); background: var(--surface-2);
-  aspect-ratio: 1; display: grid; place-items: center;
+  display: grid; place-items: center;
 }
-.thumb img { width: 100%; height: 100%; object-fit: contain; }
+.thumb img { width: 100%; height: auto; max-height: 420px; object-fit: contain; display: block; }
 .thumb .reup {
   position: absolute; right: 8px; bottom: 8px;
   background: rgba(0,0,0,.62); color: #fff; border: 0;
   border-radius: 999px; padding: 4px 10px; font-size: 11px;
 }
+
+.no-key {
+  margin-top: 12px; padding: 12px 14px; border-radius: 12px;
+  background: #fff7e6; border: 1px solid #ffd591;
+}
+.no-key b { font-size: 14px; color: #ad6800; }
+.no-key p { font-size: 12px; color: #7a5a1e; margin: 6px 0 10px; line-height: 1.6; }
+
+.ai-status {
+  margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+  font-size: 12px; line-height: 1.6; background: var(--surface-2);
+}
+.ai-status.good { background: #f0fff4; border: 1px solid #b7ebc6; color: #237804; }
+.ai-status.bad { background: #fff1f0; border: 1px solid #ffa39e; color: #a8071a; }
 
 .param-block { margin-top: 14px; }
 .param-block > .plabel {
@@ -399,3 +413,20 @@ table.tbl tr:hover td { background: #fdfbf7; }
 }
 
 @media print { .topbar, .tabs, .btn { display: none; } }
+
+/* 生成图大图查看 */
+.img-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.94);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+}
+.iv-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #f2f2f2; font-size: 13px; flex: none; }
+.iv-close { background: rgba(255, 255, 255, 0.14); border: 0; color: #fff; font-size: 13px; padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.iv-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: auto; -webkit-overflow-scrolling: touch; }
+.iv-body img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; background: #111; }
+.iv-foot { flex: none; display: flex; justify-content: center; padding-top: 2px; }

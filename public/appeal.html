@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>申诉助手 · 安装书签</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:24px 16px 60px;background:#f4f5f7;color:#14171a;
+  font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-size:20px;margin:0 0 6px}
+.sub{color:#6b7280;font-size:13px;margin-bottom:20px}
+.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
+.step{display:flex;gap:10px;margin-bottom:14px;font-size:14px;line-height:1.75}
+.step i{flex:none;width:22px;height:22px;border-radius:50%;background:#1a1d21;color:#fff;
+  font-size:12px;font-style:normal;display:grid;place-items:center;margin-top:3px}
+kbd{background:#eef0f3;border-radius:5px;padding:1px 6px;font-size:12.5px;font-family:inherit}
+#bm{display:inline-block;padding:12px 22px;background:#1a1d21;color:#fff;border-radius:10px;
+  text-decoration:none;font-weight:600;font-size:15px;cursor:grab;user-select:none}
+#bm:active{cursor:grabbing}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px}
+#cp{padding:11px 16px;border:1px solid #e3e6ea;background:#fff;border-radius:10px;font-size:14px}
+#msg{font-size:12.5px;color:#9aa3ad;margin-left:4px}
+.note{font-size:12.5px;color:#6b7280;line-height:1.8;background:#fffaf5;border:1px solid #f2e3d5;
+  border-radius:10px;padding:12px}
+textarea{width:100%;height:110px;margin-top:10px;border:1px solid #e3e6ea;border-radius:10px;
+  padding:10px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#4b5563;background:#fafbfc}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>申诉助手 · 安装书签</h1>
+  <div class="sub">不用装扩展，30 秒装好，QQ 浏览器 / Edge / Chrome 都能用</div>
+
+  <div class="card">
+    <div class="step"><i>1</i><div>先打开拼多多商家后台的页面，按 <kbd>F12</kbd>，点上面的 <b>Console</b>（控制台）。</div></div>
+    <div class="step"><i>2</i><div>回到这个页面，点下面的「<b>复制全部代码</b>」。</div></div>
+    <div class="step"><i>3</i><div>切回拼多多后台页面，点控制台最下面那行，按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴，按回车。</div></div>
+    <div class="step"><i>4</i><div>网页右下角出现「<b>申诉助手</b>」，点它 → 「诊断本页」→「复制」，把内容发我。</div></div>
+    <div class="bar">
+      <button id="cp" style="padding:13px 26px;background:#1a1d21;color:#fff;border:0;border-radius:10px;font-size:15px;font-weight:600">复制全部代码</button>
+      <span id="msg"></span>
+    </div>
+    <textarea id="code" readonly placeholder="点上面的按钮后，代码会出现在这里"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="note">
+      拼多多页面禁止从外部加载脚本，所以要把代码直接贴在控制台里运行。
+      代码只在你当前页面起作用，不联网上传任何东西，提交申诉那一键仍然由你点。
+      页面刷新后需要重新粘贴一次。
+    </div>
+  </div>
+</div>
+
+<script>
+function ktAppeal(){
+  var P='kt-bm-panel';
+  var old=document.getElementById(P);
+  if(old){old.style.display=old.style.display==='none'?'flex':'none';return;}
+
+  function vis(e){if(!e)return false;var r=e.getBoundingClientRect();if(r.width<2||r.height<2)return false;
+    var s=getComputedStyle(e);return s.visibility!=='hidden'&&s.display!=='none'&&s.opacity!=='0';}
+  function tx(e){return (e.innerText||e.textContent||'').replace(/\s+/g,' ').trim();}
+  function reason(){var b=tx(document.body);
+    var m=b.match(/(退款原因|退货原因|售后原因|申请原因)[：:\s]*([^\s，。;；]{2,20})/);
+    if(m)return m[2];
+    var k=['质量问题','材质不符','做工粗糙','尺寸不符','不喜欢','效果不好','未按约定','少件漏发','发错货'];
+    for(var i=0;i<k.length;i++)if(b.indexOf(k[i])>-1)return k[i];
+    return '';}
+  function order(){var b=tx(document.body);var a=b.match(/\d{12,20}/g)||[];return a.length?a[0]:'';}
+  function goods(){var h=document.querySelector('h1,[class*="goodsName"]');return h?tx(h).slice(0,40):'';}
+  function build(){
+    var r=reason(),o=order(),g=goods();
+    var head='订单号：'+(o||'（见本页）')+(g?'，商品：'+g:'')+'。';
+    if(/负向|体验/.test(r))return head+'该订单买家反馈的体验问题与商品实际情况不符：商品按平台规则如实描述，尺码、面料、颜色均与详情页一致，发货前已逐件质检并留存实拍凭证。买家未提供有效问题凭证，恳请平台核实后撤销本次体验补偿判定。';
+    if(/质量/.test(r))return head+'买家选择"质量问题"但未上传任何有效凭证。该批次商品发货前已逐件质检，材质、做工、尺码均符合详情页描述，不存在质量问题。若买家主张质量问题，应提供能证明商品本身缺陷的照片或视频。恳请平台核实凭证情况，驳回该笔质量问题退款或改判为其他原因。';
+    if(/运费|邮费/.test(r))return head+'本单退货责任不在商家：商品无质量问题，退货原因属买家个人原因，按平台规则退回运费不应由商家承担。恳请平台重新判定运费责任，退还已扣除的运费。';
+    var isFast=/极速退款/.test(tx(document.body));
+    if(isFast)return head+'本单为平台极速退款订单。经核查，商品发货前已逐件质检，面料、做工、尺码与详情页描述一致，不存在质量问题；买家申请退款时未提供任何可证明商品缺陷的图片或视频凭证，所选"质量问题"与事实不符，实为个人原因退货。恳请平台核实凭证与物流签收情况，支持商家申诉。';
+    return head+'商家已按平台规则如实发货且商品无质量问题，买家主张与事实不符，恳请平台核实并支持商家申诉。';
+  }
+  function scan(){
+    var out=[],els=document.querySelectorAll('button,a,span,div[role="button"]');
+    for(var i=0;i<els.length&&out.length<60;i++){var e=els[i];if(!vis(e))continue;
+      var t=tx(e);if(!t||t.length>14)continue;
+      if(/申诉|维权|处罚|负向|体验|运费|举证|凭证/.test(t))out.push({t:t,c:String(e.className).slice(0,50)});}
+    var f=[],fs=document.querySelectorAll('textarea,input,select,[contenteditable="true"]');
+    for(var j=0;j<fs.length&&f.length<40;j++){var x=fs[j];if(!vis(x))continue;
+      f.push({tag:x.tagName.toLowerCase(),ty:(x.getAttribute('type')||'').slice(0,12),
+        ph:(x.getAttribute('placeholder')||'').slice(0,40)});}
+    return {url:location.href,order:order(),reason:reason(),goods:goods(),actions:out,
+      radios:Array.prototype.map.call(document.querySelectorAll('label,[class*="radio"],[class*="Radio"]'),function(e){
+        return vis(e)?tx(e).slice(0,24):'';}).filter(function(t){return t&&t.length<24;}).slice(0,20),fields:f};
+  }
+  function docs(){
+    var list=[document],fs=document.querySelectorAll('iframe');
+    for(var i=0;i<fs.length;i++){try{var d=fs[i].contentDocument;if(d&&d.body)list.push(d);}catch(e){}}
+    return list;
+  }
+  function rowsDump(){
+    var out=[],seen={},ds=docs();
+    for(var n=0;n<ds.length;n++){
+      var all=ds[n].querySelectorAll('div,li,tr');
+      for(var i=0;i<all.length;i++){
+        var e=all[i];if(!vis(e))continue;
+        var t=tx(e);if(t.length<20||t.length>320)continue;
+        if(!/\d{10,}/.test(t))continue;
+        var k=t.slice(0,60);if(seen[k])continue;seen[k]=1;
+        var bs=e.querySelectorAll('button,a,[class*="BTN"],[class*="btn"]'),b=[];
+        for(var j=0;j<bs.length;j++){var x=bs[j];if(!vis(x))continue;
+          var bt=tx(x);if(!bt||bt.length>12)continue;if(b.indexOf(bt)===-1)b.push(bt);}
+        out.push({f:n,t:t.slice(0,200),b:b.join(' | ')});
+        if(out.length>=15)break;
+      }
+    }
+    return out;
+  }
+  function firstAppealBtn(){
+    var ds=docs(),best=null,bestA=1e12;
+    for(var n=0;n<ds.length;n++){
+      var els=ds[n].querySelectorAll('button,a,[class*="BTN"],[class*="btn"],span,div');
+      for(var i=0;i<els.length;i++){
+        var e=els[i];if(!vis(e))continue;
+        if(tx(e)!=='发起申诉')continue;
+        var r=e.getBoundingClientRect(),a=r.width*r.height;
+        if(a>4&&a<bestA){bestA=a;best=e;}
+      }
+    }
+    return best;
+  }
+  function fill(t){
+    var els=document.querySelectorAll('textarea,[contenteditable="true"]'),tg=null;
+    for(var i=0;i<els.length;i++){var e=els[i];if(!vis(e))continue;
+      var ph=(e.getAttribute('placeholder')||'').toString();
+      if(/申诉|说明|理由|描述|备注/.test(ph)){tg=e;break;}if(!tg)tg=e;}
+    if(!tg)return '没找到输入框，先手动点一下申诉说明框再试';
+    if(tg.tagName==='TEXTAREA'){var d=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value');
+      d.set.call(tg,t);}
+    else{tg.focus();document.execCommand('selectAll',false,null);document.execCommand('insertText',false,t);}
+    tg.dispatchEvent(new Event('input',{bubbles:true}));
+    tg.dispatchEvent(new Event('change',{bubbles:true}));
+    return '已填入申诉说明，检查后手动点提交';
+  }
+  function cp(t){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t);
+    var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();
+    document.execCommand('copy');a.remove();}
+
+  var box=document.createElement('div');box.id=P;
+  box.style.cssText='position:fixed;right:16px;bottom:92px;width:320px;max-height:70vh;background:#fff;border:1px solid #e3e6ea;border-radius:12px;box-shadow:0 8px 28px rgba(16,24,40,.16);z-index:2147483000;font:13px/1.6 -apple-system,"PingFang SC",sans-serif;color:#14171a;display:flex;flex-direction:column;overflow:hidden';
+  box.innerHTML='<div style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid #eef0f3"><b style="flex:1">申诉助手</b><span id="ktx" style="cursor:pointer;color:#8b929c;padding:0 4px">✕</span></div>'+
+    '<div style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px">'+
+    '<button id="kts" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">诊断本页</button>'+
+    '<button id="ktl" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">扫描列表</button>'+
+    '<button id="kto1" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">试开一单</button>'+
+    '<button id="ktv" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">列出下拉项</button>'+
+    '<button id="ktg" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">生成话术</button>'+
+    '<button id="ktf" style="padding:6px 10px;border:0;background:#1a1d21;color:#fff;border-radius:7px;font-size:12px">填入申诉框</button>'+
+    '<button id="ktc" style="padding:6px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">复制</button></div>'+
+    '<div style="padding:0 12px 8px;display:flex;flex-direction:column;gap:6px">'+
+    '<select id="kdr" style="padding:6px;border:1px solid #e3e6ea;border-radius:7px;font-size:12px">'+
+    '<option>未收到退货</option>'+
+    '<option>消费者退货商品存在问题（影响二次销售、缺损、污渍、空包、非商家商品等）</option>'+
+    '<option>消费者寄错（收到非商家商品）</option>'+
+    '<option>消费者部分换货后异常退货</option>'+
+    '<option>买家寄到付件</option>'+
+    '<option>少退商品（少件、缺件、未寄回赠品等），但消费者退款金额申请是全额</option>'+
+    '</select>'+
+    '<div style="padding:0 12px 4px;font-size:11px;color:#8b929c">话术按订单自动生成，每单不同</div>'+
+    '<textarea id="kdd" readonly style="height:62px;padding:6px;border:1px solid #e3e6ea;border-radius:7px;font-size:12px;background:#fafbfc;color:#374151"></textarea>'+
+    '<div style="display:flex;gap:6px">'+
+    '<button id="kda" style="flex:1;padding:7px;border:0;background:#c4683f;color:#fff;border-radius:7px;font-size:12px">开始逐单填</button>'+
+    '<button id="kds" style="padding:7px 10px;border:1px solid #e3e6ea;background:#fff;border-radius:7px;font-size:12px">停止</button>'+
+    '</div></div>'+
+    '<div id="kto" style="padding:0 12px 12px;font-size:12px;color:#374151;white-space:pre-wrap;overflow:auto;max-height:46vh"></div>';
+  document.body.appendChild(box);
+  var o=box.querySelector('#kto'),last='';
+  box.querySelector('#ktx').onclick=function(){box.style.display='none';};
+  box.querySelector('#kts').onclick=function(){last=JSON.stringify(scan(),null,2);o.textContent='已诊断，点「复制」发我\n\n'+last.slice(0,900);};
+  box.querySelector('#ktl').onclick=function(){
+    var r=rowsDump(),ds=docs(),hit=0;
+    for(var n=0;n<ds.length;n++){var t=tx(ds[n].body||ds[n].documentElement);var m=t.match(/\d{10,}/g);if(m)hit+=m.length;}
+    last=JSON.stringify({url:location.href,iframes:document.querySelectorAll('iframe').length,numHits:hit,rows:r},null,2);
+    o.textContent='共 '+r.length+' 行，点「复制」发我\n\n'+last.slice(0,700);
+  };
+  box.querySelector('#kto1').onclick=function(){
+    var b=firstAppealBtn();
+    if(!b){o.textContent='没找到「发起申诉」按钮，确认列表已经显示出来';return;}
+    o.textContent='正在打开第一单…';
+    try{b.click();}catch(e){}
+    setTimeout(function(){
+      var s=scan();
+      last=JSON.stringify(s,null,2);
+      o.textContent='弹窗已打开，点「复制」发我（先别提交）\n\n'+last.slice(0,800);
+    },2200);
+  };
+  box.querySelector('#ktv').onclick=function(){
+    var ins=[],all=document.querySelectorAll('input[placeholder="请选择"]');
+    for(var i=0;i<all.length;i++)if(vis(all[i]))ins.push(all[i]);
+    if(!ins.length){o.textContent='没找到「请选择」下拉框，先点「试开一单」';return;}
+    var res=[],k=0;
+    function snap(){
+      var m={},els=document.querySelectorAll('div,li,span,a,button');
+      for(var i=0;i<els.length;i++){var e=els[i];if(!vis(e))continue;
+        var t=tx(e);if(t&&t.length<=26)m[t]=1;}
+      return m;
+    }
+    function step(){
+      if(k>=ins.length){
+        last=JSON.stringify({selects:res},null,2);
+        o.textContent='已读取，点「复制」发我\n\n'+last.slice(0,800);return;
+      }
+      var before=snap();
+      try{ins[k].click();}catch(e){}
+      setTimeout(function(){
+        var after=snap(),op=[];
+        for(var t in after)if(!before[t]&&!/^\d+$/.test(t))op.push(t);
+        res.push({i:k,opts:op.slice(0,30)});
+        try{document.body.click();}catch(e){}
+        k++;setTimeout(step,600);
+      },1000);
+    }
+    o.textContent='正在读取下拉项…';step();
+  };
+  box.querySelector('#ktg').onclick=function(){last=build();o.textContent=last;};
+  box.querySelector('#ktf').onclick=function(){o.textContent=fill(last||build());};
+  box.querySelector('#ktc').onclick=function(){if(!last)last=build();cp(last);o.textContent='已复制到剪贴板';};
+  var running=false,idx=0,btns=[];
+  var TPL={
+    '未收到退货':[
+      '本单物流显示已签收，签收时间为{time}，买家申请“未收到退货”与物流签收记录不符，恳请核实物流轨迹后驳回该笔极速退款。',
+      '该订单物流已显示签收，买家以“未收到退货”为由申请退款，但实际签收记录完整，请调取物流信息核实。',
+      '本单发货正常，快递显示已签收，买家未收到退货的申请与物流记录不一致，申请复核。',
+      '订单{no}物流轨迹显示已正常签收，与买家申诉的“未收到退货”不符，请核实后驳回。',
+      '本单快递已于{time}签收，签收信息可查，买家主张未收到退货缺乏依据，恳请复核。'
+    ],
+    '消费者退货商品存在问题（影响二次销售、缺损、污渍、空包、非商家商品等）':[
+      '本店发出商品经出库质检完好，买家退回商品存在问题，需核实是否影响二次销售，恳请按实际验收情况处理。',
+      '该订单商品发出时完好无污损，退回件存在异常，申请核实退回实物状态后再判定责任。',
+      '本单出库前已检查，商品无缺损污渍，退回商品与发出状态不符，请核实后退回款项。',
+      '订单{no}退回商品存在异常，影响二次销售，本店发货有出库检查记录，恳请复核。',
+      '本店售出商品均为全新完好，退回件异常并非发货问题，申请依据退回验收结果重新判定。'
+    ],
+    '消费者寄错（收到非商家商品）':[
+      '买家退回的商品非本店发出，本店发出的为{goods}，请核实退回实物后再判定。',
+      '本单退回件与本店所发商品不一致，本店发出商品为{goods}，申请核实退回物品归属。',
+      '退回商品并非本店售出款式，与本单商品{goods}不符，恳请核验。',
+      '订单{no}退回的商品非本店发出款式，申请核实退回物品后再处理该笔退款。',
+      '本店发出商品与买家退回件不一致，退回件非本店商品，请复核。'
+    ],
+    '消费者部分换货后异常退货':[
+      '本单为部分换货，退回商品状态异常，申请核实换货记录与退回实物后判定。',
+      '该订单存在部分换货，退回商品与换货约定不符，恳请核实换货明细。',
+      '本单换货后买家退回商品异常，与换货记录不一致，申请复核。',
+      '订单{no}部分换货后出现异常退货，退回件不符合换货条件，请核实。',
+      '本店换货记录完整，退回商品状态与换货约定不符，恳请依据记录复核。'
+    ],
+    '买家寄到付件':[
+      '买家退回时使用到付，运费应由寄件方承担，本店不予承担该笔到付运费，申请驳回运费部分。',
+      '本单退回件为到付寄回，未按约定方式退货，由此产生的运费不应由本店承担。',
+      '退回快递为到付件，运费不合理转嫁给商家，恳请核实并驳回运费。',
+      '订单{no}退回件采用到付方式，违反退货约定，申请不予承担该笔运费。',
+      '买家退回时选择到付，运费归属与平台规则不符，请复核处理。'
+    ],
+    '少退商品（少件、缺件、未寄回赠品等），但消费者退款金额申请是全额':[
+      '买家退回件少于本单商品数量，但申请的退款金额为全额，退款金额与退回实物不符，恳请核实。',
+      '本单退回商品存在少件情况，买家仍申请全额退款，金额与退回实物不匹配，申请复核。',
+      '退回件缺件，退款金额却为全额，与本单实际退回内容不符，请核实后调整。',
+      '订单{no}退回商品不完整，但申请全额退款，恳请按实际退回数量核算退款金额。',
+      '买家退回件少于发货数量，全额退款缺乏依据，申请核实退回清单。'
+    ]
+  };
+  var EXT={
+    '未收到退货':[
+      '本单物流节点完整，签收信息可查，买家以未收到退货为由申请极速退款，与实际轨迹矛盾，请复核。',
+      '本店已按订单正常发货，快递显示签收，未收到退货的说法与物流记录冲突，恳请核实后驳回。',
+      '该笔订单物流显示已送达并签收，买家主张未收到退货，请调取签收凭证核实。'
+    ],
+    '消费者退货商品存在问题（影响二次销售、缺损、污渍、空包、非商家商品等）':[
+      '本单发出时为全新商品，退回件存在影响二次销售的异常，责任不在商家，申请复核。',
+      '退回商品状态与发出时明显不同，本店留存出库记录，恳请依据验收结果重新判定。',
+      '该订单退回件异常，非质量问题亦非发货问题，请核实退回实物后处理。'
+    ],
+    '消费者寄错（收到非商家商品）':[
+      '本单退回物品并非本店商品，款式与本店所售{goods}不同，请核实退回件来源。',
+      '买家退回的实物与本订单商品不符，非本店发出，申请核验后退回款项。',
+      '退回件与本店售出商品不一致，属于寄错，恳请核实实物归属。'
+    ],
+    '消费者部分换货后异常退货':[
+      '本单经历过部分换货，换货记录完整，买家退回商品异常，请依据换货明细复核。',
+      '该订单部分换货后退回件状态不符约定，与本店换货记录不一致，申请核实。',
+      '退回商品与换货约定内容不符，本店有换货记录可查，恳请复核。'
+    ],
+    '买家寄到付件':[
+      '本单退回件为到付，运费未经本店同意，不应由本店承担，申请驳回运费。',
+      '买家退回时选择到付，与平台退货规则不符，运费损失不应转嫁商家，请复核。',
+      '该订单退回快递为到付件，本店未同意承担运费，恳请核实运费责任。'
+    ],
+    '少退商品（少件、缺件、未寄回赠品等），但消费者退款金额申请是全额':[
+      '本单退回件数量不足，买家仍申请全额退款，退款金额与实物不符，请核实。',
+      '退回商品不齐全，全额退款缺乏依据，申请按实际退回内容核算。',
+      '该订单退回件存在少件，退款金额却为全额，恳请核实后调整退款。'
+    ]
+  };
+  for(var _k in EXT) if(TPL[_k]) TPL[_k]=TPL[_k].concat(EXT[_k]);
+  function pick(a){return a[Math.floor(Math.random()*a.length)];}
+  function gen(reason,info){
+    var arr=TPL[reason]||['本店该订单发货与售后记录完整，买家的退款申请与实际情况不符，恳请平台核实后处理。'];
+    var t=pick(arr);
+    t=t.replace(/\{no\}/g,info.no||'本单').replace(/\{goods\}/g,info.goods||'本店商品').replace(/\{time\}/g,info.time||'');
+    var tail='（订单号：'+(info.no||'—')+(info.amt?'，退款金额 '+info.amt+' 元':'')+'）';
+    return t+'\n'+tail;
+  }
+  function infoOf(el){
+    var row=el.parentElement?el.parentElement.parentElement:null;
+    var t=row?tx(row):'';
+    var m=t.match(/\d{6}-\d{10,}/);
+    var time=t.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
+    var amts=t.match(/\d+\.\d{2}/g)||[];
+    var goods=t.replace(/^\d{6}-\d+[^\u4e00-\u9fa5]*/,'').split(/\s{2,}|已发货|待发货|已签收/)[0]||'';
+    return {no:m?m[0]:'',time:time?time[0]:'',amt:amts.length?amts[amts.length-1]:'',goods:goods.slice(0,40).trim()};
+  }
+  function refreshPreview(){
+    var r=box.querySelector('#kdr').value,bs=collect();
+    var info=bs.length?infoOf(bs[0]):{};
+    box.querySelector('#kdd').value=bs.length?gen(r,info):'（先在页面上点「开始逐单填」，这里会显示每单实际话术）';
+  }
+  box.querySelector('#kdr').onchange=refreshPreview;
+  function setVal(el,v){
+    var proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
+    var d=Object.getOwnPropertyDescriptor(proto,'value');d.set.call(el,v);
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  function dlg(){
+    var t=document.querySelector('textarea[placeholder*="请描述所涉及订单"]');
+    return t&&vis(t)?t:null;
+  }
+  function collect(){
+    var ds=docs(),c=[];
+    for(var n=0;n<ds.length;n++){
+      var els=ds[n].querySelectorAll('button,a,span,div');
+      for(var i=0;i<els.length;i++){
+        var e=els[i];if(!vis(e))continue;
+        if(tx(e)!=='发起申诉')continue;
+        var r=e.getBoundingClientRect();if(r.width*r.height<4)continue;
+        c.push(e);
+      }
+    }
+    var out=[];
+    for(var i=0;i<c.length;i++){
+      var has=false;
+      for(var j=0;j<c.length;j++)if(i!==j&&c[i]!==c[j]&&c[i].contains(c[j])){has=true;break;}
+      if(!has)out.push(c[i]);
+    }
+    out.sort(function(a,b){return a.getBoundingClientRect().top-b.getBoundingClientRect().top;});
+    return out;
+  }
+  function pickReason(t){
+    var ds=docs();
+    for(var n=0;n<ds.length;n++){
+      var els=ds[n].querySelectorAll('li,span,div');
+      for(var i=els.length-1;i>=0;i--){
+        var e=els[i];if(!vis(e))continue;
+        if(tx(e)!==t)continue;
+        var r=e.getBoundingClientRect();if(r.width<20)continue;
+        try{e.click();}catch(x){}
+        return true;
+      }
+    }
+    return false;
+  }
+  function waitClose(cb){
+    var n=0,id=setInterval(function(){
+      if(!running){clearInterval(id);return;}
+      if(!dlg()||n++>60){clearInterval(id);cb();}
+    },800);
+  }
+  function next(){
+    if(!running)return;
+    if(idx>=btns.length){o.textContent='本页 '+idx+' 单处理完毕；换页后重新点「开始逐单填」';running=false;return;}
+    var b=btns[idx];
+    if(!b||!vis(b)){idx++;return next();}
+    var info=infoOf(b),no=info.no;
+    o.textContent='第 '+(idx+1)+'/'+btns.length+' 单，正在打开…';
+    try{b.click();}catch(e){}
+    setTimeout(function(){
+      if(!running)return;
+      var ta=dlg();
+      if(!ta){o.textContent='第 '+(idx+1)+' 单弹窗没出现，跳过';idx++;setTimeout(next,1200);return;}
+      var sel=null,ins=document.querySelectorAll('input[placeholder="请选择"]');
+      for(var i=0;i<ins.length;i++)if(vis(ins[i]))sel=ins[i];
+      if(sel){try{sel.click();}catch(e){}}
+      setTimeout(function(){
+        pickReason(box.querySelector('#kdr').value);
+        setTimeout(function(){
+          var txt=gen(box.querySelector('#kdr').value,info);
+          box.querySelector('#kdd').value=txt;
+          setVal(ta,txt);
+          o.textContent='第 '+(idx+1)+' 单已填好'+(no?'（'+no+'）':'')+'\n检查后手动点「提交」，关掉弹窗后自动开下一单';
+          waitClose(function(){idx++;if(running)next();});
+        },400);
+      },800);
+    },2100);
+  }
+  box.querySelector('#kda').onclick=function(){
+    btns=collect();
+    if(!btns.length){o.textContent='没找到「发起申诉」按钮，先确认列表已显示';return;}
+    running=true;idx=0;o.textContent='共 '+btns.length+' 单，开始…';next();
+  };
+  box.querySelector('#kds').onclick=function(){running=false;o.textContent='已停止';};
+}
+
+(function(){
+  var raw = '(' + ktAppeal.toString() + ')()';
+  var ta = document.getElementById('code');
+  ta.value = raw;
+  document.getElementById('cp').onclick = function(){
+    ta.focus();
+    ta.select();
+    try{ ta.setSelectionRange(0, raw.length); }catch(e){}
+    var ok = false;
+    try{ ok = document.execCommand('copy'); }catch(e){}
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(raw).then(function(){
+        document.getElementById('msg').textContent = '已复制，去后台页面 Ctrl+V';
+      }).catch(function(){});
+    }
+    document.getElementById('msg').textContent = ok
+      ? '已复制，去后台页面 Ctrl+V'
+      : '代码已全选，请按 Ctrl+C 复制';
+  };
+})();
+</script>
+</body>
+</html>
