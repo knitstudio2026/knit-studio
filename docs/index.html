@@ -193,6 +193,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <button data-page="gen" class="on"><span class="ico">✦</span>AI 生图</button>
     <button data-page="lib"><span class="ico">▦</span>素材库</button>
     <button data-page="appeal"><span class="ico">✎</span>售后申诉</button>
+    <button data-page="act"><span class="ico">◎</span>活动报名</button>
     <button data-page="set"><span class="ico">⚙</span>设置</button>
   </nav>
   <div class="side-foot">
@@ -206,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.41</span>
+      <span class="ver">v7.42</span>
     </div>
   </div>
 
@@ -423,6 +424,45 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
 
     <!-- ============ 设置 ============ -->
+    <section id="page-act" class="hidden">
+      <div class="card">
+        <h2>活动报名助手 <em>先算价，再报名</em></h2>
+        <div class="hint" style="margin-top:0">
+          每上一款就往库里录一条底价；报活动或活动掉标要重新报名时，先在这里输入活动价，工具直接告诉你<b>能不能报</b>，低于红线的自动劝你放弃。
+        </div>
+        <div class="hint">
+          计算口径：<b>最低报名价 =（拿货价 + 目标净利 +（快递 + 包装）÷（1 − 退货率））÷ 0.994</b>。
+          默认包装 0.4 元、平台扣点 0.6%，和目标价一起算实际每单净利。和之前给你算账的口径一致。
+        </div>
+        <div class="hint">
+          <b>合规提醒</b>：自动改价、批量报名属于第三方工具操作，平台协议不鼓励，容易触发风控。所以这里做的是<b>算价 + 拦截</b>，报名动作仍然由你点；等你把活动报名页拍给我，我再做「自动填价、你点确认」的版本，不碰自动提交。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>录入款式底价</h2>
+        <div class="row"><label>款式名</label><input id="acName" placeholder="例如 韩系毛毛领开衫"></div>
+        <div class="row"><label>拿货价</label><input id="acCost" type="number" placeholder="25"></div>
+        <div class="row"><label>快递费</label><input id="acShip" type="number" placeholder="3"></div>
+        <div class="row"><label>退货率 %</label><input id="acRate" type="number" placeholder="30"></div>
+        <div class="row"><label>目标净利/单</label><input id="acProfit" type="number" placeholder="5"></div>
+        <div class="btn-row"><button class="btn accent" id="acAdd">加入价格库</button></div>
+      </div>
+
+      <div class="card">
+        <h2>价格库 <em>低于最低报名价一律不报</em></h2>
+        <div id="acList"></div>
+      </div>
+
+      <div class="card">
+        <h2>报活动前算一算</h2>
+        <div class="row"><label>选款式</label><select id="acPick" class="wide" style="width:100%"></select></div>
+        <div class="row"><label>活动价</label><input id="acPrice" type="number" placeholder="31"></div>
+        <div class="btn-row"><button class="btn" id="acCheck">算一算</button></div>
+        <div id="acOut" class="hint" style="margin-top:10px"></div>
+      </div>
+    </section>
+
     <section id="page-set" class="hidden">
       <div class="card">
         <h2>火山方舟</h2>
@@ -577,8 +617,10 @@ $$('.nav button').forEach(b => b.addEventListener('click', () => {
   $('#page-lib').classList.toggle('hidden', p !== 'lib');
   $('#page-set').classList.toggle('hidden', p !== 'set');
   $('#page-appeal').classList.toggle('hidden', p !== 'appeal');
-  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : p === 'appeal' ? '售后申诉' : '设置';
+  $('#page-act').classList.toggle('hidden', p !== 'act');
+  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : p === 'appeal' ? '售后申诉' : p === 'act' ? '活动报名' : '设置';
   if (p === 'lib') renderLib();
+  if (p === 'act') actRender();
   if (p === 'appeal') renderProofs();
   if (p === 'appeal' && !window.__apOpened) {
     window.__apOpened = true;
@@ -3555,6 +3597,55 @@ async function renderProofs() {
     box.appendChild(card);
   });
 }
+/* ================= 活动报名助手 ================= */
+const AC_KEY = 'ks_act_items';
+function acLoad() { try { return JSON.parse(localStorage.getItem(AC_KEY) || '[]'); } catch (e) { return []; } }
+function acSave(a) { localStorage.setItem(AC_KEY, JSON.stringify(a)); }
+function acCalc(it) {
+  const r = Math.min(0.9, Math.max(0, (+it.rate || 0) / 100));
+  const cost = +it.cost || 0, ship = +it.ship || 0, pack = 0.4, fee = 0.006, N = +it.profit || 0;
+  return {
+    base: (cost + (ship + pack) / (1 - r)) / (1 - fee),
+    tgt: (cost + N + (ship + pack) / (1 - r)) / (1 - fee)
+  };
+}
+function actRender() {
+  const a = acLoad(), box = $('#acList'), sel = $('#acPick');
+  if (!box || !sel) return;
+  if (!a.length) {
+    box.innerHTML = '<div class="hint">还没录款式，先在上面加一条</div>';
+  } else {
+    let h = '<table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="color:#8b929c"><td>款式</td><td>拿货</td><td>快递</td><td>退货率</td><td>保本价</td><td>最低报名价</td><td></td></tr>';
+    a.forEach((it, i) => {
+      const c = acCalc(it);
+      h += '<tr style="border-top:1px solid #f0f2f5"><td>' + it.name + '</td><td>' + it.cost + '</td><td>' + it.ship + '</td><td>' + it.rate + '%</td><td>' + c.base.toFixed(2) + '</td><td><b>' + c.tgt.toFixed(2) + '</b></td><td><a href="#" data-i="' + i + '" class="acdel" style="color:#c0392b">删</a></td></tr>';
+    });
+    box.innerHTML = h + '</table>';
+    box.querySelectorAll('.acdel').forEach(el => { el.onclick = e => { e.preventDefault(); const arr = acLoad(); arr.splice(+el.dataset.i, 1); acSave(arr); actRender(); }; });
+  }
+  sel.innerHTML = a.length ? a.map((it, i) => '<option value="' + i + '">' + it.name + '</option>').join('') : '<option value="">（先录款式）</option>';
+}
+$('#acAdd').onclick = () => {
+  const name = $('#acName').value.trim();
+  if (!name) { alert('先填款式名'); return; }
+  const arr = acLoad();
+  arr.push({ name: name, cost: +$('#acCost').value || 0, ship: +$('#acShip').value || 0, rate: +$('#acRate').value || 0, profit: +$('#acProfit').value || 0 });
+  acSave(arr);
+  ['#acName', '#acCost', '#acShip', '#acRate', '#acProfit'].forEach(s => { $(s).value = ''; });
+  actRender();
+};
+$('#acCheck').onclick = () => {
+  const arr = acLoad(), i = $('#acPick').value, p = +$('#acPrice').value || 0, out = $('#acOut');
+  if (!arr.length || i === '') { out.textContent = '先录一个款式'; return; }
+  if (!p) { out.textContent = '填一下活动价'; return; }
+  const it = arr[+i], c = acCalc(it), r = Math.min(0.9, (+it.rate || 0) / 100);
+  const profit = (1 - r) * (p - it.cost) - it.ship - 0.006 * p * (1 - r) - 0.4;
+  const d = p - c.tgt;
+  out.innerHTML = d < 0
+    ? '<b style="color:#c0392b">不能报</b>：比最低报名价 ' + c.tgt.toFixed(2) + ' 低 ' + Math.abs(d).toFixed(2) + ' 元，按现退货率每单约 ' + profit.toFixed(2) + ' 元。'
+    : '<b style="color:#1a7f4b">可以报</b>：比最低报名价高 ' + d.toFixed(2) + ' 元，按现退货率每单约赚 ' + profit.toFixed(2) + ' 元。';
+};
+actRender();
 </script>
 </body>
 </html>
