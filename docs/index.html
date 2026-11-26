@@ -207,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.56</span>
+      <span class="ver">v7.57</span>
     </div>
   </div>
 
@@ -3685,12 +3685,13 @@ $('#lsGo').onclick = () => {
     return;
   }
 
-  // ① 运费类（按件摊）
+  // ① 运费类：每批发 100 单，退 30%，只有 70 单成交
+  //    每发一单固定成本 = 快递 3 + 重包装 0.5×30% + 退货运费 5×30%×10% = 3.30
+  //    再除以成交率 70%，摊到每个成交单 = 4.71
   const r = 0.3;                 // 退货率 30%
-  const repack = 0.5 * r;        // 退回货重包装：0.5元 × 30%
-  const shipBack = 5 * r * 0.10; // 30%退货里 10% 要我们出退回运费 5 元/单
-  const lostShip = 3 * r;        // 退货那趟白跑的发货运费：3元 × 30%
-  const ship = 3 + lostShip + repack + shipBack;
+  const keep = 1 - r;            // 成交率 70%
+  const perShip = 3 + 0.5 * r + 5 * r * 0.10;
+  const ship = perShip / keep;
 
   // ② 税：小规模纳税人，增值税 1% + 附加 0.06%（附加已减半）
   const vat = 0.0106;
@@ -3714,17 +3715,16 @@ $('#lsGo').onclick = () => {
     + '<div style="font-size:40px;font-weight:800;line-height:1.1;margin:6px 0 14px">' + base.toFixed(2) + ' 元</div>'
     + '<table style="width:100%;border-collapse:collapse;font-size:13px">'
     + row('拿货价', cost, '')
-    + row('发货运费', 3, '每单必付，退货也不退')
-    + row('退货重发快递', lostShip, '退回的货二次卖出要再发一次，3 元 × 30%')
-    + row('退货重包装', repack, '退回的货重新包装 0.5 元 × 30% 退货率（默认可二次销售）')
-    + row('退货运费', shipBack, '退回运费 5 元 × 30% × 10%（只有这部分我们出）')
+    + row('发货运费', 3 / keep, '100 发 70 成交：3 元 ÷ 70%')
+    + row('退货重包装', 0.5 * r / keep, '0.5 元 × 30% ÷ 70%')
+    + row('退货运费', 5 * r * 0.10 / keep, '5 元 × 30% × 10% ÷ 70%')
     + row('平台扣点', mFee, '售价的 0.6%')
     + row('增值税及附加', mVat, '售价的 1.06%（1% + 0.06%）')
     + (profit > 0 ? row('企业所得税', mTax, '利润的 5%') + row('税后利润', profit, '真正到手') : row('企业所得税', 0, '保本无利润，不用交'))
     + '<tr style="border-top:1px solid #333"><td style="padding:8px 8px 0 0;font-weight:700">合计 = 售价</td>'
     + '<td style="padding:8px 8px 0;text-align:right;font-weight:700">' + base.toFixed(2) + '</td><td></td></tr>'
     + '</table>'
-    + '<div class="hint" style="margin-top:10px">企业所得税只对利润收，没利润就不交。分红税不在成本里。</div>'
+    + '<div class="hint" style="margin-top:10px">企业所得税只对利润收，没利润就不交。分红税不在成本里。<br>退货率按 30% 持续计：每批发 100 单、退 30 单、成交 70 单，退回的货下一批继续卖。</div>'
     + '</div>';
 };
 </script>
