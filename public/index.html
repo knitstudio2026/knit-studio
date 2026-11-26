@@ -207,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.51</span>
+      <span class="ver">v7.52</span>
     </div>
   </div>
 
@@ -256,11 +256,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <div class="hint" style="margin-top:0">先点上面的「开始识别」，这里直接用识别到的标题、颜色、尺码。手机上复制后粘到商家版即可。</div>
         <div class="row"><label>拿货价</label><input id="lsCost" type="number" placeholder="填这一款的拿货价"></div>
         <div class="row"><label>目标税后利润</label><input id="lsProfit" type="number" placeholder="想赚多少元/单，填 0 就是纯保本价"></div>
-        <div class="row"><label>月销售额</label><select id="lsScale" style="flex:1">
-          <option value="1">10 万以内（免增值税，仅印花税 0.015%）</option>
-          <option value="2" selected>10~50 万（增值税 1% + 附加 0.06% + 印花税 0.015% ≈ 1.075%）</option>
-          <option value="3">50 万以上（同上，税率相同）</option>
-        </select></div>
         <div class="btn-row"><button class="btn accent" id="lsGo">生成上架内容</button></div>
         <div id="lsOut"></div>
       </div>
@@ -3683,7 +3678,7 @@ function lsBlock(title, id, body, tip) {
 $('#lsGo').onclick = () => {
   const cost = +$('#lsCost').value || 0;
   const profit = +$('#lsProfit').value || 0;
-  const free = $('#lsScale').value === '1';
+  const free = false;   // 固定按含税口径（月销 10 万以上）
 
   if (!cost) {
     $('#lsOut').innerHTML = '<div class="card"><h2>保本售价</h2><div class="hint" style="margin-top:0">先填一下拿货价。</div></div>';
@@ -3696,8 +3691,8 @@ $('#lsGo').onclick = () => {
   const shipBack = 5 * r * 0.05; // 30%退货里 5% 要我们出运费 5 元/单
   const ship = 3 + repack + shipBack;
 
-  // ② 税：增值税及附加（小规模纳税人）
-  const vat = free ? 0 : 0.0106; // 1% 增值税 + 0.06% 附加；10万以内免
+  // ② 税：小规模纳税人，增值税 1% + 附加 0.06%（附加已减半）
+  const vat = 0.0106;
   // ③ 平台扣点
   const fee = 0.006;
 
@@ -3722,7 +3717,7 @@ $('#lsGo').onclick = () => {
     + row('退货重包装', repack, '退回的货重新包装 0.5 元 × 30% 退货率')
     + row('退货运费', shipBack, '退回运费 5 元 × 30% × 5%（只有这部分我们出）')
     + row('平台扣点', mFee, '售价的 0.6%')
-    + row('增值税及附加', mVat, free ? '月销10万内免征' : '售价的 1.06%')
+    + row('增值税及附加', mVat, '售价的 1.06%（1% + 0.06%）')
     + (profit > 0 ? row('企业所得税', mTax, '利润的 5%') + row('税后利润', profit, '真正到手') : row('企业所得税', 0, '保本无利润，不用交'))
     + '<tr style="border-top:1px solid #333"><td style="padding:8px 8px 0 0;font-weight:700">合计 = 售价</td>'
     + '<td style="padding:8px 8px 0;text-align:right;font-weight:700">' + base.toFixed(2) + '</td><td></td></tr>'
