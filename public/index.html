@@ -194,6 +194,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <button data-page="lib"><span class="ico">▦</span>素材库</button>
     <button data-page="appeal"><span class="ico">✎</span>售后申诉</button>
     <button data-page="act"><span class="ico">◎</span>活动报名</button>
+    <button data-page="list"><span class="ico">▤</span>上架内容</button>
     <button data-page="set"><span class="ico">⚙</span>设置</button>
   </nav>
   <div class="side-foot">
@@ -207,7 +208,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.42</span>
+      <span class="ver">v7.43</span>
     </div>
   </div>
 
@@ -463,6 +464,30 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       </div>
     </section>
 
+    <section id="page-list" class="hidden">
+      <div class="card">
+        <h2>上架内容助手 <em>生成 → 复制 → 粘贴到 App</em></h2>
+        <div class="hint" style="margin-top:0">
+          手机上也能用。填完左边几项，点「生成上架内容」，然后每块点「复制」，去拼多多商家版粘贴即可。图片直接从相册选。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>填商品信息</h2>
+        <div class="row"><label>品名关键词</label><input id="lsName" placeholder="毛毛领针织开衫"></div>
+        <div class="row"><label>风格</label><input id="lsStyle" placeholder="韩系 / 小香风 / 温柔风"></div>
+        <div class="row"><label>材质</label><input id="lsMat" placeholder="针织 / 仿水貂绒"></div>
+        <div class="row"><label>季节</label><input id="lsSeason" placeholder="秋冬"></div>
+        <div class="row"><label>颜色</label><input id="lsColors" placeholder="红色,灰色,蓝色"></div>
+        <div class="row"><label>尺码</label><input id="lsSizes" placeholder="S,M,L,XL"></div>
+        <div class="row"><label>售价</label><input id="lsPrice" type="number" placeholder="38.1"></div>
+        <div class="row"><label>拿货价</label><input id="lsCost" type="number" placeholder="25"></div>
+        <div class="btn-row"><button class="btn accent" id="lsGo">生成上架内容</button></div>
+      </div>
+
+      <div id="lsOut"></div>
+    </section>
+
     <section id="page-set" class="hidden">
       <div class="card">
         <h2>火山方舟</h2>
@@ -618,7 +643,8 @@ $$('.nav button').forEach(b => b.addEventListener('click', () => {
   $('#page-set').classList.toggle('hidden', p !== 'set');
   $('#page-appeal').classList.toggle('hidden', p !== 'appeal');
   $('#page-act').classList.toggle('hidden', p !== 'act');
-  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : p === 'appeal' ? '售后申诉' : p === 'act' ? '活动报名' : '设置';
+  $('#page-list').classList.toggle('hidden', p !== 'list');
+  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : p === 'appeal' ? '售后申诉' : p === 'act' ? '活动报名' : p === 'list' ? '上架内容' : '设置';
   if (p === 'lib') renderLib();
   if (p === 'act') actRender();
   if (p === 'appeal') renderProofs();
@@ -3646,6 +3672,67 @@ $('#acCheck').onclick = () => {
     : '<b style="color:#1a7f4b">可以报</b>：比最低报名价高 ' + d.toFixed(2) + ' 元，按现退货率每单约赚 ' + profit.toFixed(2) + ' 元。';
 };
 actRender();
+
+/* ================= 上架内容助手 ================= */
+function lsCopy(id) {
+  const el = $('#' + id);
+  if (!el) return;
+  const t = el.innerText;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(() => { el.dataset.done = '1'; }, () => {});
+  }
+  const ta = document.createElement('textarea');
+  ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+}
+function lsBlock(title, id, body, tip) {
+  return '<div class="card"><h2>' + title + ' <button class="btn" style="float:right;padding:4px 12px;font-size:12px" onclick="lsCopy(\'' + id + '\')">复制</button></h2>'
+    + (tip ? '<div class="hint" style="margin-top:0">' + tip + '</div>' : '')
+    + '<div id="' + id + '" style="white-space:pre-wrap;line-height:1.9;font-size:14px">' + body + '</div></div>';
+}
+$('#lsGo').onclick = () => {
+  const name = $('#lsName').value.trim() || '针织开衫';
+  const style = $('#lsStyle').value.trim();
+  const mat = $('#lsMat').value.trim();
+  const season = $('#lsSeason').value.trim() || '秋冬';
+  const colors = $('#lsColors').value.split(/[,，\s]+/).filter(Boolean);
+  const sizes = $('#lsSizes').value.split(/[,，\s]+/).filter(Boolean);
+  const price = +$('#lsPrice').value || 0;
+  const cost = +$('#lsCost').value || 0;
+
+  let title = (style + mat + name + '女' + season + '新款').replace(/\s+/g, '');
+  const tail = ['宽松显瘦', '温柔风', '百搭上衣'];
+  for (const t of tail) { if (title.length + t.length <= 30) title += t; }
+  title = title.slice(0, 30);
+
+  const points = [];
+  if (style) points.push('· ' + style + '风格，上身显气质不挑人');
+  if (mat) points.push('· ' + mat + '面料，柔软亲肤不扎人，贴身穿也舒服');
+  points.push('· ' + (season || '秋冬') + '新款版型，宽松显瘦，遮肉不紧绷');
+  points.push('· 日常通勤、约会、内搭外穿都能穿，性价比高');
+  if (cost && price) {
+    const r = 0.3, base = (cost + (3 + 0.4) / (1 - r)) / 0.994;
+    points.push('· 到手价 ' + price.toFixed(2) + ' 元，比同款均价更划算');
+    var priceTip = '<div class="hint" style="margin-top:0">按默认口径（快递 3 元 / 退货率 30% / 包装 0.4 / 扣点 0.6%）测算：保本价约 <b>' + base.toFixed(2) + '</b> 元，当前售价 ' + price.toFixed(2) + ' 元' + (price < base ? ' <b style="color:#c0392b">低于保本，会亏</b>' : '，每单约赚 <b>' + ((1 - r) * (price - cost) - 3 - 0.006 * price * (1 - r) - 0.4).toFixed(2) + '</b> 元') + '。</div>';
+  } else {
+    var priceTip = '';
+  }
+
+  const skuLines = [];
+  (colors.length ? colors : ['默认']).forEach(c => {
+    (sizes.length ? sizes : ['均码']).forEach(s => {
+      skuLines.push(c + ',' + s + '　' + (price ? price.toFixed(2) : '') + '　库存 50');
+    });
+  });
+
+  $('#lsOut').innerHTML =
+    lsBlock('商品标题', 'lsT1', title, '不超过 30 字，已按你的关键词拼好，可自己改')
+    + lsBlock('卖点描述', 'lsT2', points.join('\n'), '发布页的「商品描述 / 卖点」里粘贴')
+    + lsBlock('SKU 明细', 'lsT3', skuLines.join('\n'), '按颜色 × 尺码展开，价格和库存按需改')
+    + (priceTip ? '<div class="card"><h2>价格体检</h2>' + priceTip + '</div>' : '');
+};
 </script>
 </body>
 </html>
