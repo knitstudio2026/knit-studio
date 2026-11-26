@@ -207,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.50</span>
+      <span class="ver">v7.51</span>
     </div>
   </div>
 
@@ -3718,9 +3718,9 @@ $('#lsGo').onclick = () => {
     + '<div style="font-size:40px;font-weight:800;line-height:1.1;margin:6px 0 14px">' + base.toFixed(2) + ' 元</div>'
     + '<table style="width:100%;border-collapse:collapse;font-size:13px">'
     + row('拿货价', cost, '')
-    + row('发货运费', 3, '固定 3 元')
-    + row('退货重包装', repack, '0.5 元 × 30% 退货率，摊到每件')
-    + row('退货运费', shipBack, '5 元 × 30% × 5%（质量退我们出）')
+    + row('发货运费', 3, '每单必付，退货也不退')
+    + row('退货重包装', repack, '退回的货重新包装 0.5 元 × 30% 退货率')
+    + row('退货运费', shipBack, '退回运费 5 元 × 30% × 5%（只有这部分我们出）')
     + row('平台扣点', mFee, '售价的 0.6%')
     + row('增值税及附加', mVat, free ? '月销10万内免征' : '售价的 1.06%')
     + (profit > 0 ? row('企业所得税', mTax, '利润的 5%') + row('税后利润', profit, '真正到手') : row('企业所得税', 0, '保本无利润，不用交'))
