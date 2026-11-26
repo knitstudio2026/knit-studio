@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>税务与开票 · 备查手册</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#f5f4f0;color:#1c1c1c;
+    font:15px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  .top{position:sticky;top:0;z-index:9;background:#f5f4f0;border-bottom:1px solid #e2e0d9;
+    padding:14px 18px;display:flex;align-items:center;gap:10px}
+  .top b{font-size:16px}
+  .top span{margin-left:auto;font-size:12px;color:#999}
+  .wrap{max-width:760px;margin:0 auto;padding:18px 16px 80px}
+  h2{font-size:17px;margin:26px 0 10px;padding-left:10px;border-left:3px solid #1c1c1c}
+  h3{font-size:15px;margin:18px 0 8px}
+  p{margin:8px 0}
+  .card{background:#fff;border-radius:12px;padding:14px 16px;margin:10px 0;
+    box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+  th,td{padding:7px 6px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}
+  th{color:#666;font-weight:600;font-size:13px}
+  td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  code{background:#f0efe9;padding:1px 5px;border-radius:4px;font-size:13px}
+  pre{background:#1c1c1c;color:#eaeaea;padding:12px 14px;border-radius:10px;
+    overflow-x:auto;font-size:13px;line-height:1.7}
+  .warn{background:#fff6f4;border-left:3px solid #c0392b;padding:10px 14px;border-radius:8px;margin:10px 0}
+  .ok{background:#f2f8f3;border-left:3px solid #2e7d4f;padding:10px 14px;border-radius:8px;margin:10px 0}
+  .big{font-size:26px;font-weight:800;line-height:1.3}
+  ul{margin:8px 0;padding-left:20px}
+  li{margin:5px 0}
+  .muted{color:#888;font-size:13px}
+  nav{background:#fff;border-radius:12px;padding:12px 16px;margin:10px 0 4px;font-size:14px}
+  nav a{color:#1c1c1c;text-decoration:none;display:block;padding:4px 0}
+</style>
+</head>
+<body>
+<div class="top"><b>税务与开票 · 备查手册</b><span>2026-11-26</span></div>
+<div class="wrap">
+
+<div class="card">
+  <p style="margin:0"><b>这份文档是什么</b></p>
+  <p class="muted" style="margin:6px 0 0">把之前聊到的税务口径、开票规则、规模节点、申报流程全部固定下来。以后忘了就翻这一页，不用再问。数字按你的实际情况算（服装、拿货 25~26、快递 3、退货率 22%~30%）。</p>
+</div>
+
+<nav>
+  <a href="#s1">1. 我的主体情况</a>
+  <a href="#s2">2. 要交哪几种税</a>
+  <a href="#s3">3. 定价口径与保本价</a>
+  <a href="#s4">4. 开票的唯一规则</a>
+  <a href="#s5">5. 无票采购怎么处理</a>
+  <a href="#s6">6. 三个规模节点</a>
+  <a href="#s7">7. 税务开通与申报</a>
+  <a href="#s8">8. 待办清单</a>
+  <a href="#s9">9. 绝对不能做的事</a>
+  <a href="#s10">10. 旧执照状态</a>
+</nav>
+
+<h2 id="s1">1. 我的主体情况</h2>
+<div class="card">
+  <table>
+    <tr><th>项目</th><th>内容</th></tr>
+    <tr><td>主体类型</td><td>有限责任公司（自然人独资）</td></tr>
+    <tr><td>注册地</td><td>南京（异地经营，人在嘉兴洪合）</td></tr>
+    <tr><td>注册资本</td><td>1 万元</td></tr>
+    <tr><td>纳税人身份</td><td>小规模纳税人</td></tr>
+    <tr><td>经营范围</td><td>百货类 + 女装 + 针织纺品销售 + 互联网销售</td></tr>
+  </table>
+  <div class="warn"><b>「自然人独资」≠ 个人独资企业。</b>自然人独资指的是股东只有一个自然人，本质仍是有限公司：交企业所得税，责任有限，<b>不能核定征收</b>。个人独资企业才是非法人、交经营所得个税、部分地区可核定的那一类。</div>
+</div>
+
+<h2 id="s2">2. 要交哪几种税</h2>
+<div class="card">
+  <table>
+    <tr><th>税种</th><th>税率</th><th>按什么算</th></tr>
+    <tr><td>增值税</td><td class="n">1%</td><td>销售额（季度不含税 30 万内免征）</td></tr>
+    <tr><td>城建及教育附加</td><td class="n">0.06%</td><td>销售额，即增值税的 6%（已减半）</td></tr>
+    <tr><td>企业所得税</td><td class="n">5%</td><td><b>利润</b>（应纳税所得额 300 万以内的小微优惠）</td></tr>
+    <tr><td>分红个税</td><td class="n">20%</td><td>公司利润分到个人名下时，由公司代扣代缴</td></tr>
+  </table>
+  <p class="muted">增值税 + 附加合计约 <b>1.06%</b>，按销售额走。企业所得税只对利润收，保本时是 0。</p>
+  <div class="ok"><b>重要：</b>公司执照不能核定征收。核定是针对个体户 / 个人独资企业（经营所得个税）的，有限公司一律查账征收。所以不用再惦记核定这条路。</div>
+</div>
+
+<h2 id="s3">3. 定价口径与保本价</h2>
+<div class="card">
+  <h3>每件固定成本</h3>
+  <table>
+    <tr><th>项目</th><th>金额</th><th>说明</th></tr>
+    <tr><td>发货运费</td><td class="n">3.00</td><td>每单必付，退货也不退</td></tr>
+    <tr><td>退货重包装</td><td class="n">0.15</td><td>0.5 元 × 30% 退货率（能二次销售的才重包装）</td></tr>
+    <tr><td>退货运费</td><td class="n">0.075</td><td>5 元 × 30% 退货率 × 5%（只有这部分我们出）</td></tr>
+    <tr><td><b>小计</b></td><td class="n"><b>3.225</b></td><td></td></tr>
+  </table>
+  <p class="muted">不能二次销售的退货：退回档口，不计入成本。</p>
+
+  <h3>公式</h3>
+  <pre>保本价 = (拿货价 + 3.225) ÷ 0.9834
+
+想赚 P 元/单：
+售价 = (拿货价 + 3.225 + P ÷ 0.95) ÷ 0.9834
+
+0.9834 = 1 − 平台扣点 0.6% − 增值税及附加 1.06%
+0.95   = 扣掉 5% 企业所得税</pre>
+
+  <h3>常用结果</h3>
+  <table>
+    <tr><th>拿货</th><th>保本价</th><th>赚 2 元的售价</th><th>卖 29.5 的净利</th></tr>
+    <tr><td>25</td><td class="n">28.70</td><td class="n">30.84</td><td class="n">0.75</td></tr>
+    <tr><td>24</td><td class="n">27.68</td><td class="n">29.82</td><td class="n">1.70</td></tr>
+    <tr><td>26</td><td class="n">29.72</td><td class="n">31.85</td><td class="n">−0.21（亏）</td></tr>
+  </table>
+  <div class="ok"><b>关键结论：</b>退货率从 30% 降到 22%，每单只多赚 0.05 元（每降 1 个点只省 0.0075 元）。<b>真正决定利润的是拿货价和售价</b>——拿货降 1 元，每单多赚约 0.95 元。</div>
+</div>
+
+<h2 id="s4">4. 开票的唯一规则</h2>
+<div class="card">
+  <p class="big">只能「卖方开给买方」</p>
+  <p>你作为买家，<b>永远开不出进项票给自己</b>。进项票只能由卖货的人开给你。这是全篇最重要的一条。</p>
+  <table>
+    <tr><th>上游是谁</th><th>怎么开</th><th>开什么票</th></tr>
+    <tr><td>有执照的档口（个体户）</td><td>自己电子税务局开，或去税局代开</td><td>1% 专票或普票</td></tr>
+    <tr><td>没执照的档口老板</td><td>拿身份证去税局「自然人代开」</td><td>1% 普票</td></tr>
+    <tr><td>你爸妈（办了个体户）</td><td>自己开</td><td>1% 专票</td></tr>
+  </table>
+  <h3>开票全流程（对方操作）</h3>
+  <pre>对方登录电子税务局 APP
+→ 我要办税 → 蓝字发票开具
+→ 购买方填：你的公司名称 + 统一社会信用代码
+→ 商品填：服装 / 针织衫，填金额
+→ 税率 1% → 开具</pre>
+  <p class="muted">开完你在自己「进项发票查询」里就能看到，<b>不需要纸质票、不需要拍照</b>。</p>
+  <div class="warn"><b>两个现实约束：</b><br>① 自然人代开有单张和年度限额（常见单张几万到十万），爆款量大可能开不完——长久办法是让该档口去办个体户。<br>② 那 1% 的税通常要买家补，属于市场惯例，谈价时心里有数。</div>
+</div>
+
+<h2 id="s5">5. 无票采购怎么处理</h2>
+<div class="card">
+  <p><b>无票的代价不是增值税，是企业所得税。</b>没票的采购，税务局不认成本，等于被强制加回利润。</p>
+  <pre>应纳税所得额 = 真实利润 + 无票采购金额
+企业所得税 = 应纳税所得额 × 5%（300 万以内）
+            = 应纳税所得额 × 25%（超过 300 万，全额跳档）</pre>
+  <h3>按件算</h3>
+  <table>
+    <tr><th>情况</th><th>每件多交</th></tr>
+    <tr><td>无票，税率 5%</td><td class="n">26 × 5% = 1.30</td></tr>
+    <tr><td>无票，税率 25%</td><td class="n">26 × 25% = 6.50</td></tr>
+    <tr><td>代开票成本</td><td class="n">26 × 1% = 0.26</td></tr>
+  </table>
+  <div class="ok"><b>花 0.26 元，省 1.30 元，净赚 1.04 元/件。</b>低利润模式下，票是划算的，不分利润高低，差额固定是 1.04。</div>
+  <h3>三个数字</h3>
+  <table>
+    <tr><th>数字</th><th>含义</th></tr>
+    <tr><td class="n">265 万</td><td>年销 500 万、拿货 434 万时，无票采购的<b>上限</b>，超了所得税跳到 25%</td></tr>
+    <tr><td class="n">300 万</td><td>应纳税所得额（利润 + 无票采购）上限，所得税 5% 的门槛</td></tr>
+    <tr><td class="n">500 万</td><td>年销售额上限，超了强制转一般纳税人，增值税 1% → 13%</td></tr>
+  </table>
+  <h3>小档口怎么办</h3>
+  <p>不用每家都开票，<b>只管大头</b>：拿货最多的 2~3 家开票，零散小档口不开。一年下来无票只占小部分，所得税影响几千块，能接受。</p>
+</div>
+
+<h2 id="s6">6. 三个规模节点</h2>
+<div class="card">
+  <table>
+    <tr><th>年销售额</th><th>要做什么</th></tr>
+    <tr><td>120 万以内</td><td>增值税季度 30 万内全免。所得税几千块。找个代账记个账就行</td></tr>
+    <tr><td>120~300 万</td><td>让大档口代开票（每件 0.26 元）。无票金额控住，别破 300 万所得额</td></tr>
+    <tr><td>300~500 万</td><td>认真管票。这是关键区间，无票不能超 265 万</td></tr>
+    <tr><td>超 500 万</td><td>强制一般纳税人。必须找到能开 13% 专票的上游，否则税负会从 1% 跳到 11%</td></tr>
+  </table>
+  <h3>500 万之后的两条路</h3>
+  <table>
+    <tr><th>路线</th><th>上游</th><th>每件增值税</th></tr>
+    <tr><td>拿成品（26 元，13% 票）卖 31.9</td><td>一级批发商</td><td class="n">0.68</td></tr>
+    <tr><td>自己生产（面料 12 + 辅料 2 + 人工 8）</td><td>布行（13% 票）</td><td class="n">2.06，但毛利 7.9</td></tr>
+    <tr><td>上游只能开 1% 票</td><td>档口 / 个人</td><td class="n">约 11（几乎活不下去）</td></tr>
+  </table>
+  <p class="muted">所以 500 万不是死局，核心是「进项票的税率要匹配」。自己能做货的话，面料能拿 13% 票，是最优结构。</p>
+  <div class="warn"><b>不要自己拼三个壳去卡三个 500 万。</b>同一批货、同一地址、同一批人、一个人运营三个店，税务系统能比对出来（平台报送 + 银行 + 发票 + 工商），会被认定「拆分收入逃避一般纳税人」，补税 + 滞纳金 + 罚款。真要做，到时候花几千块找税务师设计。</div>
+</div>
+
+<h2 id="s7">7. 税务开通与申报</h2>
+<div class="card">
+  <h3>第一步：开通（执照下来后做一次）</h3>
+  <p>手机下载「<b>江苏税务</b>」APP（公司注册在南京，地区必须选<b>江苏</b>，不是浙江）。</p>
+  <pre>1. 应用商店搜「江苏税务」下载
+2. 打开选地区：江苏
+3. 我的 → 注册 → 身份证 + 手机号 + 人脸识别
+4. 身份切成「企业」→ 输入统一社会信用代码 → 选「法定代表人」
+5. 首页找「新办纳税人套餐」→ 确认信息 → 财务负责人填自己 → 提交
+6. 页面显示税费种（增值税 / 企业所得税 / 附加）＝ 开通完成</pre>
+  <p class="muted">工商信息会自动同步给税务，但最后那一下「套餐确认」通常要自己点。找不到入口：打 12366，或问代办截图。</p>
+
+  <h3>第二步：申报（每季度）</h3>
+  <pre>登录 → 我要办税 → 税费申报及缴纳
+→ 增值税及附加税费申报（按季）
+→ 企业所得税季度预缴申报
+→ 财务报表（资产负债表、利润表）
+→ 提交 → 缴款</pre>
+  <p>前两张表简单，填销售额和利润，系统自动算税。<b>财务报表是唯一麻烦的</b>，资产 = 负债 + 所有者权益，容易填不平。</p>
+  <div class="ok"><b>建议：</b>第一个季度让代账会计做一遍你在旁边看，或者填完截图让我核一遍再提交。报错会产生罚款，也影响纳税信用等级。之后每季 20 分钟自己搞定。</div>
+</div>
+
+<h2 id="s8">8. 待办清单</h2>
+<div class="card">
+  <table>
+    <tr><th>优先级</th><th>事情</th><th>状态</th></tr>
+    <tr><td>等</td><td>南京执照下来</td><td>代办进行中</td></tr>
+    <tr><td>执照后</td><td>开对公账户（银行办基本户）</td><td>未开始</td></tr>
+    <tr><td>执照后</td><td>江苏税务 APP「新办纳税人套餐」开通</td><td>未开始</td></tr>
+    <tr><td>本周</td><td>问 2~3 家拿货最多的档口：能不能开 1% 票，税点我出</td><td>未开始</td></tr>
+    <tr><td>本月</td><td>注册第 25 类 + 第 35 类商标（300 元/类官费，6~9 个月下证）</td><td>未开始</td></tr>
+    <tr><td>首季</td><td>第一次申报找会计带一遍，或截图核对</td><td>未开始</td></tr>
+    <tr><td>有余力</td><td>找代账会计（200~300/月），确认注册地址是否挂靠、会不会异常</td><td>未开始</td></tr>
+  </table>
+  <h3>爆款出现后的动作</h3>
+  <ul>
+    <li>能自己做 → 让爸妈办个体户，自家生产、开票给你</li>
+    <li>不能自己做 → 让该档口办个体户长期开票（比自然人代开额度稳）</li>
+    <li>谈法：「这个款我一个月走 X 件，量能上去，货款得开票，税点我补给你」</li>
+  </ul>
+</div>
+
+<h2 id="s9">9. 绝对不能做的事</h2>
+<div class="card">
+  <div class="warn">
+    <ul style="margin:0">
+      <li><b>不要自己给自己开票</b>（在代开功能里填自己当买方），这是虚开</li>
+      <li><b>不要买发票</b>，虚开是刑事问题，不是罚款能了事</li>
+      <li><b>不要用空壳个体户来回开票冲量</b>，没有真实货物一样是虚开</li>
+      <li><b>不要公私账混用</b>（一人公司举证责任在股东，混同会被击穿有限责任）</li>
+      <li><b>不要长期零申报</b>，平台数据一比对就出来</li>
+      <li><b>不要为了省钱让 26 元成本凭空消失</b>，代价是每件多交 1.3 元</li>
+    </ul>
+  </div>
+  <div class="ok"><b>有限责任的四个保命习惯：</b>公司账户只走公司业务；个人用钱走工资或分红并留凭证；每年做账报税保留凭证；每年做一次审计报告（几百到一千，出事时是证据）。</div>
+</div>
+
+<h2 id="s10">10. 旧执照状态</h2>
+<div class="card">
+  <table>
+    <tr><th>项目</th><th>内容</th></tr>
+    <tr><td>名称</td><td>佛山市顺德区娅丽精选贸易商行（个体工商户）</td></tr>
+    <tr><td>统一社会信用代码</td><td>92440606MADLDJ3G27</td></tr>
+    <tr><td>成立日期</td><td>2024-05-21</td></tr>
+    <tr><td>税务注销</td><td>2025-03-14 受理通过 ✅</td></tr>
+    <tr><td>工商状态</td><td><b>注销</b> ✅</td></tr>
+  </table>
+  <p class="muted">两关都办完了，没有年报义务、不会进经营异常、不影响新公司注册和征信。电子税务局 APP 仍能登录该主体属于账号留存，不影响任何事。</p>
+</div>
+
+<p class="muted" style="text-align:center;margin-top:30px">本页数据依据 2026-11 政策与你提供的实际情况整理<br>政策会变，正式申报前建议再确认一次</p>
+
+</div>
+</body>
+</html>
