@@ -207,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.44</span>
+      <span class="ver">v7.45</span>
     </div>
   </div>
 
@@ -254,8 +254,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div class="card" id="lsCard">
         <h2>③ 上架内容 <em>标题 / 卖点 / SKU，一键复制</em></h2>
         <div class="hint" style="margin-top:0">先点上面的「开始识别」，这里直接用识别到的标题、颜色、尺码。手机上复制后粘到商家版即可。</div>
-        <div class="row"><label>售价</label><input id="lsPrice" type="number" placeholder="识别不到就手填"></div>
-        <div class="row"><label>拿货价</label><input id="lsCost" type="number" placeholder="选填，用来体检价格"></div>
+        <div class="row"><label>拿货价</label><input id="lsCost" type="number" placeholder="填这一款的拿货价"></div>
         <div class="btn-row"><button class="btn accent" id="lsGo">生成上架内容</button></div>
         <div id="lsOut"></div>
       </div>
@@ -3683,7 +3682,6 @@ $('#lsGo').onclick = () => {
   const title0 = g('title') || '';
   const colors = split(g('colors'));
   const sizes = split(g('sizes'));
-  const price = +$('#lsPrice').value || parseFloat(g('price').replace(/[^\d.]/g, '')) || 0;
   const cost = +$('#lsCost').value || 0;
   const mat = g('materials') || g('fiber');
   const style = g('mainStyle') || g('subStyle');
@@ -3698,29 +3696,34 @@ $('#lsGo').onclick = () => {
   if (extra) points.push('· ' + extra);
   points.push('· ' + (season || '秋冬') + '新款，' + (fit || '宽松版型') + '，遮肉显瘦不紧绷');
   points.push('· 日常通勤、约会、内搭外穿都能穿，一件顶三件');
-  if (price) points.push('· 到手价 ' + price.toFixed(2) + ' 元，同款里性价比高');
+
 
   const skuLines = [];
   if (colors.length && sizes.length) {
-    colors.forEach(c => sizes.forEach(z => skuLines.push(c + ',' + z + '　' + (price ? price.toFixed(2) : '') + '　库存 50')));
+    colors.forEach(c => sizes.forEach(z => skuLines.push(c + ',' + z + '　库存 50')));
   } else {
     skuLines.push('颜色：' + (colors.join('、') || '待填') + '\n尺码：' + (sizes.join('、') || '待填'));
   }
 
-  let priceTip = '';
-  if (cost && price) {
-    const r = 0.3, base = (cost + (3 + 0.4) / (1 - r)) / 0.994;
-    const profit = (1 - r) * (price - cost) - 3 - 0.006 * price * (1 - r) - 0.4;
-    priceTip = '<div class="card"><h2>价格体检</h2><div class="hint" style="margin-top:0">按快递 3 元 / 退货率 30% / 包装 0.4 / 扣点 0.6% 测算：保本价约 <b>'
-      + base.toFixed(2) + '</b> 元，当前 ' + price.toFixed(2) + ' 元，'
-      + (price < base ? '<b style="color:#c0392b">低于保本，会亏 ' + (base - price).toFixed(2) + ' 元</b>' : '每单约赚 <b>' + profit.toFixed(2) + '</b> 元') + '</div></div>';
+  let baseBlock = '';
+  if (cost) {
+    const r = 0.3;
+    const base = (cost + (3 + 0.4) / (1 - r)) / 0.994;
+    const ship = (3 + 0.4) / (1 - r);
+    baseBlock = '<div class="card"><h2>保本售价 <em>按 30% 退货率测算</em></h2>'
+      + '<div style="font-size:34px;font-weight:800;line-height:1.2">' + base.toFixed(2) + ' 元</div>'
+      + '<div class="hint" style="margin-top:8px">拿货 ' + cost.toFixed(2) + ' − 卖 ' + base.toFixed(2) + ' 元刚好不亏不赚。<br>'
+      + '算法：拿货价 + 每件实际要摊的发货运费 ' + ship.toFixed(2) + ' 元（含退货损耗与包装）+ 平台扣点 0.6%<br>'
+      + '定价高于这个数才开始赚钱，低于这个数每卖一单都在贴钱。</div></div>';
+  } else {
+    baseBlock = '<div class="card"><h2>保本售价</h2><div class="hint" style="margin-top:0">上面填一下拿货价，这里才算得出保本价。</div></div>';
   }
 
   $('#lsOut').innerHTML =
     lsBlock('商品标题', 'lsT1', title0 || '（先点「开始识别」，或自己写标题）', title0 ? '识别已带出，可直接复制' : '')
     + lsBlock('卖点描述', 'lsT2', points.join('\n'), '粘到发布页的「商品描述 / 卖点」')
     + lsBlock('SKU 明细', 'lsT3', skuLines.join('\n'), '按颜色 × 尺码展开，价格库存按需改')
-    + priceTip;
+    + baseBlock;
 };
 </script>
 </body>
