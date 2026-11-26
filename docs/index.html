@@ -207,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.49</span>
+      <span class="ver">v7.50</span>
     </div>
   </div>
 
@@ -3681,87 +3681,54 @@ function lsBlock(title, id, body, tip) {
     + '<div id="' + id + '" style="white-space:pre-wrap;line-height:1.9;font-size:14px">' + body + '</div></div>';
 }
 $('#lsGo').onclick = () => {
-  const d = recData || {};
-  const g = (k) => String(d[k] == null ? '' : d[k]).trim();
-  const split = (v) => String(v || '').split(/[,，、\s]+/).filter(Boolean);
-
-  const title0 = g('title') || '';
-  const colors = split(g('colors'));
-  const sizes = split(g('sizes'));
   const cost = +$('#lsCost').value || 0;
-  const mat = g('materials') || g('fiber');
-  const style = g('mainStyle') || g('subStyle');
-  const season = g('season');
-  const extra = g('extra');
-  const fit = g('fit');
+  const profit = +$('#lsProfit').value || 0;
+  const free = $('#lsScale').value === '1';
 
-  const points = [];
-  if (style) points.push('· ' + style + '设计，上身显气质，不挑人');
-  if (mat) points.push('· ' + mat + (g('fiber') && g('fiber') !== mat ? '（' + g('fiber') + '）' : '') + '面料，柔软亲肤不扎人，贴身穿也舒服');
-  if (g('fleece') && /加绒|是/.test(g('fleece'))) points.push('· 内里加绒，保暖度更好，秋冬单穿也够');
-  if (extra) points.push('· ' + extra);
-  points.push('· ' + (season || '秋冬') + '新款，' + (fit || '宽松版型') + '，遮肉显瘦不紧绷');
-  points.push('· 日常通勤、约会、内搭外穿都能穿，一件顶三件');
-
-
-  const skuLines = [];
-  if (colors.length && sizes.length) {
-    colors.forEach(c => sizes.forEach(z => skuLines.push(c + ',' + z + '　库存 50')));
-  } else {
-    skuLines.push('颜色：' + (colors.join('、') || '待填') + '\n尺码：' + (sizes.join('、') || '待填'));
+  if (!cost) {
+    $('#lsOut').innerHTML = '<div class="card"><h2>保本售价</h2><div class="hint" style="margin-top:0">先填一下拿货价。</div></div>';
+    return;
   }
 
-  let baseBlock = '';
-  if (cost) {
-    const r = 0.3;
-    const repack = 0.5 * r;
-    const shipBack = 5 * r * 0.05;
-    const ship = 3 + repack + shipBack;
-    const profit = +$('#lsProfit').value || 0;
+  // ① 运费类（按件摊）
+  const r = 0.3;                 // 退货率 30%
+  const repack = 0.5 * r;        // 每卖1件摊到的退货重包装：0.5元 × 30%
+  const shipBack = 5 * r * 0.05; // 30%退货里 5% 要我们出运费 5 元/单
+  const ship = 3 + repack + shipBack;
 
-    // 税点（2023-2027 年小规模纳税人政策）
-    const scale = $('#lsScale').value;
-    let vatRate, vatNote, taxRate;
-    if (scale === '1') {
-      vatRate = 0;                           // 月销 10 万以内免增值税
-      vatNote = '月销 10 万以内：免增值税，仅印花税 0.015%';
-      taxRate = 0.00015;                     // 印花税 0.03% 减半
-    } else {
-      vatRate = 0.01075;                     // 增值税 1% + 附加 0.06% + 印花税 0.015%
-      vatNote = '月销 10 万以上：增值税 1% + 城建附加 0.06% + 印花税 0.015% ≈ 1.075%';
-      taxRate = 0.01075;
-    }
+  // ② 税：增值税及附加（小规模纳税人）
+  const vat = free ? 0 : 0.0106; // 1% 增值税 + 0.06% 附加；10万以内免
+  // ③ 平台扣点
+  const fee = 0.006;
 
-    // 企业所得税：小微企业利润 300 万以内按 5% 征收
-    // 若要求税后利润 = P，则售价 S = (cost + ship + P) ÷ (0.95 × (1 - 扣点 - 税))
-    const base = (cost + ship + profit) / (0.95 * (1 - 0.006 - taxRate));
+  // ④ 售价：把"税后想赚的钱"换算成税前，再除以(1-扣点-税)
+  const grossProfit = profit > 0 ? profit / 0.95 : 0;
+  const base = (cost + ship + grossProfit) / (1 - fee - vat);
 
-    let title;
-    if (profit > 0) {
-      title = '建议售价 <em>税后稳赚 ' + profit.toFixed(2) + ' 元/单</em>';
-    } else {
-      title = '保本售价 <em>刚好不亏不赚</em>';
-    }
+  // ⑤ 按最终售价把每一项还原成金额，方便核对
+  const mFee = base * fee;
+  const mVat = base * vat;
+  const mTax = profit > 0 ? (profit / 0.95) * 0.05 : 0;
+  const row = (n, v, note) => '<tr><td style="padding:4px 8px 4px 0">' + n + '</td>'
+    + '<td style="padding:4px 8px;text-align:right;white-space:nowrap">' + v.toFixed(2) + '</td>'
+    + '<td style="padding:4px 0;color:#999;font-size:12px">' + (note || '') + '</td></tr>';
 
-    baseBlock = '<div class="card"><h2>' + title + '</h2>'
-      + '<div style="font-size:34px;font-weight:800;line-height:1.2">' + base.toFixed(2) + ' 元</div>'
-      + '<div class="hint" style="margin-top:8px">'
-      + '<b>拿货 ' + cost.toFixed(2) + ' 元' + (profit ? '，目标税后每单赚 ' + profit.toFixed(2) + ' 元' : '') + '，卖 ' + base.toFixed(2) + ' 元</b><br>'
-      + '① 实物：拿货 ' + cost.toFixed(2) + '<br>'
-      + '② 运费类：发货 3.00 + 退货重包装 ' + repack.toFixed(2) + '（0.5 × 30%）+ 退货运费分摊 ' + shipBack.toFixed(2) + '（5 × 30% × 5%）= ' + ship.toFixed(2) + '<br>'
-      + '③ 税费：平台扣点 0.6% + ' + (taxRate * 100).toFixed(3) + '%（' + vatNote + '）+ 企业所得税 5%（对利润部分征收）<br>'
-      + '公式：(' + cost.toFixed(2) + ' + ' + ship.toFixed(2) + (profit ? ' + ' + profit.toFixed(2) + ' 税后利润' : '') + ') ÷ (0.95 × (1 − 0.006 − ' + taxRate + '))<br>'
-      + '<span style="color:#999;font-size:12px">商标注册费是一次性支出，不分摊到单件；如果要分摊，按计划销量除一下加到拿货价里就行。</span>'
-      + '</div></div>';
-  } else {
-    baseBlock = '<div class="card"><h2>保本售价</h2><div class="hint" style="margin-top:0">上面填一下拿货价，这里才算得出保本价。</div></div>';
-  }
-
-  $('#lsOut').innerHTML =
-    lsBlock('商品标题', 'lsT1', title0 || '（先点「开始识别」，或自己写标题）', title0 ? '识别已带出，可直接复制' : '')
-    + lsBlock('卖点描述', 'lsT2', points.join('\n'), '粘到发布页的「商品描述 / 卖点」')
-    + lsBlock('SKU 明细', 'lsT3', skuLines.join('\n'), '按颜色 × 尺码展开，价格库存按需改')
-    + baseBlock;
+  $('#lsOut').innerHTML = '<div class="card">'
+    + '<h2>' + (profit > 0 ? '建议售价 <em>税后净赚 ' + profit.toFixed(2) + ' 元/单</em>' : '保本售价 <em>不亏不赚</em>') + '</h2>'
+    + '<div style="font-size:40px;font-weight:800;line-height:1.1;margin:6px 0 14px">' + base.toFixed(2) + ' 元</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    + row('拿货价', cost, '')
+    + row('发货运费', 3, '固定 3 元')
+    + row('退货重包装', repack, '0.5 元 × 30% 退货率，摊到每件')
+    + row('退货运费', shipBack, '5 元 × 30% × 5%（质量退我们出）')
+    + row('平台扣点', mFee, '售价的 0.6%')
+    + row('增值税及附加', mVat, free ? '月销10万内免征' : '售价的 1.06%')
+    + (profit > 0 ? row('企业所得税', mTax, '利润的 5%') + row('税后利润', profit, '真正到手') : row('企业所得税', 0, '保本无利润，不用交'))
+    + '<tr style="border-top:1px solid #333"><td style="padding:8px 8px 0 0;font-weight:700">合计 = 售价</td>'
+    + '<td style="padding:8px 8px 0;text-align:right;font-weight:700">' + base.toFixed(2) + '</td><td></td></tr>'
+    + '</table>'
+    + '<div class="hint" style="margin-top:10px">企业所得税只对利润收，没利润就不交。分红税不在成本里。</div>'
+    + '</div>';
 };
 </script>
 </body>
