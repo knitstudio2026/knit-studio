@@ -207,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.45</span>
+      <span class="ver">v7.46</span>
     </div>
   </div>
 
@@ -3708,12 +3708,13 @@ $('#lsGo').onclick = () => {
   let baseBlock = '';
   if (cost) {
     const r = 0.3;
-    const base = (cost + (3 + 0.4) / (1 - r)) / 0.994;
-    const ship = (3 + 0.4) / (1 - r);
+    const bag = 0.5 * r;
+    const base = (cost + 3 + bag) / 0.994;
+    const ship = 3 + bag;
     baseBlock = '<div class="card"><h2>保本售价 <em>按 30% 退货率测算</em></h2>'
       + '<div style="font-size:34px;font-weight:800;line-height:1.2">' + base.toFixed(2) + ' 元</div>'
       + '<div class="hint" style="margin-top:8px">拿货 ' + cost.toFixed(2) + ' − 卖 ' + base.toFixed(2) + ' 元刚好不亏不赚。<br>'
-      + '算法：拿货价 + 每件实际要摊的发货运费 ' + ship.toFixed(2) + ' 元（含退货损耗与包装）+ 平台扣点 0.6%<br>'
+      + '算法：拿货价 + 发货运费 3.00 元 + 退货重包装 ' + bag.toFixed(2) + ' 元（0.5 × 30%）+ 平台扣点 0.6%，合计每件成本 ' + ship.toFixed(2) + ' 元<br>'
       + '定价高于这个数才开始赚钱，低于这个数每卖一单都在贴钱。</div></div>';
   } else {
     baseBlock = '<div class="card"><h2>保本售价</h2><div class="hint" style="margin-top:0">上面填一下拿货价，这里才算得出保本价。</div></div>';
