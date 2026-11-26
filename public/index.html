@@ -207,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.47</span>
+      <span class="ver">v7.48</span>
     </div>
   </div>
 
@@ -255,6 +255,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <h2>③ 上架内容 <em>标题 / 卖点 / SKU，一键复制</em></h2>
         <div class="hint" style="margin-top:0">先点上面的「开始识别」，这里直接用识别到的标题、颜色、尺码。手机上复制后粘到商家版即可。</div>
         <div class="row"><label>拿货价</label><input id="lsCost" type="number" placeholder="填这一款的拿货价"></div>
+        <div class="row"><label>月销售额</label><select id="lsScale" style="flex:1">
+          <option value="1">10 万以内（免增值税，仅印花税 0.015%）</option>
+          <option value="2" selected>10~50 万（增值税 1% + 附加 0.06% + 印花税 0.015% ≈ 1.075%）</option>
+          <option value="3">50 万以上（同上，税率相同）</option>
+        </select></div>
         <div class="btn-row"><button class="btn accent" id="lsGo">生成上架内容</button></div>
         <div id="lsOut"></div>
       </div>
@@ -3707,17 +3712,40 @@ $('#lsGo').onclick = () => {
 
   let baseBlock = '';
   if (cost) {
-    const r = 0.3;                        // 退货率
-    const repack = 0.5 * r;                // 退货重包装分摊：0.5 × 30%
-    const shipBack = 5 * r * 0.05;         // 30% 退货里有 5% 需要卖家出退货运费，每单 5 元
-    const ship = 3 + repack + shipBack;    // 每件销售需要覆盖的运费类成本
-    const base = (cost + ship) / 0.994;    // 除以 (1 - 0.6% 扣点)
-    baseBlock = '<div class="card"><h2>保本售价 <em>按你给的口径算</em></h2>'
+    const r = 0.3;
+    const repack = 0.5 * r;
+    const shipBack = 5 * r * 0.05;
+    const ship = 3 + repack + shipBack;
+
+    // 税点（2023-2027 年小规模纳税人政策）
+    const scale = $('#lsScale').value;
+    let vatRate, vatNote, taxRate;
+    if (scale === '1') {
+      vatRate = 0;                           // 月销 10 万以内免增值税
+      vatNote = '月销 10 万以内：免增值税，仅印花税 0.015%';
+      taxRate = 0.00015;                     // 印花税 0.03% 减半
+    } else {
+      vatRate = 0.01075;                     // 增值税 1% + 附加 0.06% + 印花税 0.015%
+      vatNote = '月销 10 万以上：增值税 1% + 城建附加 0.06% + 印花税 0.015% ≈ 1.075%';
+      taxRate = 0.01075;
+    }
+
+    // 公式推导：
+    // 收入 = 拿货 + 发货运费 + 退货重包装 + 退货运费分摊
+    //     + 平台扣点(收入 × 0.6%) + 税(收入 × taxRate)
+    // 收入 × (1 - 0.006 - taxRate) = 拿货 + ship
+    // 收入 = (拿货 + ship) / (1 - 0.006 - taxRate)
+    const base = (cost + ship) / (1 - 0.006 - taxRate);
+
+    baseBlock = '<div class="card"><h2>保本售价 <em>按你给的口径 + 公司执照税点</em></h2>'
       + '<div style="font-size:34px;font-weight:800;line-height:1.2">' + base.toFixed(2) + ' 元</div>'
       + '<div class="hint" style="margin-top:8px">'
-      + '拿货 ' + cost.toFixed(2) + ' 元，卖 ' + base.toFixed(2) + ' 元刚好不亏不赚<br>'
-      + '每件成本明细：发货运费 3.00 + 退货重包装 ' + repack.toFixed(2) + '（0.5 × 30%）+ 卖家承担退货运费分摊 ' + shipBack.toFixed(2) + '（5 × 30% × 5%）+ 平台扣点 0.6% = ' + ship.toFixed(2) + ' 元/单<br>'
-      + '退货不能二次销售的都走档口退，不计入这里；只算能二次销售的重包装成本，以及 5% 质量退的运费。'
+      + '<b>拿货 ' + cost.toFixed(2) + ' 元，卖 ' + base.toFixed(2) + ' 元刚好不亏不赚</b><br>'
+      + '① 每件实物成本：拿货 ' + cost.toFixed(2) + '<br>'
+      + '② 运费类：发货 3.00 + 退货重包装 ' + repack.toFixed(2) + '（0.5 × 30%）+ 退货运费分摊 ' + shipBack.toFixed(2) + '（5 × 30% × 5%）= ' + ship.toFixed(2) + '<br>'
+      + '③ 平台扣点 0.6% + 税 ' + (taxRate * 100).toFixed(3) + '%（' + vatNote + '）<br>'
+      + '公式：(' + cost.toFixed(2) + ' + ' + ship.toFixed(2) + ') ÷ (1 − 0.006 − ' + taxRate + ') = <b>' + base.toFixed(2) + '</b><br>'
+      + '<span style="color:#999;font-size:12px">注：企业所得税已含在"保本"里（保本即无利润，所得税自然为 0）。5% 小微企业所得税仅对利润部分征收，不计入保本价。商标注册费是一次性支出，不分摊到单件。</span>'
       + '</div></div>';
   } else {
     baseBlock = '<div class="card"><h2>保本售价</h2><div class="hint" style="margin-top:0">上面填一下拿货价，这里才算得出保本价。</div></div>';
