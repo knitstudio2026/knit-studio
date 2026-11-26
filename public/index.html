@@ -207,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.46</span>
+      <span class="ver">v7.47</span>
     </div>
   </div>
 
@@ -3707,15 +3707,18 @@ $('#lsGo').onclick = () => {
 
   let baseBlock = '';
   if (cost) {
-    const r = 0.3;
-    const bag = 0.5 * r;
-    const base = (cost + 3 + bag) / 0.994;
-    const ship = 3 + bag;
-    baseBlock = '<div class="card"><h2>保本售价 <em>按 30% 退货率测算</em></h2>'
+    const r = 0.3;                        // 退货率
+    const repack = 0.5 * r;                // 退货重包装分摊：0.5 × 30%
+    const shipBack = 5 * r * 0.05;         // 30% 退货里有 5% 需要卖家出退货运费，每单 5 元
+    const ship = 3 + repack + shipBack;    // 每件销售需要覆盖的运费类成本
+    const base = (cost + ship) / 0.994;    // 除以 (1 - 0.6% 扣点)
+    baseBlock = '<div class="card"><h2>保本售价 <em>按你给的口径算</em></h2>'
       + '<div style="font-size:34px;font-weight:800;line-height:1.2">' + base.toFixed(2) + ' 元</div>'
-      + '<div class="hint" style="margin-top:8px">拿货 ' + cost.toFixed(2) + ' − 卖 ' + base.toFixed(2) + ' 元刚好不亏不赚。<br>'
-      + '算法：拿货价 + 发货运费 3.00 元 + 退货重包装 ' + bag.toFixed(2) + ' 元（0.5 × 30%）+ 平台扣点 0.6%，合计每件成本 ' + ship.toFixed(2) + ' 元<br>'
-      + '定价高于这个数才开始赚钱，低于这个数每卖一单都在贴钱。</div></div>';
+      + '<div class="hint" style="margin-top:8px">'
+      + '拿货 ' + cost.toFixed(2) + ' 元，卖 ' + base.toFixed(2) + ' 元刚好不亏不赚<br>'
+      + '每件成本明细：发货运费 3.00 + 退货重包装 ' + repack.toFixed(2) + '（0.5 × 30%）+ 卖家承担退货运费分摊 ' + shipBack.toFixed(2) + '（5 × 30% × 5%）+ 平台扣点 0.6% = ' + ship.toFixed(2) + ' 元/单<br>'
+      + '退货不能二次销售的都走档口退，不计入这里；只算能二次销售的重包装成本，以及 5% 质量退的运费。'
+      + '</div></div>';
   } else {
     baseBlock = '<div class="card"><h2>保本售价</h2><div class="hint" style="margin-top:0">上面填一下拿货价，这里才算得出保本价。</div></div>';
   }
