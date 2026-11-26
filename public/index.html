@@ -207,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.48</span>
+      <span class="ver">v7.49</span>
     </div>
   </div>
 
@@ -255,6 +255,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <h2>③ 上架内容 <em>标题 / 卖点 / SKU，一键复制</em></h2>
         <div class="hint" style="margin-top:0">先点上面的「开始识别」，这里直接用识别到的标题、颜色、尺码。手机上复制后粘到商家版即可。</div>
         <div class="row"><label>拿货价</label><input id="lsCost" type="number" placeholder="填这一款的拿货价"></div>
+        <div class="row"><label>目标税后利润</label><input id="lsProfit" type="number" placeholder="想赚多少元/单，填 0 就是纯保本价"></div>
         <div class="row"><label>月销售额</label><select id="lsScale" style="flex:1">
           <option value="1">10 万以内（免增值税，仅印花税 0.015%）</option>
           <option value="2" selected>10~50 万（增值税 1% + 附加 0.06% + 印花税 0.015% ≈ 1.075%）</option>
@@ -3716,6 +3717,7 @@ $('#lsGo').onclick = () => {
     const repack = 0.5 * r;
     const shipBack = 5 * r * 0.05;
     const ship = 3 + repack + shipBack;
+    const profit = +$('#lsProfit').value || 0;
 
     // 税点（2023-2027 年小规模纳税人政策）
     const scale = $('#lsScale').value;
@@ -3730,22 +3732,26 @@ $('#lsGo').onclick = () => {
       taxRate = 0.01075;
     }
 
-    // 公式推导：
-    // 收入 = 拿货 + 发货运费 + 退货重包装 + 退货运费分摊
-    //     + 平台扣点(收入 × 0.6%) + 税(收入 × taxRate)
-    // 收入 × (1 - 0.006 - taxRate) = 拿货 + ship
-    // 收入 = (拿货 + ship) / (1 - 0.006 - taxRate)
-    const base = (cost + ship) / (1 - 0.006 - taxRate);
+    // 企业所得税：小微企业利润 300 万以内按 5% 征收
+    // 若要求税后利润 = P，则售价 S = (cost + ship + P) ÷ (0.95 × (1 - 扣点 - 税))
+    const base = (cost + ship + profit) / (0.95 * (1 - 0.006 - taxRate));
 
-    baseBlock = '<div class="card"><h2>保本售价 <em>按你给的口径 + 公司执照税点</em></h2>'
+    let title;
+    if (profit > 0) {
+      title = '建议售价 <em>税后稳赚 ' + profit.toFixed(2) + ' 元/单</em>';
+    } else {
+      title = '保本售价 <em>刚好不亏不赚</em>';
+    }
+
+    baseBlock = '<div class="card"><h2>' + title + '</h2>'
       + '<div style="font-size:34px;font-weight:800;line-height:1.2">' + base.toFixed(2) + ' 元</div>'
       + '<div class="hint" style="margin-top:8px">'
-      + '<b>拿货 ' + cost.toFixed(2) + ' 元，卖 ' + base.toFixed(2) + ' 元刚好不亏不赚</b><br>'
-      + '① 每件实物成本：拿货 ' + cost.toFixed(2) + '<br>'
+      + '<b>拿货 ' + cost.toFixed(2) + ' 元' + (profit ? '，目标税后每单赚 ' + profit.toFixed(2) + ' 元' : '') + '，卖 ' + base.toFixed(2) + ' 元</b><br>'
+      + '① 实物：拿货 ' + cost.toFixed(2) + '<br>'
       + '② 运费类：发货 3.00 + 退货重包装 ' + repack.toFixed(2) + '（0.5 × 30%）+ 退货运费分摊 ' + shipBack.toFixed(2) + '（5 × 30% × 5%）= ' + ship.toFixed(2) + '<br>'
-      + '③ 平台扣点 0.6% + 税 ' + (taxRate * 100).toFixed(3) + '%（' + vatNote + '）<br>'
-      + '公式：(' + cost.toFixed(2) + ' + ' + ship.toFixed(2) + ') ÷ (1 − 0.006 − ' + taxRate + ') = <b>' + base.toFixed(2) + '</b><br>'
-      + '<span style="color:#999;font-size:12px">注：企业所得税已含在"保本"里（保本即无利润，所得税自然为 0）。5% 小微企业所得税仅对利润部分征收，不计入保本价。商标注册费是一次性支出，不分摊到单件。</span>'
+      + '③ 税费：平台扣点 0.6% + ' + (taxRate * 100).toFixed(3) + '%（' + vatNote + '）+ 企业所得税 5%（对利润部分征收）<br>'
+      + '公式：(' + cost.toFixed(2) + ' + ' + ship.toFixed(2) + (profit ? ' + ' + profit.toFixed(2) + ' 税后利润' : '') + ') ÷ (0.95 × (1 − 0.006 − ' + taxRate + '))<br>'
+      + '<span style="color:#999;font-size:12px">商标注册费是一次性支出，不分摊到单件；如果要分摊，按计划销量除一下加到拿货价里就行。</span>'
       + '</div></div>';
   } else {
     baseBlock = '<div class="card"><h2>保本售价</h2><div class="hint" style="margin-top:0">上面填一下拿货价，这里才算得出保本价。</div></div>';
