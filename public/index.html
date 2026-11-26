@@ -194,7 +194,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <button data-page="lib"><span class="ico">▦</span>素材库</button>
     <button data-page="appeal"><span class="ico">✎</span>售后申诉</button>
     <button data-page="act"><span class="ico">◎</span>活动报名</button>
-    <button data-page="list"><span class="ico">▤</span>上架</button>
     <button data-page="set"><span class="ico">⚙</span>设置</button>
   </nav>
   <div class="side-foot">
@@ -208,7 +207,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <div class="inner">
       <button id="menuBtn">☰</button>
       <h1 id="pageTitle">AI 生图</h1>
-      <span class="ver">v7.54</span>
+      <span class="ver">v7.55</span>
     </div>
   </div>
 
@@ -473,68 +472,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       </div>
     </section>
 
-    <!-- ============ 上架 ============ -->
-    <section id="page-list" class="hidden">
-      <div class="card">
-        <h2>上架素材生成 <em>填几项，出整套</em></h2>
-        <div class="hint" style="margin-top:0">
-          不做自动提交。它把发布页要填的<b>标题、卖点、SKU 组合、属性、详情文案</b>一次生成好，你复制粘贴过去，比一格格手打快，也不会漏填属性。
-        </div>
-        <div class="row"><label>款式名</label><input id="lpName" placeholder="可留空，例如 慵懒高领毛衣"></div>
-        <div class="row"><label>风格</label>
-          <select id="lpStyle" class="wide" style="width:100%">
-            <option value="慵懒">慵懒宽松</option><option value="显瘦">修身显瘦</option>
-            <option value="甜美">甜美少女</option><option value="通勤">通勤简约</option>
-            <option value="复古">复古文艺</option><option value="学院">学院风</option>
-          </select>
-        </div>
-        <div class="row"><label>领型</label>
-          <select id="lpCollar" class="wide" style="width:100%">
-            <option>高领</option><option>半高领</option><option selected>圆领</option><option>V领</option><option>连帽</option>
-          </select>
-        </div>
-        <div class="row"><label>厚度</label>
-          <select id="lpThick" class="wide" style="width:100%">
-            <option>加厚</option><option selected>常规</option><option>薄款</option>
-          </select>
-        </div>
-        <div class="row"><label>材质</label>
-          <select id="lpMat" class="wide" style="width:100%">
-            <option>针织</option><option>羊毛混纺</option><option>腈纶</option><option>雪尼尔</option><option>羊绒感</option>
-          </select>
-        </div>
-        <div class="row"><label>颜色</label><input id="lpColors" placeholder="米白,黑色,燕麦,灰"></div>
-        <div class="row"><label>尺码</label>
-          <select id="lpSizes" class="wide" style="width:100%">
-            <option>均码</option><option selected>S/M/L/XL</option><option>M/L/XL/2XL</option><option>S/M/L</option>
-          </select>
-        </div>
-        <div class="row"><label>主推售价</label><input id="lpPrice" type="number" placeholder="31.9"></div>
-        <div class="row"><label>拿货价</label><input id="lpCost" type="number" placeholder="25"></div>
-        <div class="btn-row"><button class="btn accent" id="lpGen">生成</button></div>
-        <div class="hint" id="lpTip" style="margin-top:10px"></div>
-      </div>
-
-      <div class="card hidden" id="lpRes">
-        <h2>① 标题 <em>选一条，别超 30 字</em></h2>
-        <div id="lpTitles"></div>
-
-        <h2 style="margin-top:20px">② 卖点 <em>详情页顶部或短视频口播</em></h2>
-        <div id="lpPoints"></div>
-
-        <h2 style="margin-top:20px">③ SKU 组合 <em>颜色 × 尺码</em></h2>
-        <div id="lpSkus"></div>
-
-        <h2 style="margin-top:20px">④ 属性 <em>照着填，别漏</em></h2>
-        <div id="lpAttrs"></div>
-
-        <h2 style="margin-top:20px">⑤ 详情文案</h2>
-        <div id="lpDesc"></div>
-
-        <div class="btn-row" style="margin-top:16px"><button class="btn" id="lpCopyAll">复制全部</button></div>
-      </div>
-    </section>
-
     <section id="page-set" class="hidden">
       <div class="card">
         <h2>火山方舟</h2>
@@ -690,8 +627,7 @@ $$('.nav button').forEach(b => b.addEventListener('click', () => {
   $('#page-set').classList.toggle('hidden', p !== 'set');
   $('#page-appeal').classList.toggle('hidden', p !== 'appeal');
   $('#page-act').classList.toggle('hidden', p !== 'act');
-  $('#page-list').classList.toggle('hidden', p !== 'list');
-  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : p === 'appeal' ? '售后申诉' : p === 'act' ? '活动报名' : p === 'list' ? '上架素材' : '设置';
+  $('#pageTitle').textContent = p === 'gen' ? 'AI 生图' : p === 'lib' ? '素材库' : p === 'appeal' ? '售后申诉' : p === 'act' ? '活动报名' : '设置';
   if (p === 'lib') renderLib();
   if (p === 'act') actRender();
   if (p === 'appeal') renderProofs();
@@ -3751,9 +3687,10 @@ $('#lsGo').onclick = () => {
 
   // ① 运费类（按件摊）
   const r = 0.3;                 // 退货率 30%
-  const repack = 0.5 * r;        // 每卖1件摊到的退货重包装：0.5元 × 30%
-  const shipBack = 5 * r * 0.05; // 30%退货里 5% 要我们出运费 5 元/单
-  const ship = 3 + repack + shipBack;
+  const repack = 0.5 * r;        // 退回货重包装：0.5元 × 30%
+  const shipBack = 5 * r * 0.10; // 30%退货里 10% 要我们出退回运费 5 元/单
+  const lostShip = 3 * r;        // 退货那趟白跑的发货运费：3元 × 30%
+  const ship = 3 + lostShip + repack + shipBack;
 
   // ② 税：小规模纳税人，增值税 1% + 附加 0.06%（附加已减半）
   const vat = 0.0106;
@@ -3778,8 +3715,9 @@ $('#lsGo').onclick = () => {
     + '<table style="width:100%;border-collapse:collapse;font-size:13px">'
     + row('拿货价', cost, '')
     + row('发货运费', 3, '每单必付，退货也不退')
-    + row('退货重包装', repack, '退回的货重新包装 0.5 元 × 30% 退货率')
-    + row('退货运费', shipBack, '退回运费 5 元 × 30% × 5%（只有这部分我们出）')
+    + row('退货单发货运费', lostShip, '退货那趟白跑的快递 3 元 × 30%')
+    + row('退货重包装', repack, '退回的货重新包装 0.5 元 × 30% 退货率（默认可二次销售）')
+    + row('退货运费', shipBack, '退回运费 5 元 × 30% × 10%（只有这部分我们出）')
     + row('平台扣点', mFee, '售价的 0.6%')
     + row('增值税及附加', mVat, '售价的 1.06%（1% + 0.06%）')
     + (profit > 0 ? row('企业所得税', mTax, '利润的 5%') + row('税后利润', profit, '真正到手') : row('企业所得税', 0, '保本无利润，不用交'))
@@ -3791,161 +3729,5 @@ $('#lsGo').onclick = () => {
 };
 </script>
 
-<script>
-/* ================= 上架素材生成 ================= */
-(function(){
-  const $ = s => document.querySelector(s);
-  const SEASON = { '加厚':'秋冬', '常规':'春秋', '薄款':'春夏' };
-  const COLLAR_SELL = {
-    '高领':'挡风护颈，显脖子修长，不用戴围巾',
-    '半高领':'护颈不勒，低头不顶下巴',
-    '圆领':'百搭领口，露锁骨显脸小',
-    'V领':'V 字开领，拉长颈部线条，显瘦',
-    '连帽':'连帽抽绳，随性遮颈纹'
-  };
-  const STYLE_SELL = {
-    '慵懒':'落肩宽松版型，遮手臂遮胯，怎么穿都松弛',
-    '显瘦':'收腰微 A 版型，上身显瘦一个码',
-    '甜美':'柔和肩线配顺滑面料，减龄不幼稚',
-    '通勤':'利落肩线，塞裤腰也不臃肿，上班能穿',
-    '复古':'低饱和配色，温柔复古，好搭不挑人',
-    '学院':'直筒短打版型，配百褶裙很有学生气'
-  };
-  const MAT_SELL = {
-    '针织':'针织织法密实，贴身不扎',
-    '羊毛混纺':'羊毛混纺，蓬松有绒感，保暖不闷',
-    '腈纶':'腈纶手感柔软，好打理不起球',
-    '雪尼尔':'雪尼尔毛感厚实，垂顺有分量',
-    '羊绒感':'羊绒感面料，轻薄但很暖'
-  };
-  const AREA = { '慵懒':'宽松', '显瘦':'修身', '甜美':'常规', '通勤':'常规', '复古':'常规', '学院':'直筒' };
-
-  const nest = [];  // 缓存
-  const dedupe = s => s.replace(/(.{2,3})\1+/g, '$1');
-  const clip = (s, n) => s.length > n ? s.slice(0, n) : s;
-
-  function read(){
-    const colors = $('#lpColors').value.split(/[,，、\s]+/).map(x => x.trim()).filter(Boolean);
-    return {
-      name: $('#lpName').value.trim(),
-      st: $('#lpStyle').value,
-      col: $('#lpCollar').value,
-      th: $('#lpThick').value,
-      mat: $('#lpMat').value,
-      colors: colors.length ? colors : ['米白'],
-      sizes: $('#lpSizes').value.split('/').filter(Boolean),
-      price: parseFloat($('#lpPrice').value) || 0,
-      cost: parseFloat($('#lpCost').value) || 0
-    };
-  }
-
-  function build(){
-    const d = read();
-    const season = SEASON[d.th] || '秋冬';
-    const matName = d.mat + '衫';
-    const core = ['毛衣女', '针织衫女', '针织上衣'];
-    const gu = d.st === '慵懒' ? '宽松' : d.st === '显瘦' ? '修身' : '';
-
-    // 标题
-    const titles = [
-      clip(dedupe(`${season}新款${d.col}${matName}女${d.st}风${gu}显瘦${core[0]}`), 30),
-      clip(dedupe(`2026新款${d.col}${matName}女${d.th}${d.st}风${core[1]}学生党打底`), 30),
-      clip(dedupe(`${d.name || d.col + matName}${season}${d.th}${gu}显瘦${d.st}风${core[2]}`), 30)
-    ].filter((v, i, a) => a.indexOf(v) === i);
-
-    // 卖点
-    const points = [
-      `${MAT_SELL[d.mat] || d.mat + '面料'}，${d.th === '加厚' ? '厚实不塌形，上身挺括有分量' : d.th === '薄款' ? '轻薄透气，不闷汗' : '常规厚度，四季可叠穿'}`,
-      `${d.col}设计：${COLLAR_SELL[d.col] || '百搭好穿'}`,
-      `${d.st}版型：${STYLE_SELL[d.st] || '好搭不挑人'}`,
-      `尺码 ${d.sizes.join('/')}，${d.colors.length} 个颜色可选，内搭外穿都行`,
-      `实拍发货，48 小时内发出，支持七天无理由`
-    ];
-
-    // SKU
-    const lead = Math.max(0, +(d.price - 1.5).toFixed(2));
-    const skuRows = [];
-    d.colors.forEach((c, ci) => d.sizes.forEach(sz => {
-      skuRows.push({ c, sz, p: ci === 0 ? lead : d.price });
-    }));
-
-    // 属性
-    const attrs = [
-      ['领型', d.col], ['版型', AREA[d.st] || '常规'], ['厚薄', d.th],
-      ['风格', d.st + '风'], ['适用季节', season], ['面料', d.mat + '面料'],
-      ['适用人群', '女'], ['袖长', '长袖'], ['衣长', '常规款']
-    ];
-
-    // 详情
-    const desc = [
-      `【版型】${d.col}领口，${STYLE_SELL[d.st] || '好搭不挑人'}。落身不贴身，坐下站起都不勒，胸围和手臂都留了余量。`,
-      `【面料】${MAT_SELL[d.mat] || d.mat + '面料'}。${d.th === '加厚' ? '秋冬单穿够暖，里面加件打底更抗风。' : d.th === '薄款' ? '春秋单穿、夏天当空调衫都行。' : '春秋单穿刚好，冬天当内搭不显臃肿。'}`,
-      `【搭配】下面配牛仔裤、半身裙、直筒裤都能穿。尺码 ${d.sizes.join('/')}，偏胖建议大一码，不确定把身高体重发客服。`
-    ];
-
-    return { d, season, titles, points, skuRows, attrs, desc, lead };
-  }
-
-  function block(title, text){
-    const id = 'blk' + Math.random().toString(36).slice(2, 8);
-    return `<div style="background:#f7f6f1;border-radius:10px;padding:12px;margin:8px 0">
-      <div style="display:flex;gap:8px;align-items:flex-start">
-        <div id="${id}" style="flex:1;font-size:14px;line-height:1.7;white-space:pre-wrap">${text}</div>
-        <button class="btn ghost" style="flex:0 0 auto;padding:4px 10px;font-size:12px" data-copy="${id}">复制</button>
-      </div></div>`;
-  }
-
-  function render(){
-    const r = build();
-    const d = r.d;
-    // 标题
-    $('#lpTitles').innerHTML = r.titles.map((t, i) =>
-      `<div class="hint" style="margin:10px 0 0">标题 ${i + 1} · ${t.length} 字</div>` + block('', t)).join('');
-    // 卖点
-    $('#lpPoints').innerHTML = block('', r.points.map((p, i) => `${i + 1}. ${p}`).join('\n'));
-    // SKU 表
-    const head = '<tr><th>颜色</th><th>尺码</th><th style="text-align:right">售价</th></tr>';
-    const rows = r.skuRows.map(x => `<tr><td>${x.c}</td><td>${x.sz}</td><td style="text-align:right">${x.p.toFixed(2)}</td></tr>`).join('');
-    const skuText = '颜色\t尺码\t售价\n' + r.skuRows.map(x => `${x.c}\t${x.sz}\t${x.p.toFixed(2)}`).join('\n');
-    let priceTip = '';
-    if (d.cost > 0){
-      const be = (d.cost + 3.225) / 0.9834;
-      const net = d.price * 0.9834 - d.cost - 3.225;
-      const netAfterTax = net * 0.95;
-      priceTip = `<div class="hint">保本价 <b>${be.toFixed(2)}</b>｜主推价 ${d.price} 每单税后净利 <b>${netAfterTax.toFixed(2)}</b>｜引流价 ${r.lead} 每单税后净利 <b>${(r.lead * 0.9834 - d.cost - 3.225 > 0 ? (r.lead * 0.9834 - d.cost - 3.225) * 0.95 : r.lead * 0.9834 - d.cost - 3.225).toFixed(2)}</b></div>`;
-    }
-    $('#lpSkus').innerHTML = `<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:14px">${head}${rows}</table></div>`
-      + `<div class="hint">第一个颜色当引流色（主推价 − 1.5），其余按主推价。差价别拉太大，2 元左右最容易让人选贵的那个。</div>`
-      + priceTip + block('', skuText);
-    // 属性
-    $('#lpAttrs').innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:14px">`
-      + r.attrs.map(a => `<tr><td style="padding:6px 0;color:#6b7280;width:38%">${a[0]}</td><td style="padding:6px 0">${a[1]}</td></tr>`).join('')
-      + `</table>`;
-    // 详情
-    $('#lpDesc').innerHTML = block('', r.desc.join('\n\n'));
-    // 提示
-    $('#lpTip').innerHTML = `如果拿货价填了，会顺手算保本价和每单净利。口径和活动报名、算账那页一致：快递 3 + 退货重包装 0.15 + 退货运费 0.075，平台扣点 0.6%，增值税及附加 1.06%，所得税 5%。`;
-
-    $('#lpRes').classList.remove('hidden');
-    nest.length = 0; nest.push(r);
-  }
-
-  $('#lpGen').addEventListener('click', render);
-  document.addEventListener('click', e => {
-    const b = e.target.closest('[data-copy]');
-    if (!b) return;
-    const el = document.getElementById(b.dataset.copy);
-    if (el && typeof copyText === 'function') copyText(el.textContent);
-  });
-  $('#lpCopyAll').addEventListener('click', () => {
-    const r = nest[0]; if (!r) return;
-    const txt = '【标题】\n' + r.titles.join('\n') + '\n\n【卖点】\n' + r.points.map((p, i) => `${i + 1}. ${p}`).join('\n')
-      + '\n\n【SKU】\n' + r.skuRows.map(x => `${x.c} ${x.sz} ￥${x.p.toFixed(2)}`).join('\n')
-      + '\n\n【属性】\n' + r.attrs.map(a => `${a[0]}：${a[1]}`).join('\n')
-      + '\n\n【详情】\n' + r.desc.join('\n\n');
-    if (typeof copyText === 'function') copyText(txt);
-  });
-})();
-</script>
 </body>
 </html>
